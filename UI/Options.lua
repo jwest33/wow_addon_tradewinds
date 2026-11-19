@@ -10,7 +10,6 @@ local checks, ctl = {}, {}
 
 local TOGGLES = {
   { "sound", "Sound", "Card, combat and pack sounds." },
-  { "preview", "Large card preview", "Show a double-size copy of a card beside its tooltip." },
   { "portraits", "Creature portraits", "Show the creature's portrait beside a card's tooltip, when it has one." },
   { "forecast", "Round forecast", "While planning: lane markers, the predicted Morale change and units marked \"dies\"." },
   { "toast", "Offer a game on take-off", "Show a small prompt when a flight starts." },

@@ -1,6 +1,6 @@
 -- Shared UI pieces: fonts and colours, icon lookup, sounds, the card frame
 -- used on the board, in the hand, in the binder and in packs, and the card
--- tooltip with its large preview.
+-- tooltip.
 local _, ns = ...
 local R, Cards = ns.Rules, ns.Cards
 
@@ -314,7 +314,7 @@ function UI.CreateCard(parent)
   b.hpBg, b.hp = badge(b, "BadgeHealth", "BOTTOMRIGHT", -8, 8, 0.88, 0.2, 0.2)
 
   b.typeText = UI.Text(b, 8)
-  b.typeText:SetPoint("BOTTOM", 0, 6)
+  b.typeText:SetPoint("BOTTOM", 0, 3)
   b.typeText:SetTextColor(0.75, 0.72, 0.62)
 
   b.tag = UI.Text(b, 11, "OUTLINE")
@@ -341,7 +341,19 @@ function UI.CreateCard(parent)
   b.back:EnableMouse(false)
   b.back:Hide()
 
-  b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+  -- under the mouse: the card's own border lights up gold (textures in the
+  -- HIGHLIGHT layer are only drawn while the mouse is over the frame)
+  b.glow = b:CreateTexture(nil, "HIGHLIGHT")
+  b.glow:SetAllPoints()
+  b.glow:SetTexture(UI.ART .. "CardBorder")
+  b.glow:SetTexCoord(0, 1, 0, V)
+  b.glow:SetVertexColor(1, 0.8, 0.25)
+  b.glow:SetBlendMode("ADD")
+  b.wash = b:CreateTexture(nil, "HIGHLIGHT")
+  b.wash:SetPoint("TOPLEFT", 4, -4)
+  b.wash:SetPoint("BOTTOMRIGHT", -4, 4)
+  b.wash:SetColorTexture(1, 0.9, 0.6, 0.10)
+  b.wash:SetBlendMode("ADD")
   UI.AttachFlash(b)
   UI.AttachFloat(b)
   UI.AttachLunge(b)
@@ -441,48 +453,33 @@ function Card:ShowTooltip()
 end
 
 -- ---------------------------------------------------------------------------
--- Tooltip, with a double-size copy of the card beside it (the Preview
--- option) and the creature's portrait when there is one.
+-- Tooltip, with the creature's portrait on its far side when there is one
+-- (the tooltip opens to the right of the card, so the portrait goes to the
+-- right of the tooltip and never covers the card).
 -- ---------------------------------------------------------------------------
-local portrait, preview
-
-local function previewCard()
-  if preview then return preview end
-  preview = UI.CreateCard(GameTooltip)
-  preview:SetScale(2)
-  preview:EnableMouse(false)
-  preview:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", -2, 0)
-  preview:Hide()
-  return preview
-end
+local portrait
 
 local function portraitFrame()
   if portrait then return portrait end
   portrait = CreateFrame("Frame", nil, GameTooltip, UI.TEMPLATE)
   portrait:SetSize(76, 76)
+  portrait:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 2, 0)
   UI.Backdrop(portrait, { 0.05, 0.05, 0.05, 0.95 }, { 0.6, 0.5, 0.3 })
   portrait.tex = portrait:CreateTexture(nil, "ARTWORK")
   portrait.tex:SetPoint("TOPLEFT", 3, -3)
   portrait.tex:SetPoint("BOTTOMRIGHT", -3, 3)
   portrait:Hide()
-  GameTooltip:HookScript("OnHide", function()
-    portrait:Hide()
-    portrait.card = nil
-    if preview then preview:Hide() end
-  end)
+  GameTooltip:HookScript("OnHide", function() portrait:Hide(); portrait.card = nil end)
   return portrait
 end
 
-local function showPortrait(c, beside)
+local function showPortrait(c)
   local f = portraitFrame()
   f:Hide()
   f.card = c
-  f:ClearAllPoints()
-  if beside then f:SetPoint("TOPRIGHT", beside, "TOPLEFT", -2, 0)
-  else f:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", -2, 0) end
   if not (c.npc and ns.db and ns.db.settings.portraits and ns.Portraits) then return end
   local shown = ns.Portraits.Apply(f.tex, c, function()
-    if f.card == c and GameTooltip:IsShown() then showPortrait(c, beside) end
+    if f.card == c and GameTooltip:IsShown() then showPortrait(c) end
   end)
   if shown then f:Show() end
 end
@@ -532,12 +529,5 @@ function UI.CardTooltip(owner, id, unit, st, extra)
     for _, line in ipairs(extra) do tip:AddLine(line, 0.85, 0.85, 0.85, true) end
   end
   tip:Show()
-  local beside
-  if ns.db and ns.db.settings.preview then
-    beside = previewCard()
-    beside:SetCard(id, unit, st)
-  elseif preview then
-    preview:Hide()
-  end
-  showPortrait(c, beside)
+  showPortrait(c)
 end

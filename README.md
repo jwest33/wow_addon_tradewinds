@@ -139,7 +139,7 @@ and also check each one against you blocking their best attacker.
 
 - **Play**: the opponent list with stars and the daily task, then the board.
   Cards show their keywords and a short line of rules text; hover one for the
-  full wording, with a double-size copy of the card beside the tooltip. Click
+  full wording. Click
   a card and then a lane, or drag it onto the lane. **Replay** shows the last
   round again. The log under your hand is saved with the match. If you reload
   or log out while a round is playing out, it is shown when you come back.
@@ -147,7 +147,7 @@ and also check each one against you blocking their best attacker.
   three deck slots, the curve checklist and a chart of your deck's costs.
   Shift-click a card to craft it.
 - **Packs**: open one pack card by card, or all of them at once.
-- **Options**: sound, the card preview, portraits, the forecast, the flight
+- **Options**: sound, portraits, the forecast, the flight
   prompt, closing on landing or in combat, the minimap button, replay speed
   and window size.
 

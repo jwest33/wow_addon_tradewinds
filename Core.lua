@@ -123,7 +123,6 @@ local SETTINGS = {
   land = { "hideOnLand", "Close the window when you land" },
   combat = { "hideInCombat", "Close the window when combat starts" },
   portraits = { "portraits", "Creature portraits in card tooltips" },
-  preview = { "preview", "Large card preview beside tooltips" },
   sound = { "sound", "Sound" },
   forecast = { "forecast", "Lane markers and Morale forecast while planning" },
   minimap = { "minimap", "Minimap button" },
@@ -134,7 +133,7 @@ local HELP = {
   "/deckhand end - end the match you're in (counts as a loss, no reward)",
   "/deckhand speed 1-3 - how fast rounds play out",
   "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
-  "/deckhand toast | land | combat | portraits | preview | forecast | sound | minimap [on|off] - options (also in the Options tab)",
+  "/deckhand toast | land | combat | portraits | forecast | sound | minimap [on|off] - options (also in the Options tab)",
   "/deckhand icons - list card icons this client doesn't have (for bug reports)",
   "/deckhand rules - how to play",
 }

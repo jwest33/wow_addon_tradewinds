@@ -50,7 +50,6 @@ C.SETTING_DEFAULTS = {
   minimapAngle = 200,
   scale = 1,
   sound = true,
-  preview = true,      -- a double-size copy of a card beside its tooltip
 }
 C.DECK_SLOTS = 3
 
