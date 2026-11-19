@@ -518,6 +518,128 @@ def mock(path, parts):
     sheet.save(path)
 
 
+# ---------------------------------------------------------------------------
+# Combat effects (UI/Effects.lua). White on transparent: the addon tints them
+# with SetVertexColor and draws most of them additively.
+def _alpha_image(alpha, rgb=(255, 255, 255)):
+    a = np.clip(alpha, 0, 1)
+    img = np.zeros(a.shape + (4,), dtype=np.uint8)
+    img[..., 0], img[..., 1], img[..., 2] = rgb
+    img[..., 3] = (a * 255).round().astype(np.uint8)
+    return Image.fromarray(img, "RGBA")
+
+
+def _radius(n):
+    y, x = np.mgrid[0:n, 0:n]
+    c = (n - 1) / 2
+    return np.sqrt((x - c) ** 2 + (y - c) ** 2) / c
+
+
+def fx_spark():
+    """A soft round glow with a hot centre: projectiles, trails, flashes."""
+    r = _radius(64)
+    a = np.exp(-(r ** 2) * 5.0) + 0.55 * np.clip(1 - r * 3.2, 0, 1) ** 2
+    a = a * np.clip((1 - r) * 6, 0, 1)
+    _alpha_image(a).save(OUT / "Spark.tga")
+
+
+def fx_ring():
+    """A soft ring: impact shockwaves."""
+    r = _radius(128)
+    a = np.exp(-((r - 0.78) / 0.075) ** 2) + 0.18 * np.exp(-((r - 0.6) / 0.2) ** 2)
+    a = a * np.clip((1 - r) * 12, 0, 1)
+    _alpha_image(a).save(OUT / "Ring.tga")
+
+
+def fx_slash():
+    """A tapered diagonal streak: melee impacts (mirrored for variety)."""
+    n = 128
+    m = Image.new("L", (n * S, n * S), 0)
+    d = ImageDraw.Draw(m)
+    pts_a, pts_b = [], []
+    for i in range(41):
+        t = i / 40
+        x, y = 14 + t * 100, 114 - t * 100 + 18 * np.sin(np.pi * t)
+        w = 9 * np.sin(np.pi * t) ** 0.8 + 0.6
+        pts_a.append(((x - w * 0.7) * S, (y - w * 0.7) * S))
+        pts_b.append(((x + w * 0.7) * S, (y + w * 0.7) * S))
+    d.polygon(pts_a + pts_b[::-1], fill=255)
+    glow = m.filter(ImageFilter.GaussianBlur(7 * S))
+    core = m.filter(ImageFilter.GaussianBlur(1 * S))
+    a = np.maximum(np.asarray(core, dtype=float) / 255, np.asarray(glow, dtype=float) / 255 * 0.9)
+    small = Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), "L").resize((n, n), Image.LANCZOS)
+    _alpha_image(np.asarray(small, dtype=float) / 255).save(OUT / "Slash.tga")
+
+
+def _glyph(n, draw, name, blur=0.6):
+    m = Image.new("L", (n * S, n * S), 0)
+    draw(ImageDraw.Draw(m), n * S)
+    m = m.filter(ImageFilter.GaussianBlur(blur * S)).resize((n, n), Image.LANCZOS)
+    _alpha_image(np.asarray(m, dtype=float) / 255).save(OUT / (name + ".tga"))
+
+
+def fx_skull():
+    def draw(d, z):
+        u = z / 64
+        d.ellipse([12 * u, 6 * u, 52 * u, 44 * u], fill=255)
+        d.rounded_rectangle([20 * u, 34 * u, 44 * u, 56 * u], 4 * u, fill=255)
+        d.ellipse([19 * u, 20 * u, 30 * u, 33 * u], fill=0)
+        d.ellipse([34 * u, 20 * u, 45 * u, 33 * u], fill=0)
+        d.polygon([(32 * u, 33 * u), (28 * u, 41 * u), (36 * u, 41 * u)], fill=0)
+        for x in (25, 30, 35):
+            d.rectangle([x * u, 46 * u, (x + 2) * u, 56 * u], fill=0)
+    _glyph(64, draw, "Skull")
+
+
+def fx_shield():
+    def draw(d, z):
+        u = z / 64
+        outer = [(32, 4), (56, 12), (54, 34), (32, 60), (10, 34), (8, 12)]
+        inner = [(32, 10), (50, 16), (48, 33), (32, 53), (16, 33), (14, 16)]
+        d.polygon([(x * u, y * u) for x, y in outer], fill=255)
+        d.polygon([(x * u, y * u) for x, y in inner], fill=140)
+        d.line([(32 * u, 12 * u), (32 * u, 50 * u)], fill=255, width=int(3 * u))
+    _glyph(64, draw, "Shield")
+
+
+def fx_frost():
+    """Ice creeping in from the edges of a frozen card (a clear middle)."""
+    n = 128
+    r2 = np.random.default_rng(11)
+    m = Image.new("L", (n * S, n * S), 0)
+    d = ImageDraw.Draw(m)
+    for _ in range(46):
+        side = r2.integers(4)
+        t = r2.uniform(0, n)
+        x, y = [(t, 0), (n, t), (t, n), (0, t)][side]
+        ang = [np.pi / 2, np.pi, -np.pi / 2, 0][side] + r2.uniform(-0.9, 0.9)
+        length = r2.uniform(12, 34)
+        x2, y2 = x + np.cos(ang) * length, y + np.sin(ang) * length
+        d.line([(x * S, y * S), (x2 * S, y2 * S)], fill=255, width=int(1.6 * S))
+        for k in (-1, 1):
+            bx, by = x + (x2 - x) * 0.55, y + (y2 - y) * 0.55
+            ba = ang + k * 0.7
+            d.line([(bx * S, by * S), ((bx + np.cos(ba) * length * 0.35) * S, (by + np.sin(ba) * length * 0.35) * S)],
+                   fill=220, width=int(1.1 * S))
+    lines = np.asarray(m.filter(ImageFilter.GaussianBlur(0.7 * S)).resize((n, n), Image.LANCZOS), dtype=float) / 255
+    y, x = np.mgrid[0:n, 0:n]
+    edge = np.minimum(np.minimum(x, n - 1 - x), np.minimum(y, n - 1 - y)) / (n / 2)
+    haze = np.clip(1 - edge * 2.6, 0, 1) ** 1.5 * 0.75 + 0.12
+    a = np.clip(np.maximum(lines, haze), 0, 1)
+    _alpha_image(a, (225, 242, 255)).save(OUT / "Frost.tga")
+
+
+def fx_all():
+    OUT.mkdir(exist_ok=True)
+    fx_spark()
+    fx_ring()
+    fx_slash()
+    fx_skull()
+    fx_shield()
+    fx_frost()
+
+
+
 if __name__ == "__main__":
     parts = [card_base(), card_border(), card_back(), badge("Gem"),
              badge("BadgeAttack", [(32, 3), (58, 17), (58, 47), (32, 61), (6, 47), (6, 17)]),
@@ -526,6 +648,7 @@ if __name__ == "__main__":
     holo_foil()
     holo_ring()
     dia = diagrams()
+    fx_all()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
         mock(sys.argv[1], parts)

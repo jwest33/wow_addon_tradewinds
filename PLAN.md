@@ -245,8 +245,8 @@ Status (v0.5.0, 2026-11-19): built, not yet seen in game. Item by item:
   the tooltip, which stays for the full wording), 6, 8, 9, 10, 13 (filters,
   three deck slots, cost chart; crafting is shift-click), 14.
 - Partly: 3 (card frame, card back, badges, board and stars are generated
-  art; buttons, panels and lane markers still use the client's), 5 (attackers
-  lunge; no shake or death fade yet), 7 (drag and drop, and a nudge when
+  art; buttons, panels and lane markers still use the client's), 5 (done in
+  v0.11.0, see below), 7 (drag and drop, and a nudge when
   Supply and a playable card are left; no keyboard shortcuts), 11 (damage and
   unit counts on the end screen; rewards don't count up), 12 (open all, with
   the new cards listed in chat; no flip animation or glow).
@@ -289,6 +289,31 @@ Status (v0.5.0, 2026-11-19): built, not yet seen in game. Item by item:
 
 Done when: the UI test covers the new widgets, and a full match, a pack
 opening and a deck edit look right in game at scale 0.8, 1.0 and 1.3.
+
+Combat effects (v0.11.0, 2026-11-19, asked for: clearer battles). Before,
+every strike of a step flashed at once and all the damage landed together,
+so you couldn't see who hit whom. Now:
+
+- The engine reports each strike just before its damage (presentation only:
+  the hits are still worked out together, and units still die after the
+  whole volley), tagged with how it found its target (guard, ranged, pierce,
+  cleave) and whether it's the Swift step; Venom and Drain get events too.
+- `UI/Effects.lua`: a glowing projectile with a trail from each attacker to
+  its target (gold for yours, red for theirs; bigger when it goes for
+  Morale), an impact flash, shockwave and slash, the card shakes, a big
+  damage number pops; callouts name the keyword at work ("Guard" with a
+  shield, "Pierce", "Venom" with a skull, "Drain" as orbs back to Morale,
+  "Sturdy!", "Swift", "Arrive", "Fallen"); a dying unit leaves a reddening
+  ghost and a skull; units drop onto the board; tactics fly from the banner
+  to their lane; banners for "Combat" (everyone strikes at once), "Swift
+  units strike first" and the next round. Frozen units are iced over and
+  stealthed ones veiled for as long as it lasts.
+- A round takes about twice as long to watch at speed 1; the replay speed
+  setting and clicking the board (skip) still work, and skipping finishes
+  the effects at once. That also fixed an old bug: the skip flag was read
+  before it was declared, so skipping never stopped the lunges.
+- Textures (Spark, Ring, Slash, Skull, Shield, Frost) come from
+  `tools/gen_art.py`. None of it has been seen in game yet.
 
 ### Phase 3: Onboarding (M)
 

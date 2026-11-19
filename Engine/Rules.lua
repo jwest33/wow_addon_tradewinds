@@ -447,27 +447,34 @@ local function strikesFor(st, u, hits)
   local e = 3 - u.owner
   local eb = st.players[e].board
   local l = u.lane
-  local target
+  local target, via
   if u.kw.ranged then
     for k = 1, LANES do
       local x = eb[k]
       if x and (not target or x.hp < target.hp) then target = x end
     end
+    via = "ranged"
   else
-    target = eb[l] or pickGuard(eb, l)
+    target = eb[l]
+    if not target then
+      target = pickGuard(eb, l)
+      if target then via = "guard" end
+    end
   end
+  -- via: how the hit found its target, for the replay ("ranged", "guard",
+  -- "pierce", "cleave"); it doesn't change what happens
   if target then
-    hits[#hits + 1] = { src = u, dst = target, amt = atk }
+    hits[#hits + 1] = { src = u, dst = target, amt = atk, via = via }
     if u.kw.pierce and atk > target.hp then
-      hits[#hits + 1] = { src = u, mp = e, amt = atk - max(0, target.hp) }
+      hits[#hits + 1] = { src = u, mp = e, amt = atk - max(0, target.hp), via = "pierce", from = target }
     end
   else
-    hits[#hits + 1] = { src = u, mp = e, amt = atk }
+    hits[#hits + 1] = { src = u, mp = e, amt = atk, via = via }
   end
   if u.kw.cleave then
     for _, k in ipairs({ l - 1, l + 1 }) do
       local x = eb[k]
-      if x and x ~= target then hits[#hits + 1] = { src = u, dst = x, amt = atk } end
+      if x and x ~= target then hits[#hits + 1] = { src = u, dst = x, amt = atk, via = "cleave" } end
     end
   end
 end
@@ -488,27 +495,41 @@ function R.Combat(st)
       end
     end
     if #hits > 0 then
-      for _, h in ipairs(hits) do
-        emit(st, { t = "strike", p = h.src.owner, lane = h.src.lane,
-          tp = h.dst and h.dst.owner or h.mp, tl = h.dst and h.dst.lane or nil, amt = h.amt })
-      end
-      local drained, unstealthed = { 0, 0 }, {}
+      -- The hits of a step all happen at once (they were worked out above,
+      -- before any damage); each strike is reported just before its damage
+      -- so the replay can show them one by one.
+      emit(st, { t = "volley", swift = swiftStep or nil, n = #hits })
+      local drained, drainers, unstealthed = { 0, 0 }, { {}, {} }, {}
       for _, h in ipairs(hits) do
         local src = h.src
+        emit(st, { t = "strike", p = src.owner, lane = src.lane,
+          tp = h.dst and h.dst.owner or h.mp, tl = h.dst and h.dst.lane or nil, amt = h.amt,
+          via = h.via, fl = h.from and h.from.lane or nil, swift = swiftStep or nil })
         if h.dst then
           R.Damage(st, h.dst, h.amt)
-          if src.kw.venom then h.dst.doomed = true end
+          if src.kw.venom then
+            h.dst.doomed = true
+            emit(st, { t = "fx", kind = "venom", p = h.dst.owner, lane = h.dst.lane })
+          end
         else
           R.HitMorale(st, h.mp, h.amt)
         end
-        if src.kw.drain then drained[src.owner] = drained[src.owner] + h.amt end
+        if src.kw.drain then
+          drained[src.owner] = drained[src.owner] + h.amt
+          drainers[src.owner][src.lane] = true
+        end
         if src.kw.stealth then
           src.kw.stealth = nil
           unstealthed[#unstealthed + 1] = src
         end
       end
       for p = 1, 2 do
-        if drained[p] > 0 then R.RestoreMorale(st, p, drained[p]) end
+        if drained[p] > 0 then
+          local lanes = {}
+          for l = 1, LANES do if drainers[p][l] then lanes[#lanes + 1] = l end end
+          emit(st, { t = "fx", kind = "drain", p = p, amt = drained[p], lanes = lanes })
+          R.RestoreMorale(st, p, drained[p])
+        end
       end
       for _, u in ipairs(unstealthed) do setEvent(st, u, "reveal") end
       emit(st, { t = "beat" })

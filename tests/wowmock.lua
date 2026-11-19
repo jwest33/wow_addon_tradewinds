@@ -95,7 +95,10 @@ function CreateFrame(kind, name, parent, template)
   f.scripts, f.events, f.text = {}, {}, ""
   f.enabled = true
   f.template = template
-  function f:SetScript(k, fn) self.scripts[k] = fn end
+  function f:SetScript(k, fn)
+    self.scripts[k] = fn
+    if k == "OnUpdate" then MOCK.updaters[self] = fn end
+  end
   function f:GetScript(k) return self.scripts[k] end
   function f:HookScript(k, fn)
     local old = self.scripts[k]
@@ -170,8 +173,11 @@ function C_Timer.NewTicker(d, fn)
   C_Timer.After(d, again)
   return t
 end
-function MOCK.Advance(sec)
-  local stop = MOCK.now + sec
+-- Time passes in frames of FRAME_STEP seconds: due timers run, then every
+-- visible frame's OnUpdate.
+MOCK.updaters = {}
+MOCK.FRAME_STEP = 0.05
+local function runTimers(stop)
   while true do
     table.sort(MOCK.timers, function(a, b) return a.at < b.at end)
     local t = MOCK.timers[1]
@@ -180,6 +186,25 @@ function MOCK.Advance(sec)
     MOCK.now = math.max(MOCK.now, t.at)
     t.fn()
   end
+end
+local function runUpdates(dt)
+  local list = {}
+  for f, fn in pairs(MOCK.updaters) do list[#list + 1] = { f, fn } end
+  for _, u in ipairs(list) do
+    local f, fn = u[1], u[2]
+    if f.scripts.OnUpdate == fn and f:IsVisible() then fn(f, dt) end
+  end
+end
+function MOCK.Advance(sec)
+  local stop = MOCK.now + sec
+  while MOCK.now < stop do
+    local frameEnd = math.min(stop, MOCK.now + MOCK.FRAME_STEP)
+    runTimers(frameEnd)
+    local dt = frameEnd - MOCK.now
+    MOCK.now = frameEnd
+    if dt > 0 and next(MOCK.updaters) then runUpdates(dt) end
+  end
+  runTimers(stop)
   MOCK.now = stop
 end
 function GetTime() return MOCK.now end

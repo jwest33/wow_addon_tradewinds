@@ -41,6 +41,7 @@ local ctl = {}
 local plan, sel = {}, nil
 local busy, thinking = false, false
 local view          -- the board as it was, replayed event by event
+local skipping = false -- the rest of the replay is being skipped (no effects)
 local finished      -- the game that just ended, until "Continue"
 local lobbyView     -- the opponent list shows "circuit" | "heroic" | "games" (nil: not chosen yet)
 local forecast      -- what the planned round does if the opponent adds nothing
@@ -928,8 +929,14 @@ local function showTactic(e)
     local side = c.target == "friend" and e.p or (3 - e.p)
     b.where:SetText(("on %s lane %d"):format(side == ME and "your" or whose(OPP), e.lane))
     slots[side][e.lane]:Flash(0.7, 0.4, 1)
+    if not skipping then
+      local FX = UI.FX
+      FX.Projectile(b.card, slots[side][e.lane], c.target == "friend" and FX.GOLD or FX.MAGIC, 0.45)
+      FX.Pulse(slots[side][e.lane], FX.MAGIC, 120)
+    end
   else
     b.where:SetText("")
+    if not skipping then UI.FX.Pulse(b.card, UI.FX.MAGIC, 160) end
   end
   b:Show()
   bannerToken = bannerToken + 1
@@ -938,8 +945,28 @@ local function showTactic(e)
   G.Log("%s cast %s%s.", who(e.p), UI.CardName(e.id), e.lane and (" at lane " .. e.lane) or "")
 end
 
+-- Replay pacing (seconds at speed 1): a strike's projectile flies for
+-- FLIGHT (FLIGHT_FAR to a Morale panel), then its hit lands and holds for
+-- HIT before the next strike. Deaths come after the whole volley: every unit
+-- in a step strikes at once, so one that dies still struck.
+local FLIGHT, FLIGHT_FAR, HIT = 0.28, 0.4, 0.16
+
+-- Callouts sit toward the middle of the board, off the card's centre.
+local function calloutY(p) return p == ME and 44 or -44 end
+
+local VIA = {
+  guard = { "Guard", { 0.55, 0.8, 1 }, "Shield" },
+  ranged = { "Ranged", { 1, 0.85, 0.35 } },
+  pierce = { "Pierce", { 1, 0.45, 0.3 } },
+  cleave = { "Cleave", { 1, 0.7, 0.3 } },
+}
+
+local swiftShown = {}  -- "Swift" called out once per unit per volley
+
 local function apply(e)
   local t = e.t
+  local FX = UI.FX
+  local fx = not skipping
   if t == "phase" then
     ctl.phase:SetText(e.name == "combat" and "Combat!" or "Reveal!")
     if e.name == "reveal" then
@@ -947,59 +974,99 @@ local function apply(e)
       renderMarkers()
     end
     return 0.35
+  elseif t == "volley" then
+    swiftShown = {}
+    ctl.phase:SetText(e.swift and "Swift strikes!" or "Combat!")
+    if not fx then return 0 end
+    if e.swift then
+      FX.Banner("Swift units strike first", "A unit they kill doesn't strike back.", FX.FROST)
+    else
+      FX.Banner("Combat", "Every unit strikes at the same time.", FX.GOLD)
+    end
+    return 0.6
   elseif t == "place" then
     view.players[e.p].board[e.lane] = R.DeepCopy(e.unit)
     renderSlot(e.p, e.lane)
-    slots[e.p][e.lane].card:Flash(1, 1, 1)
+    local cd = slots[e.p][e.lane].card
+    cd:Flash(1, 1, 1)
+    if fx then FX.Arrive(cd, e.summon and FX.MAGIC or (e.p == ME and FX.MINE or FX.THEIRS)) end
     if e.summon then
       G.Log("%s joined %s side.", UI.CardName(e.unit.id), whose(e.p))
-      return 0.25
+      return 0.3
     end
     G.Log("%s played %s.", who(e.p), UI.CardName(e.unit.id))
-    return 0.12
+    return 0.18
   elseif t == "set" then
     view.players[e.p].board[e.lane] = R.DeepCopy(e.unit)
     renderSlot(e.p, e.lane)
     local col = SET_COLOR[e.why] or { 1, 1, 1 }
-    local cd = slots[e.p][e.lane].card
-    cd:Flash(col[1], col[2], col[3])
-    if e.why == "sturdy" then cd:Float("Sturdy!", 1, 1, 1)
-    elseif e.why == "freeze" then cd:Float("Frozen", 0.5, 0.8, 1)
-    elseif e.why == "transform" then G.Log("Baa! A unit became a %s.", UI.CardName(e.unit.id)) end
-    return 0
+    local s = slots[e.p][e.lane]
+    s.card:Flash(col[1], col[2], col[3])
+    if e.why == "transform" then G.Log("Baa! A unit became a %s.", UI.CardName(e.unit.id)) end
+    if not fx or e.why == "endround" then return 0 end
+    if e.why == "sturdy" then
+      FX.Pulse(s, FX.WHITE, 130)
+      FX.Callout(s, "Sturdy!", FX.WHITE, calloutY(e.p), "Shield")
+      return 0.3
+    elseif e.why == "freeze" then
+      FX.Pulse(s, FX.FROST, 120)
+      FX.Callout(s, "Frozen", FX.FROST, calloutY(e.p))
+      return 0.15
+    elseif e.why == "reveal" then
+      FX.Pulse(s, FX.MAGIC, 90)
+      return 0
+    elseif e.why == "heal" then
+      FX.Pulse(s, FX.HEAL, 110)
+    elseif e.why == "transform" then
+      FX.Pulse(s, FX.MAGIC, 130)
+    else
+      FX.Pulse(s, FX.GOLD, 100)
+    end
+    return 0.08
   elseif t == "dmg" then
     local u = view.players[e.p].board[e.lane]
     if u then u.hp = e.hp end
     renderSlot(e.p, e.lane)
-    local cd = slots[e.p][e.lane].card
-    cd:Float("-" .. e.amt, 1, 0.3, 0.3)
-    cd:Flash(1, 0.15, 0.15)
-    return 0
+    local s = slots[e.p][e.lane]
+    s.card:Flash(1, 0.15, 0.15)
+    if not fx then return 0 end
+    s.card:Shake(e.amt >= 3 and 5 or 3)
+    FX.Impact(s, FX.HURT, e.amt >= 4 and 1.25 or 1, true)
+    FX.Number(s, "-" .. e.amt, FX.HURT, e.amt >= 4 and 32 or 27)
+    return HIT
   elseif t == "morale" then
     view.players[e.p].morale = e.value
     renderPanels()
     local pn = panels[e.p]
     if e.delta < 0 then
-      pn:Float(tostring(e.delta), 1, 0.3, 0.3)
       pn:Flash(1, 0.1, 0.1)
       G.Log("%s lost %d Morale (%d left).", who(e.p), -e.delta, math.max(0, e.value))
+      if not fx then return 0 end
+      pn:Shake(-e.delta >= 4 and 7 or 4)
+      FX.Impact(pn.morale, FX.HURT, -e.delta >= 4 and 1.5 or 1.2)
+      FX.Number(pn.morale, tostring(e.delta), FX.HURT, -e.delta >= 4 and 38 or 32)
     else
-      pn:Float("+" .. e.delta, 0.3, 1, 0.3)
       pn:Flash(0.2, 1, 0.2)
       G.Log("%s restored %d Morale.", who(e.p), e.delta)
+      if not fx then return 0 end
+      FX.Pulse(pn.morale, FX.HEAL, 130)
+      FX.Number(pn.morale, "+" .. e.delta, FX.HEAL, 32)
     end
-    return 0
+    return HIT + 0.04
   elseif t == "die" then
+    local s = slots[e.p][e.lane]
+    if fx and s.card:IsShown() then FX.Death(s, s.card) end
     view.players[e.p].board[e.lane] = nil
     renderSlot(e.p, e.lane)
-    slots[e.p][e.lane]:Flash(0.7, 0.1, 0.1)
+    s:Flash(0.7, 0.1, 0.1)
     G.Log("%s %s died.", e.p == ME and "Your" or (who(OPP) .. "'s"), UI.CardName(e.id))
-    return 0
+    return fx and 0.24 or 0
   elseif t == "strike" then
-    local cd = slots[e.p][e.lane].card
+    local src = slots[e.p][e.lane]
+    local cd = src.card
     if cd:IsShown() then
       cd:Flash(1, 0.85, 0.3)
-      if not skipping then cd:Lunge(e.p == ME and 12 or -12) end
+      if fx then cd:Lunge(e.p == ME and 12 or -12) end
     end
     local rm = replayMarks[e.lane] or {}
     if not e.tl then
@@ -1011,11 +1078,49 @@ local function apply(e)
     paintMarker(e.lane, rm.state, rm.amt, nil)
     local def = MARK[rm.state]
     markers[e.lane]:Flash(def.r, def.g, def.b)
+    if not fx then return 0 end
+    -- a Pierce hit carries on from the unit it went through
+    local from = (e.via == "pierce" and e.fl) and slots[e.tp][e.fl] or src
+    local to = e.tl and slots[e.tp][e.tl] or panels[e.tp].morale
+    local far = e.tl == nil
+    FX.Projectile(from, to, e.p == ME and FX.MINE or FX.THEIRS, far and FLIGHT_FAR or FLIGHT, far)
+    local v = VIA[e.via]
+    if v then
+      if e.via == "guard" then
+        FX.Callout(to, v[1], v[2], calloutY(e.tp), v[3])
+      elseif e.via ~= "cleave" or not swiftShown["c" .. e.p .. e.lane] then
+        FX.Callout(from, v[1], v[2], calloutY(e.p))
+        swiftShown["c" .. e.p .. e.lane] = true
+      end
+    end
+    if e.swift and not swiftShown[e.p .. ":" .. e.lane] then
+      swiftShown[e.p .. ":" .. e.lane] = true
+      if not v then FX.Callout(src, "Swift", FX.FROST, calloutY(e.p)) end
+    end
+    return far and FLIGHT_FAR or FLIGHT
+  elseif t == "fx" then
+    if not fx then return 0 end
+    if e.kind == "venom" then
+      local s = slots[e.p][e.lane]
+      s.card:Flash(0.4, 1, 0.3)
+      FX.Callout(s, "Venom", FX.VENOM, calloutY(e.p), "Skull")
+      return 0.12
+    elseif e.kind == "drain" then
+      for i, l in ipairs(e.lanes or {}) do
+        local s = slots[e.p][l]
+        FX.Projectile(s, panels[e.p].morale, FX.HEAL, 0.38)
+        if i == 1 then FX.Callout(s, "Drain", FX.HEAL, calloutY(e.p)) end
+      end
+      return 0.4
+    end
     return 0
   elseif t == "trigger" then
-    local cd = slots[e.p][e.lane].card
-    if cd:IsShown() then cd:Flash(0.7, 0.4, 1) end
-    return 0
+    local s = slots[e.p][e.lane]
+    if s.card:IsShown() then s.card:Flash(0.7, 0.4, 1) end
+    if not fx then return 0 end
+    FX.Pulse(s, FX.MAGIC, 130)
+    FX.Callout(s, e.kind == "fallen" and "Fallen" or "Arrive", FX.MAGIC, calloutY(e.p))
+    return 0.32
   elseif t == "tactic" then
     showTactic(e)
     if not skipping then UI.Sound("tactic") end
@@ -1027,6 +1132,10 @@ local function apply(e)
     ctl.phase:SetText("")
     renderControls()
     G.Log("|cffffd100Round %d|r", e.n)
+    if fx then
+      FX.Banner("Round " .. e.n, ("Supply %d. %s initiative."):format(math.min(e.n, R.SUPPLY_CAP),
+        e.init == ME and "You have" or (who(OPP) .. " has")), FX.GOLD)
+    end
     return 0
   elseif t == "burn" then
     G.Log("%s hand was full: %s burned.", e.p == ME and "Your" or (who(OPP) .. "'s"), UI.CardName(e.id))
@@ -1038,7 +1147,7 @@ local function apply(e)
   return 0
 end
 
-local queue, qi, skipping = {}, 1, false
+local queue, qi = {}, 1
 
 local function finishReplay()
   view = nil
@@ -1092,6 +1201,7 @@ end
 function G.Skip()
   if view and not skipping then
     skipping = true
+    UI.FX.Clear()
     token = token + 1
     pump(token)
   end
@@ -1399,6 +1509,7 @@ end
 -- Matches against other players (Net.lua calls these)
 -- ---------------------------------------------------------------------------
 local function stopReplay()
+  if UI.FX then UI.FX.Clear() end
   token = token + 1
   view, busy, skipping = nil, false, false
   if ctl.banner then
@@ -1616,6 +1727,7 @@ end
 
 function G.OnHide()
   sel = nil
+  if UI.FX then UI.FX.Clear() end
 end
 
 -- ---------------------------------------------------------------------------
@@ -2085,6 +2197,7 @@ local function buildPanel(p)
   f.counts:SetTextColor(0.7, 0.7, 0.7)
   UI.AttachFlash(f)
   UI.AttachFloat(f)
+  UI.AttachShake(f)
   f:EnableMouse(true)
   UI.SimpleTooltip(f, "Morale", "When it reaches 0 at the end of a round, that player loses. After round 8 the higher Morale wins.",
     "Units with nothing across from them in their lane hit Morale. The small number beside it is what your plan does this round if your opponent plays nothing new.")
@@ -2319,6 +2432,10 @@ local function buildBoard()
   bn.where:SetTextColor(0.7, 0.7, 0.7)
   bn:Hide()
   ctl.banner = bn
+
+  -- combat effects (UI/Effects.lua): over the cards and the tactic banner,
+  -- under the tips and the end screen
+  UI.FX.Build(board, board:GetFrameLevel() + 32, LX + (4 * SW + 3 * LGAP) / 2, MID_Y)
 
   -- end of game
   local ov = CreateFrame("Frame", nil, board)

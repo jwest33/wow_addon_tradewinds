@@ -137,6 +137,42 @@ do -- Ranged picks the weakest enemy unit
   check(st.players[2].morale == M, "ranged doesn't hit Morale while enemies exist")
 end
 
+do -- the replay's view of combat: each strike comes right before its damage,
+  -- tagged with how it found its target
+  local st = blank()
+  st.events = {}
+  put(st, 1, 1, "bear")          -- Guard
+  put(st, 2, 2, "grunt")         -- nothing across: the bear guards
+  put(st, 1, 3, "axe")           -- Ranged
+  put(st, 2, 3, "ogre")          -- Cleave: hits lanes 2 and 4 too
+  put(st, 1, 4, "gryphon")       -- Swift, Pierce
+  put(st, 2, 4, "kobold")
+  put(st, 2, 1, "bat")           -- Drain
+  combatOnly(st)
+  local ev = st.events
+  local pairsOk, volleys, swiftVolley, tags, drain = true, 0, false, {}, nil
+  for i, e in ipairs(ev) do
+    if e.t == "volley" then
+      volleys = volleys + 1
+      if e.swift then swiftVolley = true end
+    elseif e.t == "strike" then
+      local nx = ev[i + 1]
+      local want = e.tl and "dmg" or "morale"
+      if not (nx and nx.t == want and nx.p == e.tp and (not e.tl or nx.lane == e.tl)) then pairsOk = false end
+      if e.via then tags[e.via] = e end
+    elseif e.t == "fx" and e.kind == "drain" then
+      drain = e
+    end
+  end
+  check(pairsOk, "every strike is followed by its own damage")
+  check(volleys == 2 and swiftVolley, "two volleys: the Swift one, then the rest")
+  check(tags.guard and tags.guard.p == 2 and tags.guard.lane == 2 and tags.guard.tl == 1, "a guarded hit is tagged guard")
+  check(tags.ranged and tags.ranged.p == 1 and tags.ranged.lane == 3, "a ranged hit is tagged ranged")
+  check(tags.pierce and tags.pierce.fl == 4 and tags.pierce.tl == nil and tags.pierce.swift, "Pierce carries on from the lane it hit")
+  check(tags.cleave and tags.cleave.p == 2 and tags.cleave.lane == 3, "cleave hits are tagged cleave")
+  check(drain and drain.p == 2 and drain.lanes[1] == 1 and drain.amt == 2, "drain says who drained and how much")
+end
+
 do -- Pierce
   local st = blank()
   put(st, 1, 1, "ragnaros")         -- 6/6 cleave pierce

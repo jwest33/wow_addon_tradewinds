@@ -260,6 +260,23 @@ function UI.AttachLunge(owner)
   end
 end
 
+-- A short side-to-side shake (a hit): owner:Shake(px).
+function UI.AttachShake(owner)
+  local ag = owner:CreateAnimationGroup()
+  local steps = {}
+  for i, k in ipairs({ 1, -2, 2, -2, 1 }) do
+    local a = ag:CreateAnimation("Translation")
+    a:SetDuration(0.035)
+    a:SetOrder(i)
+    steps[i] = { anim = a, k = k }
+  end
+  owner.Shake = function(_, px)
+    ag:Stop()
+    for _, st in ipairs(steps) do st.anim:SetOffset(st.k * (px or 4), 0) end
+    ag:Play()
+  end
+end
+
 -- ---------------------------------------------------------------------------
 -- Card frame. The frame art is three layers: the icon, the card body with a
 -- window over the icon (Art/CardBase), and a grey border tinted by rarity
@@ -272,6 +289,9 @@ local V = 358 / 512            -- the card fills the top of its 256x512 texture
 local ART_BOX = { 16, 16, 240, 166 }
 local NAME_BOX = { 10, 158, 246, 214 }
 local TEXT_BOX = { 16, 220, 240, 320 }
+UI.CARD_V = V
+-- Where the art sits on the card (x, y from the top left, width, height).
+UI.CARD_ART = { ART_BOX[1] * K, ART_BOX[2] * K, (ART_BOX[3] - ART_BOX[1]) * K, (ART_BOX[4] - ART_BOX[2]) * K }
 local KEYWORD_COLOR = "|cff1c3f7a"
 
 local function badge(b, file, point, x, y, r, g, bl)
@@ -350,6 +370,19 @@ function UI.CreateCard(parent)
   b.tag = UI.Text(b, 11, "OUTLINE")
   b.tag:SetPoint("TOP", b.art, "TOP", 0, -3)
 
+  -- frozen: ice over the card; stealthed: a dark veil over the art
+  b.frost = b:CreateTexture(nil, "OVERLAY", nil, 2)
+  b.frost:SetPoint("TOPLEFT", 1, -1)
+  b.frost:SetPoint("BOTTOMRIGHT", -1, 1)
+  b.frost:SetTexture(UI.ART .. "Frost")
+  b.frost:SetVertexColor(0.75, 0.9, 1)
+  b.frost:SetAlpha(0.75)
+  b.frost:Hide()
+  b.veil = b:CreateTexture(nil, "BACKGROUND", nil, 2)
+  b.veil:SetAllPoints(b.art)
+  b.veil:SetColorTexture(0.12, 0.05, 0.2, 0.55)
+  b.veil:Hide()
+
   b.dim = b:CreateTexture(nil, "OVERLAY", nil, 7)
   b.dim:SetPoint("TOPLEFT", 2, -2)
   b.dim:SetPoint("BOTTOMRIGHT", -2, 2)
@@ -387,6 +420,7 @@ function UI.CreateCard(parent)
   UI.AttachFlash(b)
   UI.AttachFloat(b)
   UI.AttachLunge(b)
+  UI.AttachShake(b)
 
   for k, v in pairs(Card) do b[k] = v end
   b:SetScript("OnEnter", b.ShowTooltip)
@@ -422,6 +456,8 @@ function Card:SetCard(id, unit, st, holo)
   self.border = BORDER_COLOR[c.rarity]
   self.frame:SetVertexColor(self.border[1], self.border[2], self.border[3])
   self.tag:SetText("")
+  self.frost:Hide()
+  self.veil:Hide()
   if c.type == "unit" then
     local atk, hp, maxHp, kw = c.atk, c.hp, c.hp, c.kw
     if unit then
@@ -440,11 +476,15 @@ function Card:SetCard(id, unit, st, holo)
     self.text:SetText(faceText(c, kw))
     self.typeText:SetText("")
     if unit and unit.frozen then
-      self.art:SetVertexColor(0.45, 0.7, 1)
+      self.art:SetVertexColor(0.55, 0.75, 1)
+      self.frost:Show()
       self.tag:SetText("Frozen")
       self.tag:SetTextColor(0.6, 0.85, 1)
     elseif unit and kw.stealth then
       self.art:SetVertexColor(0.6, 0.6, 0.7)
+      self.veil:Show()
+      self.tag:SetText("Stealth")
+      self.tag:SetTextColor(0.8, 0.7, 1)
     end
   else
     self.atk:Hide(); self.atkBg:Hide(); self.hp:Hide(); self.hpBg:Hide()

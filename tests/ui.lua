@@ -531,6 +531,68 @@ do
   G.EndMatch(); G.Continue()
 end
 
+-- combat effects: a projectile for every strike, a ghost for every death,
+-- nothing left running afterwards, and skipping finishes them at once
+do
+  local FX = UI.FX
+  G.Start("dorn")
+  local st = db.match.st
+  local function put(p, lane, id)
+    local u = R.Summon(st, p, lane, id)
+    u.new = nil
+    return u
+  end
+  for p = 1, 2 do st.players[p].board = {} end
+  put(1, 1, "bear"); put(1, 3, "axe"); put(1, 4, "gryphon")
+  put(2, 1, "bat"); put(2, 2, "grunt"); put(2, 3, "ogre"); put(2, 4, "kobold")
+  st.players[1].hand = {}
+  st.players[2].hand = {}
+  local before = {}
+  for k, v in pairs(FX.counts) do before[k] = v end
+  local function made(kind) return (FX.counts[kind] or 0) - (before[kind] or 0) end
+  G.LockIn()
+  MOCK.Advance(1.2)
+  local m = db.match
+  local ev = m.last.events
+  local strikes, deaths, drains, tactics = 0, 0, 0, 0
+  for _, e in ipairs(ev) do
+    if e.t == "strike" then strikes = strikes + 1
+    elseif e.t == "die" then deaths = deaths + 1
+    elseif e.t == "fx" and e.kind == "drain" then drains = drains + #e.lanes
+    elseif e.t == "tactic" and e.lane then tactics = tactics + 1 end
+  end
+  check(FX.Busy(), "effects play while the round does")
+  MOCK.Advance(60)
+  check(m.shown == true and not FX.Busy(), "and are all finished when it's over")
+  check(strikes >= 6 and made("projectile") == strikes + drains + tactics,
+    ("a projectile for every strike (%d strikes, %d projectiles)"):format(strikes, made("projectile")))
+  check(deaths >= 1 and made("death") == deaths, ("a ghost for every death (%d)"):format(deaths))
+  check(made("banner") >= 2 and made("callout") >= 4 and made("number") >= strikes, "banners, callouts and numbers")
+  -- frozen and stealthed units look it
+  st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  local ice = put(1, 1, "grunt")
+  ice.frozen = true
+  put(1, 2, "footpad")
+  G.Refresh()
+  local s1, s2 = G.api.slot(1, 1).card, G.api.slot(1, 2).card
+  check(s1.frost:IsShown() and not s1.veil:IsShown(), "a frozen unit is iced over")
+  check(s2.veil:IsShown() and not s2.frost:IsShown(), "a stealthed unit is veiled")
+  ice.frozen = nil
+  G.Refresh()
+  check(not s1.frost:IsShown(), "and the ice goes when it thaws")
+  -- skipping
+  st.players[2].board = {}
+  put(2, 1, "grunt"); put(2, 3, "grunt")
+  G.LockIn()
+  MOCK.Advance(1.2)
+  check(FX.Busy(), "effects running")
+  G.Skip()
+  check(not FX.Busy(), "skipping finishes them at once")
+  MOCK.Advance(60)
+  G.EndMatch(); G.Continue()
+end
+
 -- stars, rewards and the daily task through a real match
 do
   db.daily = { date = ns.Today(), id = "rounds", n = C.TaskById.rounds.goal - 1, done = false }
