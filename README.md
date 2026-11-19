@@ -2,7 +2,8 @@
 
 A Warcraft-flavoured card game for WoW Forever, made for flights and boat
 rides. Collect cards from packs you earn by travelling and playing, build a
-20-card deck, and take on the regulars of the tavern circuit.
+20-card deck, take on the regulars of the tavern circuit, and challenge your
+friends.
 
 `/deckhand` opens it. The first time, Flightmaster Dorn offers a short guided
 match (the **tutorial**, also `/deckhand tutorial`): four rounds where he tells
@@ -157,6 +158,35 @@ against each opponent also pays a pack and a **holographic** copy of their
 signature card (or makes yours holographic). Win all eight and Ragnaros turns
 holographic too.
 
+### Playing other players
+
+Challenge a friend or guildmate who has Deckhand: **Challenge a player** under
+the opponent list (target them first and their name is filled in), or
+`/deckhand challenge Name`. They get a popup to accept or decline. You both
+need the same version of Deckhand.
+
+- You each play your own deck, and rounds work as usual: plan, lock in, and
+  the round plays out once both of you have locked in. "Bob has locked in"
+  shows when they're waiting for you; while you wait for them, your plan
+  stays on the board. If your window is closed when they lock in, a prompt
+  says so.
+- The match is saved like any other. If either of you reloads or logs out,
+  it carries on when you're both back: an unanswered plan is sent again after
+  5, 15 and 45 seconds, then every 2 minutes, until the other side has it. A
+  round that played out while your window was closed is shown when you open
+  it.
+- Ending the match concedes it: a loss for you, a win for them.
+- A win pays like a normal opponent's (4 shards, the first win of the day,
+  the daily task) once the game reached round 4. Results are kept per player
+  ("Against players" under the opponent list).
+- Both clients play the same game from the same seed and send only their
+  plans. After every round they compare a checksum of the game; if the two
+  ever disagree, the match ends without a result (please report that).
+
+It's meant for friends: plans travel in the open, so it isn't cheat-proof.
+Whispers only reach players you could whisper anyway (same faction, same or
+connected realm).
+
 ### The computer
 
 It plays honestly. Each round it lists the plans it could play, plays each
@@ -206,6 +236,8 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
   opens a tab). There's also a minimap button and a key binding.
 - `/deckhand tutorial`: the guided match against Dorn. It doesn't use your
   deck and doesn't count on the circuit.
+- `/deckhand challenge [name]`: challenge another player (no name: your
+  target).
 - `/deckhand end`: end the match you're in (the same as the **End match**
   button; it asks first, counts as a loss and earns nothing). You never
   *have* to end a match: it's saved after every round.
@@ -221,8 +253,14 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
 
 - `Engine/Rules.lua`: the rules, pure Lua with no WoW calls and a seeded
   random number generator, so the same seed and plans always give the same
-  game. That's what lets the computer simulate, and what player-vs-player will
-  use later (both clients run the same game and only send plans).
+  game. That's what lets the computer simulate, and what player against
+  player uses: both clients run the same game and only send plans. Each side
+  plays as its own player 1, so the two copies are mirror images; the few
+  steps whose order matters (shuffling, drawing, who goes first) run in
+  "seat" order (`R.Seats`), which keeps them identical. `R.Checksum` is the
+  fingerprint the two compare after every round.
+- `Net.lua`: player against player over addon whispers (challenge, decks,
+  plans, checksums, concede, resends). The message format is at the top.
 - `Engine/Cards.lua`, `Engine/CardsRoads.lua`: the two card sets.
   `Engine/AI.lua`: the computer opponent.
 - `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs,
@@ -254,7 +292,7 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
 
 ```
 pip install lupa
-python tests/run_tests.py
+python tests/run_tests.py          # engine, ui and pvp
 ```
 
 `tests/engine.lua` checks every keyword and card effect, determinism, the copy
@@ -264,6 +302,13 @@ game length and balance). `tests/ui.lua` loads the whole
 addon against a strict WoW API mock, where an unknown widget method is an
 error. It plays games through the same functions the buttons call, then
 opens packs, edits the deck and takes a mock flight and a mock boat ride.
+
+`tests/pvp.lua` runs two complete clients (each with its own mock, saved
+data and copy of the addon) joined by a pretend network. It plays whole
+matches between them, loses a message, reloads one client mid-match, takes
+one offline for a few minutes, concedes, and corrupts one copy to check the
+mismatch is caught. `tests/engine.lua` also plays 30 games as both mirrored
+copies and checks they never differ.
 
 `tests/balance.lua` is the balance harness, run on demand (minutes, not
 seconds):

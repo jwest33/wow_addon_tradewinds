@@ -63,6 +63,7 @@ ns.On("PLAYER_LOGIN", function()
   if not ns.db then return end
   if ns.UI and ns.UI.Init then ns.UI.Init() end
   if ns.Travel then ns.Travel.Init() end
+  if ns.Net then ns.Net.Init() end
   if ns.endedByUpdate then
     local o = ns.OpponentById[ns.endedByUpdate]
     ns.Print("This update changed Deckhand's rules, so your match against %s was ended. It doesn't count as a win or a loss.",
@@ -72,7 +73,8 @@ ns.On("PLAYER_LOGIN", function()
   local s = ns.db.stats
   if m then
     ns.Print("Your %s is waiting. Type /deckhand to continue.",
-      m.tutorial and "tutorial" or ("game against " .. ns.OpponentById[m.opp].name))
+      m.tutorial and "tutorial" or m.pvp and ("game against " .. ns.Net.Short(m.pvp.name))
+      or ("game against " .. ns.OpponentById[m.opp].name))
   elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
     ns.Print("New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack.")
   elseif ns.db.packs > 0 then
@@ -136,6 +138,7 @@ local SETTINGS = {
 local HELP = {
   "/deckhand - show or hide the game  (/deckhand play | cards | packs | guide | options opens a tab)",
   "/deckhand tutorial - a guided match against Flightmaster Dorn",
+  "/deckhand challenge [name] - challenge another player who has Deckhand (no name: your target)",
   "/deckhand end - end the match you're in (counts as a loss, no reward)",
   "/deckhand speed 1-3 - how fast rounds play out",
   "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
@@ -160,6 +163,14 @@ SlashCmdList.DECKHAND = function(msg)
   elseif cmd == "tutorial" then
     ns.UI.Show("play")
     ns.UI.Game.StartTutorial()
+  elseif cmd == "challenge" or cmd == "duel" then
+    local name = rest ~= "" and rest or (UnitIsPlayer and UnitIsPlayer("target") and UnitName("target")) or nil
+    if name then
+      ns.UI.Show("play")
+      ns.UI.Game.Challenge(name)
+    else
+      ns.Print("Type /deckhand challenge Name, or target the player first.")
+    end
   elseif cmd == "end" or cmd == "concede" then
     if ns.db.match then ns.UI.Game.AskEndMatch() else ns.Print("You're not in a match.") end
   elseif cmd == "speed" then

@@ -120,6 +120,7 @@ local SOUNDS = {
   reveal = { "IG_SPELLBOOK_OPEN" },
   rare = { "IG_QUEST_LIST_COMPLETE" },
   tab = { "IG_CHARACTER_INFO_TAB" },
+  challenge = { "READY_CHECK", "IG_PLAYER_INVITE", "IG_QUEST_LIST_OPEN" },
 }
 
 function UI.Sound(key)

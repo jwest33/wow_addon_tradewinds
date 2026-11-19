@@ -186,6 +186,17 @@ local function order(st)
   return st.init, 3 - st.init
 end
 
+-- Seats. In player-against-player each client runs the game with itself as
+-- player 1, so the two copies are mirror images of each other. st.seats gives
+-- the local player number of the first and second seat (the challenger sits
+-- first): { 2, 1 } on the side that accepted. The few steps whose order
+-- matters (shuffling, drawing, picking who goes first) go in seat order, and
+-- everything else already goes by initiative, so both copies stay identical.
+-- A game without st.seats is seat 1 = player 1.
+local SEATS = { 1, 2 }
+local function seats(st) return st.seats or SEATS end
+R.Seats = seats
+
 -- Can `p`'s tactics target unit u?
 function R.Targetable(u, p)
   return u ~= nil and not (u.kw.stealth and u.owner ~= p)
@@ -539,7 +550,7 @@ function R.StartRound(st)
   st.round = st.round + 1
   st.init = (st.round % 2 == 1) and st.first or (3 - st.first)
   emit(st, { t = "round", n = st.round, init = st.init })
-  for p = 1, 2 do
+  for _, p in ipairs(seats(st)) do
     local P = st.players[p]
     P.supply = min(st.round, R.SUPPLY_CAP)
     R.Draw(st, p, 1, R.GUIDED_DRAWS[st.round])
@@ -559,8 +570,12 @@ end
 -- opts: seed, decks = { {ids}, {ids} }, names = { a, b }, first = 1|2 (optional),
 -- stacked = true: the decks aren't shuffled and every draw takes the top card
 -- (the last one in the list), guided or not. The tutorial uses it.
+-- seats = { 2, 1 }: this copy of a player-against-player game belongs to the
+-- player in the second seat (see seats above); decks and names are still
+-- given as { yours, theirs }.
 function R.NewGame(o)
-  local st = { v = 1, round = 0, rng = R.Seed(o.seed), uid = 0, players = {}, stacked = o.stacked or nil }
+  local st = { v = 1, round = 0, rng = R.Seed(o.seed), uid = 0, players = {}, stacked = o.stacked or nil,
+    seats = o.seats and { o.seats[1], o.seats[2] } or nil }
   for p = 1, 2 do
     local deck = {}
     for i, id in ipairs(o.decks[p]) do card(id); deck[i] = id end
@@ -568,12 +583,55 @@ function R.NewGame(o)
       name = o.names and o.names[p] or ("Player " .. p),
       morale = R.START_MORALE, deck = deck, hand = {}, grave = {}, board = {}, supply = 0,
     }
-    if not o.stacked then shuffle(st, deck) end
   end
-  st.first = o.first or R.Random(st, 2)
-  for p = 1, 2 do R.Draw(st, p, R.OPENING_HAND) end
+  local S = seats(st)
+  if not o.stacked then
+    for _, p in ipairs(S) do shuffle(st, st.players[p].deck) end
+  end
+  st.first = o.first or S[R.Random(st, 2)]
+  for _, p in ipairs(S) do R.Draw(st, p, R.OPENING_HAND) end
   R.StartRound(st)
   return st
+end
+
+-- A fingerprint of the game, taken in seat order so that both copies of a
+-- player-against-player game give the same one. Names and events are left
+-- out. Returns a short string.
+function R.Checksum(st)
+  local S = seats(st)
+  local function seat(p)
+    if p == nil then return "-" end
+    if p == 0 then return "0" end
+    return S[1] == p and "1" or "2"
+  end
+  local parts = { st.round, st.rng, st.uid, seat(st.init), seat(st.first), seat(st.winner) }
+  for _, p in ipairs(S) do
+    local P = st.players[p]
+    parts[#parts + 1] = P.morale .. "/" .. P.supply
+    parts[#parts + 1] = table.concat(P.hand, ",")
+    parts[#parts + 1] = table.concat(P.deck, ",")
+    parts[#parts + 1] = table.concat(P.grave, ",")
+    for l = 1, LANES do
+      local u = P.board[l]
+      if u then
+        local kws = {}
+        for k, v in pairs(u.kw) do if v then kws[#kws + 1] = k end end
+        table.sort(kws)
+        parts[#parts + 1] = table.concat({ u.uid, u.id, u.atk, u.hp, u.maxHp, u.tmpAtk or 0, u.frozen and 1 or 0,
+          u.new and 1 or 0, u.doomed and 1 or 0, table.concat(kws, "+") }, ":")
+      else
+        parts[#parts + 1] = "."
+      end
+    end
+  end
+  local s = table.concat(parts, "|")
+  local a, b = 7, 11
+  for i = 1, #s do
+    local c = s:byte(i)
+    a = (a * 31 + c) % 2147483647
+    b = (b * 131 + c) % 1000000007
+  end
+  return ("%x%x"):format(a, b)
 end
 
 -- Play one round. plans = { plan1, plan2 }. opts.noAdvance stops before the

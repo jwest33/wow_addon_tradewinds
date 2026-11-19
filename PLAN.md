@@ -404,10 +404,35 @@ Status (v0.8.0, 2026-11-19): built, not yet seen in game.
 5. A memory and frame-time check over a long session.
 6. 1.0.
 
+### Player against player
+
+Status (v0.9.0, 2026-11-19): built, not yet tried in game. Moved ahead of
+Phase 5 (decision 5).
+
+- `Net.lua`: challenge / accept / decline over addon whispers, the
+  challenger's seed, both decks (40 characters each), plans at lock-in and a
+  checksum after every round. Different versions are refused up front
+  (protocol, rules version and a fingerprint of the card list).
+- The engine runs the order-sensitive steps in seat order (`R.Seats`), so
+  each client can play as its own player 1 and the board code didn't need to
+  change. A test plays 30 games as both mirrored copies.
+- Lost messages: unanswered plans are resent (5, 15, 45 s, then every 2
+  min); the receiver acknowledges; a plan for an old round is answered only
+  if the sender says it still needs ours (an early version echoed plans
+  between two clients forever after a reload, caught by the test). After a
+  reload a client asks for what it missed. A finished match is remembered so
+  a late resend still gets its answer.
+- "No player named X" is hidden during a match and shown as a note on the
+  board instead.
+- Rewards like a normal opponent once the game reaches round 4; a separate
+  record per player.
+- Not done: spectating, rematch button, a last-round checksum (the final
+  round's results aren't compared, since both sides end the match at once),
+  trading.
+
 ### After 1.0
 
-Player against player over addon messages (already designed for: seeds,
-plans, checksums), then trading.
+Trading.
 
 ---
 

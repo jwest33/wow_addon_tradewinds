@@ -219,7 +219,39 @@ function StaticPopup_Show(name, arg) MOCK.popup = { name = name, arg = arg } end
 
 function date(fmt) return "2026-11-19" end
 function time() return 1790000000 end
-function UnitName() return "Tester" end
+function UnitName(unit)
+  if unit == "target" then return MOCK.targetName end
+  return MOCK.playerName or "Tester"
+end
+function UnitIsPlayer(unit) return unit == "target" and MOCK.targetName ~= nil end
+
+-- addon messages: sent ones are recorded (and handed to MOCK.onSend, which
+-- the player-against-player test uses to connect two clients)
+MOCK.sent = {}
+C_ChatInfo = {}
+function C_ChatInfo.RegisterAddonMessagePrefix(prefix)
+  assert(#prefix <= 16, "addon message prefix too long")
+  MOCK.prefix = prefix
+  return true
+end
+function C_ChatInfo.SendAddonMessage(prefix, msg, chatType, target)
+  -- recorded first, so a test can check them even if the addon catches the error
+  table.insert(MOCK.sent, { prefix = prefix, msg = msg, chatType = chatType, target = target })
+  assert(prefix == MOCK.prefix, "prefix not registered: " .. tostring(prefix))
+  assert(type(msg) == "string" and #msg <= 255, "addon message too long (" .. #tostring(msg) .. ")")
+  assert(not msg:find("%z"), "addon message with a zero byte")
+  if MOCK.onSend then MOCK.onSend(prefix, msg, chatType, target) end
+  return true
+end
+ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+MOCK.filters = {}
+function ChatFrame_AddMessageEventFilter(event, fn)
+  MOCK.filters[event] = MOCK.filters[event] or {}
+  table.insert(MOCK.filters[event], fn)
+end
+function StaticPopup_Hide(name)
+  if MOCK.popup and MOCK.popup.name == name then MOCK.popup = nil end
+end
 function UnitOnTaxi() return MOCK.onTaxi end
 function GetUnitSpeed() return MOCK.speed end
 function UnitPosition() if MOCK.posX then return MOCK.posY, MOCK.posX, 0, MOCK.inst or 0 end end

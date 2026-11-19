@@ -11,7 +11,7 @@ import sys
 import lupa.lua51 as lupa
 
 root = pathlib.Path(__file__).resolve().parent.parent
-suites = sys.argv[1:] or ["engine", "ui"]
+suites = sys.argv[1:] or ["engine", "ui", "pvp"]
 args = []
 if suites[0] == "balance":
     suites, args = ["balance"], sys.argv[2:]

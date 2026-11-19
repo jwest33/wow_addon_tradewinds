@@ -671,6 +671,38 @@ do
   check(sig(c) == sig(d), "a clone plays out the same")
 end
 
+-- 3b. player against player: each side runs the game as player 1, and the two
+-- mirrored copies must stay identical
+do
+  local rnd = lcg(31)
+  local drift, games, mirrored = 0, 0, 0
+  for g = 1, 30 do
+    local d1, d2 = randomDeck(rnd), randomDeck(rnd)
+    local host = R.NewGame({ seed = g * 7919, decks = { d1, d2 }, seats = { 1, 2 } })
+    local guest = R.NewGame({ seed = g * 7919, decks = { d2, d1 }, seats = { 2, 1 } })
+    while not host.winner do
+      if R.Checksum(host) ~= R.Checksum(guest) then drift = drift + 1; break end
+      local mine = AI.ChoosePlan(host, 1, "normal", rnd)      -- each side plans as its own player 1
+      local theirs = AI.ChoosePlan(guest, 1, "normal", rnd)
+      R.Resolve(host, { mine, theirs })
+      R.Resolve(guest, { theirs, mine })
+    end
+    games = games + 1
+    if R.Checksum(host) ~= R.Checksum(guest) then drift = drift + 1 end
+    if guest.winner == (host.winner == 0 and 0 or 3 - host.winner) then mirrored = mirrored + 1 end
+  end
+  check(drift == 0, ("mirrored copies of a game stay identical round by round (%d drifted)"):format(drift))
+  check(mirrored == games, "and agree on the winner")
+  local a = R.NewGame({ seed = 5, decks = { C.STARTER, C.STARTER } })
+  local b = R.Clone(a)
+  check(R.Checksum(a) == R.Checksum(b), "a checksum is the same for the same game")
+  b.players[2].morale = b.players[2].morale - 1
+  check(R.Checksum(a) ~= R.Checksum(b), "and changes when the game does")
+  local plain = R.NewGame({ seed = 77, decks = { C.STARTER, ns.OpponentById.dorn.deck } })
+  local seated = R.NewGame({ seed = 77, decks = { C.STARTER, ns.OpponentById.dorn.deck }, seats = { 1, 2 } })
+  check(R.Checksum(plain) == R.Checksum(seated), "seats { 1, 2 } is the same game as no seats")
+end
+
 -- 4. AI games ---------------------------------------------------------------------
 do
   local function series(n, levels, label)

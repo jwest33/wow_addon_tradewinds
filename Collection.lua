@@ -27,7 +27,7 @@ C.TRAVEL_PACK_SECONDS = 1200
 C.STARTER_PACKS = 1
 C.TUTORIAL_PACKS = 1           -- for finishing the tutorial, once
 C.REWARD = {
-  win = { easy = 2, normal = 4, hard = 6, heroic = 8 },  -- shards, by the opponent's level
+  win = { easy = 2, normal = 4, hard = 6, heroic = 8, pvp = 4 },  -- shards, by the opponent's level
   heroicPacks = 1,    -- the first heroic win against each opponent (with a holographic signature card)
   fullWins = 3,       -- wins per opponent per day that pay the full amount
   reducedWin = 1,     -- what later wins that day pay
@@ -126,7 +126,16 @@ C.SCHEMA = #C.MIGRATIONS
 
 -- Is this saved match something the game can carry on with?
 local function playable(m)
-  if type(m) ~= "table" or not ns.OpponentById[m.opp] then return false end
+  if type(m) ~= "table" then return false end
+  if m.opp == "pvp" then
+    local p = m.pvp
+    if type(p) ~= "table" or type(p.name) ~= "string" or type(p.gid) ~= "string" then return false end
+    for _, k in ipairs({ "mine", "theirs", "sums", "theirSums" }) do
+      if type(p[k]) ~= "table" then return false end
+    end
+  elseif not ns.OpponentById[m.opp] then
+    return false
+  end
   local st = m.st
   if type(st) ~= "table" or type(st.round) ~= "number" or type(st.rng) ~= "number" or type(st.players) ~= "table" then
     return false
@@ -175,6 +184,7 @@ function C.Init(db, rules)
   db.stats = db.stats or { wins = 0, losses = 0, draws = 0 }
   db.record = db.record or {}
   db.heroic = db.heroic or {}
+  db.pvpRecord = db.pvpRecord or {}
   db.stars = db.stars or {}
   db.progress = db.progress or {}
   db.progress.travel = db.progress.travel or 0
@@ -671,6 +681,59 @@ function C.RecordResult(db, oppId, result, today, info)
     if not info.conceded and (info.round or C.REWARD.lossRound) >= C.REWARD.lossRound then
       out[#out + 1] = { shards = C.REWARD.loss, why = "good game" }
     end
+  end
+  return pay(db, out)
+end
+
+-- A match against another player (name: as it shows on the board). info:
+--   conceded      you ended it early: a loss that pays nothing
+--   theyConceded  they did: a win
+--   round, morale
+-- A win pays like a normal opponent's (and counts for the first win of the
+-- day and the daily task), but only if the game reached round 4: a friend
+-- giving up straight away pays nothing.
+function C.RecordPvP(db, name, result, today, info)
+  info = info or {}
+  db.pvpRecord = db.pvpRecord or {}
+  local rec = db.pvpRecord[name] or { w = 0, l = 0, d = 0 }
+  db.pvpRecord[name] = rec
+  local out = {}
+  local played = (info.round or C.REWARD.lossRound) >= C.REWARD.lossRound
+  if result == "win" then
+    db.stats.wins = db.stats.wins + 1
+    rec.w = rec.w + 1
+    if played then
+      local p = db.progress
+      if type(p.wins) ~= "table" or p.wins.date ~= today then p.wins = { date = today, n = {} } end
+      local key = "pvp:" .. name
+      local before = p.wins.n[key] or 0
+      p.wins.n[key] = before + 1
+      if before < C.REWARD.fullWins then
+        out[#out + 1] = { shards = C.REWARD.win.pvp, why = "victory over " .. name }
+      else
+        out[#out + 1] = { shards = C.REWARD.reducedWin,
+          why = ("victory; games against %s have paid in full %d times today"):format(name, C.REWARD.fullWins) }
+      end
+      if p.dailyWin ~= today then
+        p.dailyWin = today
+        out[#out + 1] = { packs = 1, why = "first win of the day" }
+      end
+      local t = C.TaskAdvance(db, today, "wins", 1)
+      if t then out[#out + 1] = t end
+      if (info.morale or 0) >= 8 then
+        t = C.TaskAdvance(db, today, "healthy", 1)
+        if t then out[#out + 1] = t end
+      end
+    end
+  else
+    if result == "loss" then
+      db.stats.losses = db.stats.losses + 1
+      rec.l = rec.l + 1
+    else
+      db.stats.draws = db.stats.draws + 1
+      rec.d = rec.d + 1
+    end
+    if not info.conceded and played then out[#out + 1] = { shards = C.REWARD.loss, why = "good game" } end
   end
   return pay(db, out)
 end
