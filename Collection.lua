@@ -27,7 +27,8 @@ C.TRAVEL_PACK_SECONDS = 1200
 C.STARTER_PACKS = 1
 C.TUTORIAL_PACKS = 1           -- for finishing the tutorial, once
 C.REWARD = {
-  win = { easy = 2, normal = 4, hard = 6 },  -- shards, by the opponent's level
+  win = { easy = 2, normal = 4, hard = 6, heroic = 8 },  -- shards, by the opponent's level
+  heroicPacks = 1,    -- the first heroic win against each opponent (with a holographic signature card)
   fullWins = 3,       -- wins per opponent per day that pay the full amount
   reducedWin = 1,     -- what later wins that day pay
   loss = 1,           -- a loss or draw...
@@ -173,6 +174,7 @@ function C.Init(db, rules)
   db.shards = db.shards or 0
   db.stats = db.stats or { wins = 0, losses = 0, draws = 0 }
   db.record = db.record or {}
+  db.heroic = db.heroic or {}
   db.stars = db.stars or {}
   db.progress = db.progress or {}
   db.progress.travel = db.progress.travel or 0
@@ -472,6 +474,28 @@ function C.AllStars(db)
   return true
 end
 
+-- Heroic rematches: every opponent again, with their heroic deck and the
+-- strongest AI. They open once the last opponent on the circuit is beaten.
+-- The first heroic win against each pays a pack and a holographic copy of
+-- their signature card; all of them, a holographic champion's card.
+function C.HeroicUnlocked(db)
+  local last = ns.Opponents[#ns.Opponents]
+  return (db.stars[last.id] and db.stars[last.id][1]) and true or false
+end
+
+-- { w, l, d, beaten }
+function C.HeroicRecord(db, oppId)
+  db.heroic[oppId] = db.heroic[oppId] or { w = 0, l = 0, d = 0 }
+  return db.heroic[oppId]
+end
+
+function C.AllHeroic(db)
+  for _, o in ipairs(ns.Opponents) do
+    if not (db.heroic[o.id] and db.heroic[o.id].beaten) then return false end
+  end
+  return true
+end
+
 -- Daily task ----------------------------------------------------------------------
 -- One a day. Most are counted from the events of each round you play.
 C.TASKS = {
@@ -543,9 +567,9 @@ local function pay(db, out)
   return out
 end
 
-local function giveCard(db, out, id, why)
-  local kind, shards = C.Add(db, id)
-  out[#out + 1] = { card = id, kind = kind, dupe = shards, why = why }
+local function giveCard(db, out, id, why, holo)
+  local kind, shards = C.Add(db, id, holo)
+  out[#out + 1] = { card = id, kind = kind, dupe = shards, why = why, holo = holo or nil }
 end
 
 -- result: "win" | "loss" | "draw". today: a date string. info (all optional):
@@ -553,14 +577,21 @@ end
 --   round     the round the game ended in
 --   morale, margin   your Morale at the end, and your lead
 --   plain     the deck had nothing rarer than uncommon
+--   heroic    a heroic rematch (no stars; see C.HeroicUnlocked)
 -- Returns a list of rewards, each with a reason (why): { packs = n },
--- { shards = n }, { star = i }, { card = id, kind =, dupe = shards },
+-- { shards = n }, { star = i }, { card = id, kind =, dupe = shards, holo = },
 -- { unlocked = opponent id }.
 function C.RecordResult(db, oppId, result, today, info)
   info = info or {}
   local o = ns.OpponentById[oppId]
-  local rec = db.record[oppId] or { w = 0, l = 0, d = 0 }
-  db.record[oppId] = rec
+  local heroic = info.heroic and true or false
+  local rec
+  if heroic then
+    rec = C.HeroicRecord(db, oppId)
+  else
+    rec = db.record[oppId] or { w = 0, l = 0, d = 0 }
+    db.record[oppId] = rec
+  end
   local out = {}
   if result == "win" then
     local wasUnlocked = {}
@@ -568,12 +599,15 @@ function C.RecordResult(db, oppId, result, today, info)
     db.stats.wins = db.stats.wins + 1
     rec.w = rec.w + 1
     -- shards: full value for the first few wins against this opponent today
+    -- (heroic rematches count apart)
     local p = db.progress
     if type(p.wins) ~= "table" or p.wins.date ~= today then p.wins = { date = today, n = {} } end
-    local before = p.wins.n[oppId] or 0
-    p.wins.n[oppId] = before + 1
+    local key = heroic and (oppId .. ":heroic") or oppId
+    local before = p.wins.n[key] or 0
+    p.wins.n[key] = before + 1
     if before < C.REWARD.fullWins then
-      out[#out + 1] = { shards = C.REWARD.win[o.level] or C.REWARD.win.normal, why = "victory" }
+      out[#out + 1] = { shards = heroic and C.REWARD.win.heroic or C.REWARD.win[o.level] or C.REWARD.win.normal,
+        why = heroic and "heroic victory" or "victory" }
     else
       out[#out + 1] = { shards = C.REWARD.reducedWin,
         why = ("victory; %s has paid in full %d times today"):format(o.short, C.REWARD.fullWins) }
@@ -582,26 +616,43 @@ function C.RecordResult(db, oppId, result, today, info)
       p.dailyWin = today
       out[#out + 1] = { packs = 1, why = "first win of the day" }
     end
-    -- stars
-    db.stars[oppId] = db.stars[oppId] or {}
-    local stars = db.stars[oppId]
-    local earned = { true, (info.margin or 0) >= C.REWARD.decisive, info.plain and true or false }
-    for i, got in ipairs(earned) do
-      if got and not stars[i] then
-        stars[i] = true
-        local why = "star: " .. C.STARS[i].name
-        out[#out + 1] = { star = i, why = C.STARS[i].name }
-        if i == 1 then out[#out + 1] = { packs = 1, why = why }
-        elseif i == 2 then giveCard(db, out, o.signature, why)
-        else out[#out + 1] = { packs = 2, why = why } end
+    if heroic then
+      if not rec.beaten then
+        rec.beaten = true
+        local why = "first heroic win against " .. o.short
+        out[#out + 1] = { packs = C.REWARD.heroicPacks, why = why }
+        giveCard(db, out, o.signature, why, true)
       end
-    end
-    for _, x in ipairs(ns.Opponents) do
-      if not wasUnlocked[x.id] and C.Unlocked(db, x.id) then out[#out + 1] = { unlocked = x.id, why = "beat " .. o.short } end
-    end
-    if not p.champion and C.AllStars(db) then
-      p.champion = true
-      giveCard(db, out, ns.CHAMPION_CARD, "every star on the circuit")
+      if not p.heroicChampion and C.AllHeroic(db) then
+        p.heroicChampion = true
+        giveCard(db, out, ns.CHAMPION_CARD, "every heroic rematch won", true)
+      end
+    else
+      -- stars
+      db.stars[oppId] = db.stars[oppId] or {}
+      local stars = db.stars[oppId]
+      local earned = { true, (info.margin or 0) >= C.REWARD.decisive, info.plain and true or false }
+      for i, got in ipairs(earned) do
+        if got and not stars[i] then
+          stars[i] = true
+          local why = "star: " .. C.STARS[i].name
+          out[#out + 1] = { star = i, why = C.STARS[i].name }
+          if i == 1 then out[#out + 1] = { packs = 1, why = why }
+          elseif i == 2 then giveCard(db, out, o.signature, why)
+          else out[#out + 1] = { packs = 2, why = why } end
+        end
+      end
+      for _, x in ipairs(ns.Opponents) do
+        if not wasUnlocked[x.id] and C.Unlocked(db, x.id) then out[#out + 1] = { unlocked = x.id, why = "beat " .. o.short } end
+      end
+      if C.HeroicUnlocked(db) and not p.heroicOpen then
+        p.heroicOpen = true
+        out[#out + 1] = { heroic = true, why = "beat " .. o.short }
+      end
+      if not p.champion and C.AllStars(db) then
+        p.champion = true
+        giveCard(db, out, ns.CHAMPION_CARD, "every star on the circuit")
+      end
     end
     local t = C.TaskAdvance(db, today, "wins", 1)
     if t then out[#out + 1] = t end

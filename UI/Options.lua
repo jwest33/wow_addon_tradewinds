@@ -13,8 +13,8 @@ local TOGGLES = {
   { "portraits", "Creature portraits", "Show a portrait of the creature beside a card's tooltip, when it has one. Off by default." },
   { "forecast", "Round forecast", "While planning: lane markers, the predicted Morale change and units marked \"dies\"." },
   { "chatter", "Opponent lines", "Your opponent says a line now and then during a match (a big hit, a close call). Click it to dismiss." },
-  { "toast", "Offer a game on take-off", "Show a small prompt when a flight starts." },
-  { "hideOnLand", "Close on landing", "Close the window when your flight ends. Your game is saved." },
+  { "toast", "Offer a game when travelling", "Show a small prompt when a flight, boat or zeppelin ride starts." },
+  { "hideOnLand", "Close on arrival", "Close the window when you land or dock. Your game is saved." },
   { "hideInCombat", "Close in combat", "Close the window when combat starts." },
   { "minimap", "Minimap button", "Show the Deckhand button on the minimap." },
 }

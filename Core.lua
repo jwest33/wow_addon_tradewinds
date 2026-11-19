@@ -123,8 +123,8 @@ local function onOff(word, current)
 end
 
 local SETTINGS = {
-  toast = { "toast", "Offer a game when a flight starts" },
-  land = { "hideOnLand", "Close the window when you land" },
+  toast = { "toast", "Offer a game when a flight, boat or zeppelin ride starts" },
+  land = { "hideOnLand", "Close the window when you land or dock" },
   combat = { "hideInCombat", "Close the window when combat starts" },
   portraits = { "portraits", "Creature portraits in card tooltips" },
   sound = { "sound", "Sound" },
@@ -141,6 +141,7 @@ local HELP = {
   "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
   "/deckhand toast | land | combat | portraits | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)",
   "/deckhand icons - list card icons this client doesn't have (for bug reports)",
+  "/deckhand travel [log] - what Deckhand sees of your travel (log: a line a second, to check boat detection)",
   "/deckhand rules - the rules (the Guide tab)",
 }
 
@@ -184,6 +185,8 @@ SlashCmdList.DECKHAND = function(msg)
     local missing = ns.UI.MissingIcons()
     if #missing == 0 then ns.Print("All card icons found.") end
     for _, line in ipairs(missing) do ns.Print(line) end
+  elseif cmd == "travel" then
+    ns.Travel.Report(rest:lower())
   else
     for _, line in ipairs(HELP) do ns.Print(line) end
   end

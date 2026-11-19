@@ -1,19 +1,39 @@
--- The computer opponent. It builds random legal plans, plays each one out on a
--- copy of the game (the opponent's side doing nothing new), scores the board
--- after combat and keeps the best. It never looks at the other player's hand
--- or plan. Difficulty sets how many plans it tries, how much noise it adds,
--- and whether it also checks each plan against the opponent blocking.
+-- The computer opponent.
+--
+-- Each round it lists the plans it could play (every legal one when there
+-- aren't too many, otherwise a random sample), plays each one out on a copy of
+-- the game and scores the board after combat. Higher levels also test every
+-- plan against a few made-up replies: plays the other player could make with
+-- their Supply and number of cards, drawn from a pool of ordinary cards. It
+-- never looks at the other player's hand or plan.
+--
+-- Opponents have a style (Data/Opponents.lua): how much they care about
+-- hitting your Morale, keeping their own, and holding the board.
 local _, ns = ...
 local R = ns.Rules
 
 local AI = {}
 ns.AI = AI
 
+local min, max = math.min, math.max
+
+-- samples   random plans tried
+-- search    list every plan instead, when there are at most this many
+-- replies   made-up replies each plan is tested against (none: it assumes
+--           you add nothing)
+-- quiet     the weight of "you add nothing" against each reply
+-- pickTop, noise   how loosely it chooses (easy)
+--
+-- Measured with tests/balance.lua (random decks, 600 games): listing every
+-- plan without replies loses to random sampling (it plays too exactly to
+-- "you add nothing"); the replies are what make it stronger.
 AI.LEVELS = {
-  easy = { samples = 6, pickTop = 0.6, noise = 10, block = false },
-  normal = { samples = 60, pickTop = 0, noise = 0.5, block = false },
-  hard = { samples = 140, pickTop = 0, noise = 0, block = true },
+  easy = { samples = 6, pickTop = 0.6, noise = 10 },
+  normal = { samples = 60, noise = 0.5 },
+  hard = { samples = 100, replies = 2 },
+  heroic = { samples = 200, search = 300, replies = 6 },
 }
+AI.LEVEL_ORDER = { "easy", "normal", "hard", "heroic" }
 
 local KW_VALUE = {
   swift = 1, guard = 1, ranged = 1, pierce = 1, cleave = 1.5, venom = 1.5,
@@ -21,22 +41,26 @@ local KW_VALUE = {
 }
 
 local function unitValue(st, u)
-  local v = R.Attack(st, u) * 1.1 + math.max(0, u.hp) * 0.8 + 0.5
+  local v = R.Attack(st, u) * 1.1 + max(0, u.hp) * 0.8 + 0.5
   for k in pairs(u.kw) do v = v + (KW_VALUE[k] or 0) end
   return v
 end
 
--- Score of the position for player p (higher is better).
-function AI.Evaluate(st, p)
+local NEUTRAL = {}
+
+-- Score of the position for player p (higher is better). how (optional):
+-- the opponent's style, aggro, guard and board (weights, 1 = neutral).
+function AI.Evaluate(st, p, how)
   if st.winner then
     if st.winner == p then return 10000 elseif st.winner == 0 then return 0 end
     return -10000
   end
+  how = how or NEUTRAL
   local me, op = st.players[p], st.players[3 - p]
   local left = R.MAX_ROUNDS - st.round
   local wMorale = 2 + (R.MAX_ROUNDS - left) * 0.25
-  local wBoard = 0.4 + 0.6 * math.min(1, left / 4)
-  local s = (me.morale - op.morale) * wMorale
+  local wBoard = (0.4 + 0.6 * min(1, left / 4)) * (how.board or 1)
+  local s = me.morale * wMorale * (how.guard or 1) - op.morale * wMorale * (how.aggro or 1)
   local bv = 0
   for l = 1, R.LANES do
     local u = me.board[l]
@@ -45,7 +69,9 @@ function AI.Evaluate(st, p)
     if x then bv = bv - unitValue(st, x) end
   end
   s = s + bv * wBoard
-  s = s + (#me.hand - #op.hand) * 0.7 * math.min(1, left / 3)
+  -- cards in hand: options for later rounds (valuing them by cost instead
+  -- was tried and won no more games)
+  s = s + (#me.hand - #op.hand) * 0.7 * min(1, left / 3)
   return s
 end
 
@@ -94,45 +120,159 @@ function AI.RandomPlan(st, p, rnd)
   return plan
 end
 
+-- Two plans that play the same cards in the same lanes are the same plan,
+-- whichever copy of a card they use.
 local function planKey(plan)
   local parts = {}
-  for i, a in ipairs(plan) do parts[i] = a.h .. ":" .. tostring(a.lane) end
+  for i, a in ipairs(plan) do parts[i] = tostring(a.id) .. ":" .. tostring(a.lane) end
   table.sort(parts)
   return table.concat(parts, ",")
 end
+AI.PlanKey = planKey
 
--- "What if they block my best attacker?": a stand-in enemy unit, sized to
--- the opponent's supply, in the empty enemy lane across from p's strongest
--- attacker (existing or about to be played).
-local function addBlocker(c, p, plan)
-  local P, eb = c.players[p], c.players[3 - p].board
-  local atk = {}
+-- Every legal plan, or nil when there are more than `limit`. Units come
+-- before tactics so a friendly tactic can target a unit played this round.
+-- Enemy tactics are aimed at lanes where they can hit something (a unit they
+-- can target, or one next to it) and at one empty lane (Fireball's Morale hit).
+function AI.AllPlans(st, p, limit)
+  local P, E = st.players[p], st.players[3 - p]
+  local order = {}
+  for h, id in ipairs(P.hand) do
+    if R.Card(id).type == "unit" then order[#order + 1] = h end
+  end
+  for h, id in ipairs(P.hand) do
+    if R.Card(id).type ~= "unit" then order[#order + 1] = h end
+  end
+  local enemyLanes, emptyAdded = {}, false
   for l = 1, R.LANES do
-    if P.board[l] then atk[l] = R.Attack(c, P.board[l]) end
+    local here = R.Targetable(E.board[l], p)
+    local near = R.Targetable(E.board[l - 1], p) or R.Targetable(E.board[l + 1], p)
+    if here or near then
+      enemyLanes[#enemyLanes + 1] = l
+    elseif not E.board[l] and not emptyAdded then
+      enemyLanes[#enemyLanes + 1] = l
+      emptyAdded = true
+    end
   end
-  for _, a in ipairs(plan) do
-    local cd = R.Card(P.hand[a.h])
-    if cd.type == "unit" then atk[a.lane] = cd.atk end
+  local out, seen, plan, taken = {}, {}, {}, {}
+  local leaves, maxLeaves = 0, limit * 8
+  local function leaf()
+    leaves = leaves + 1
+    if leaves > maxLeaves then return false end
+    local key = planKey(plan)
+    if seen[key] then return true end
+    seen[key] = true
+    if #out >= limit then return false end
+    local copy = {}
+    for i, a in ipairs(plan) do copy[i] = { h = a.h, id = a.id, lane = a.lane } end
+    out[#out + 1] = copy
+    return true
   end
-  local best
-  for l = 1, R.LANES do
-    if atk[l] and not eb[l] and (not best or atk[l] > atk[best]) then best = l end
+  local function rec(i, left)
+    if i > #order then return leaf() end
+    if not rec(i + 1, left) then return false end -- without this card
+    local h = order[i]
+    local id = P.hand[h]
+    local c = R.Card(id)
+    if c.cost > left then return true end
+    local lanes
+    if c.type == "unit" then
+      lanes = {}
+      for l = 1, R.LANES do
+        if not P.board[l] and not taken[l] then lanes[#lanes + 1] = l end
+      end
+    elseif c.target == "enemy" then
+      lanes = enemyLanes
+    elseif c.target == "friend" then
+      lanes = {}
+      for l = 1, R.LANES do
+        if P.board[l] or taken[l] then lanes[#lanes + 1] = l end
+      end
+    else
+      lanes = { false }
+    end
+    for _, l in ipairs(lanes) do
+      plan[#plan + 1] = { h = h, id = id, lane = l or nil }
+      if c.type == "unit" then taken[l] = true end
+      local ok = rec(i + 1, left - c.cost)
+      if c.type == "unit" then taken[l] = nil end
+      plan[#plan] = nil
+      if not ok then return false end
+    end
+    return true
   end
-  if not best then return end
-  local s = c.players[3 - p].supply
-  local g = R.Summon(c, 3 - p, best, "ghost")
-  g.atk = math.max(1, math.floor(s * 0.7 + 0.5))
-  g.hp, g.maxHp = s + 1, s + 1
+  if not rec(1, P.supply) then return nil end
+  return out
 end
 
-local function simulate(st, p, plan, rnd, block)
+-- The made-up replies are built from these: ordinary units by cost, and
+-- Fireball as the stand-in for removal.
+AI.GENERIC = {
+  { "kobold", "murloc" },
+  { "thug", "gnoll" },
+  { "grunt", "croc" },
+  { "patchwork", "crusader" },
+  { "brave" },
+  { "brave" },
+}
+AI.GENERIC_TACTIC = "fireball"
+
+-- Something player q might play this round, judged only from what anyone at
+-- the table can see: their Supply, how many cards they hold, their empty lanes
+-- and p's units.
+function AI.SampleReply(st, q, rnd)
+  local Q, P = st.players[q], st.players[3 - q]
+  local supply, cards = Q.supply, #Q.hand
+  local free = R.EmptyLanes(st, q)
+  local reply = {}
+  local tcost = R.Card(AI.GENERIC_TACTIC).cost
+  while #reply < cards and supply > 0 do
+    if rnd(100) > 85 then break end -- sometimes they keep cards back
+    local played = false
+    if supply >= tcost and rnd(100) <= 20 then
+      local targets = {}
+      for l = 1, R.LANES do
+        if R.Targetable(P.board[l], q) then targets[#targets + 1] = l end
+      end
+      if #targets > 0 then
+        reply[#reply + 1] = { h = #reply + 1, id = AI.GENERIC_TACTIC, lane = targets[rnd(#targets)] }
+        supply = supply - tcost
+        played = true
+      end
+    end
+    if not played then
+      if #free == 0 then break end
+      local cost = min(supply, #AI.GENERIC)
+      if cost > 1 and rnd(100) <= 40 then cost = rnd(cost) end -- not always the biggest
+      local pool = AI.GENERIC[cost]
+      reply[#reply + 1] = { h = #reply + 1, id = pool[rnd(#pool)], lane = table.remove(free, rnd(#free)) }
+      supply = supply - cost
+    end
+  end
+  return reply
+end
+
+-- Plays `plan` out on a copy of the game. scen.seed: the copy's random
+-- numbers (so the AI can't foresee the real ones); scen.reply: the other
+-- side's made-up play, if any. Their real hand is swapped for that reply plus
+-- blank cards, so only its size carries over.
+local function simulate(st, p, plan, scen, how)
   local c = R.Clone(st)
-  c.rng = R.Seed(rnd(2147483646)) -- don't let the AI foresee random effects
+  c.rng = scen.seed
   local plans = { {}, {} }
   plans[p] = plan
-  if block then addBlocker(c, p, plan) end
+  local q = 3 - p
+  local Q = c.players[q]
+  local hand = {}
+  local reply = scen.reply
+  if reply then
+    for i, a in ipairs(reply) do hand[i] = a.id end
+    plans[q] = reply
+  end
+  for i = #hand + 1, #Q.hand do hand[i] = "ghost" end
+  Q.hand = hand
   R.Resolve(c, plans, { noAdvance = true })
-  return AI.Evaluate(c, p)
+  return AI.Evaluate(c, p, how)
 end
 
 -- Round 1's plans: one unit the AI can afford, in each free lane. Every deck
@@ -155,34 +295,57 @@ end
 AI.OpeningPlans = openingPlans
 
 -- Returns plan, score. rnd(n) -> 1..n (defaults to math.random).
--- opts.yield: called every few simulations (the UI uses it to spread the work
--- over several frames).
+-- opts (optional):
+--   style   the opponent's weights { aggro, guard, board } (Data/Opponents.lua)
+--   yield   called after every simulation (the UI uses it to spread the work
+--           over several frames)
 --
 -- Noise and pickTop make the easy level play loosely, but no level picks a
 -- plan it scores below doing nothing (a Healing Potion at full Morale, a
 -- Battle Shout with no units): the noise only chooses among the sensible ones.
 function AI.ChoosePlan(st, p, level, rnd, opts)
   rnd = rnd or math.random
+  opts = opts or {}
   local L = AI.LEVELS[level] or AI.LEVELS.normal
-  local seen, cands, n = {}, {}, 0
+  local style = opts.style or NEUTRAL
+  local how = style
+  -- Every plan meets the same random numbers and the same replies, so they
+  -- are compared on equal terms.
+  -- quiet: the weight of "they add nothing" against each made-up reply.
+  local scens = { { seed = R.Seed(rnd(2147483646)), w = L.quiet or 1 } }
+  local wsum = scens[1].w
+  for _ = 1, L.replies or 0 do
+    scens[#scens + 1] = { seed = R.Seed(rnd(2147483646)), reply = AI.SampleReply(st, 3 - p, rnd), w = 1 }
+    wsum = wsum + 1
+  end
+  local seen, cands = {}, {}
   local function consider(plan)
     local key = planKey(plan)
     if seen[key] then return end
     seen[key] = true
-    local base = simulate(st, p, plan, rnd, false)
-    if L.block then base = (base + simulate(st, p, plan, rnd, true)) / 2 end
+    local total = 0
+    for _, scen in ipairs(scens) do
+      if scen.w > 0 then
+        total = total + simulate(st, p, plan, scen, how) * scen.w
+        if opts.yield then opts.yield() end
+      end
+    end
+    local base = total / wsum
     local score = base
-    if L.noise > 0 then score = score + (rnd(1000) / 1000 - 0.5) * L.noise end
+    if (L.noise or 0) > 0 then score = score + (rnd(1000) / 1000 - 0.5) * L.noise end
     cands[#cands + 1] = { plan = plan, score = score, base = base }
-    n = n + 1
-    if opts and opts.yield and n % 10 == 0 then opts.yield() end
   end
   local opening = st.round == 1 and openingPlans(st, p) or {}
   if #opening > 0 then
     for _, plan in ipairs(opening) do consider(plan) end
   else
     consider({})
-    for _ = 1, L.samples do consider(AI.RandomPlan(st, p, rnd)) end
+    local all = (L.search or 0) > 0 and AI.AllPlans(st, p, L.search) or nil
+    if all then
+      for _, plan in ipairs(all) do consider(plan) end
+    else
+      for _ = 1, L.samples do consider(AI.RandomPlan(st, p, rnd)) end
+    end
     local pass = cands[1].base
     local keep = {}
     for i, cd in ipairs(cands) do
@@ -192,6 +355,6 @@ function AI.ChoosePlan(st, p, level, rnd, opts)
   end
   table.sort(cands, function(a, b) return a.score > b.score end)
   local pick = 1
-  if L.pickTop > 0 then pick = rnd(math.max(1, math.floor(#cands * L.pickTop))) end
+  if (L.pickTop or 0) > 0 then pick = rnd(max(1, math.floor(#cands * L.pickTop))) end
   return cands[pick].plan, cands[pick].score
 end

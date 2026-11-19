@@ -72,8 +72,8 @@ local function autoPlan()
   end
 end
 
-local function playGame(opp, concedeAt)
-  G.Start(opp)
+local function playGame(opp, concedeAt, heroic)
+  G.Start(opp, heroic)
   check(db.match and db.match.opp == opp, "game started vs " .. opp)
   local rounds = 0
   while db.match do
@@ -121,6 +121,30 @@ check(s.wins + s.losses + s.draws == #ns.Opponents + 1, "every game recorded")
 print(("games: %d won, %d lost, %d drawn; packs %d -> %d, shards %d"):format(s.wins, s.losses, s.draws,
   packsBefore, db.packs, db.shards))
 check(s.losses >= 1, "the concession counts as a loss")
+
+-- heroic rematches (the whole ladder is open, so they are too)
+do
+  G.Continue()
+  G.SetHeroicView(true)
+  check(G.HeroicView(), "the opponent list switches to heroic rematches")
+  G.Start("dorn", true)
+  local m = db.match
+  local theirs, allowed, stray = {}, {}, 0
+  for _, id in ipairs(ns.OpponentById.dorn.heroic) do allowed[id] = true end
+  for _, id in ipairs(m.st.players[2].deck) do theirs[#theirs + 1] = id end
+  for _, id in ipairs(m.st.players[2].hand) do theirs[#theirs + 1] = id end
+  for _, id in ipairs(theirs) do if not allowed[id] then stray = stray + 1 end end
+  check(m.heroic and #theirs == 20 and stray == 0, "a heroic match uses their heroic deck")
+  G.EndMatch()
+  G.Continue()
+  local wins = s.wins
+  playGame("dorn", nil, true)
+  local rec = db.heroic.dorn
+  check(rec and rec.w + rec.l + rec.d == 2 and s.wins + s.losses + s.draws == #ns.Opponents + 3, "heroic games are recorded apart")
+  check(db.record.dorn.w + db.record.dorn.l + db.record.dorn.d == 2, "the circuit record is untouched")
+  if s.wins > wins then check(rec.beaten and C.IsHolo(db, "bangalash"), "a heroic win: holographic signature card") end
+  G.SetHeroicView(false)
+end
 
 -- planning mechanics
 do
@@ -620,6 +644,47 @@ do
   MOCK.Advance(2)
   check(not ns.Travel.IsFlying() and not DeckhandFrame:IsShown(), "landing detected by speed, window closed")
   MOCK.onTaxi = false
+end
+
+-- a boat: standing still while being carried along; the ride ends at the dock
+do
+  local T = ns.Travel
+  UI.Hide()
+  local packs = db.packs
+  db.progress.travel = 0
+  MOCK.speed = 0
+  MOCK.posX, MOCK.posY, MOCK.inst = 100, 100, 0
+  local function sail(sec, dx)
+    for _ = 1, sec do
+      MOCK.posX = MOCK.posX + dx
+      MOCK.Advance(1)
+    end
+  end
+  sail(4, 0)
+  check(not T.IsRiding(), "standing still isn't a ride")
+  MOCK.speed = 7
+  sail(T.RIDE_START + 2, 7)
+  check(not T.IsRiding(), "walking isn't a ride")
+  MOCK.speed = 0
+  sail(T.RIDE_START + 1, 8)
+  check(T.IsRiding() and DeckhandToast:IsShown(), "carried along while standing still: a ride, and the toast")
+  MOCK.posX, MOCK.inst = 5000, 1   -- a loading screen between continents
+  MOCK.Advance(1)
+  sail(3, 8)
+  check(T.IsRiding(), "the ride carries on after a loading screen")
+  SlashCmdList.DECKHAND("")
+  sail(C.TRAVEL_PACK_SECONDS, 8)
+  check(db.packs == packs + 1, "a pack for 20 minutes on board")
+  sail(T.RIDE_STOP + 1, 0)
+  check(not T.IsRiding() and not DeckhandFrame:IsShown(), "docked: the ride ends and the window closes")
+  SlashCmdList.DECKHAND("travel log")
+  MOCK.chat = {}
+  MOCK.Advance(2)
+  check(#MOCK.chat == 2 and MOCK.chat[1]:find("travel: speed 0.0, moved 0.0 yd"), "the travel log prints a line a second")
+  SlashCmdList.DECKHAND("travel log")
+  SlashCmdList.DECKHAND("travel")
+  check(MOCK.chat[#MOCK.chat]:find("not travelling"), "/deckhand travel")
+  MOCK.posX = nil
 end
 
 -- other events and slash commands

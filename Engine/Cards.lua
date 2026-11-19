@@ -128,9 +128,12 @@ add { id = "potion", name = "Healing Potion", cost = 1, type = "tactic", rarity 
   play = function(st, p) R.RestoreMorale(st, p, 4) end }
 
 add { id = "bandage", name = "Heavy Linen Bandage", cost = 1, type = "tactic", rarity = "common", target = "friend",
-  text = "Fully heal one of your units.", flavor = "Hold still.",
+  text = "Fully heal one of your units, and restore 2 Morale.", flavor = "Hold still.",
   icon = icons("INV_Misc_Bandage_15", "Spell_Holy_Heal02"),
-  play = function(st, p, lane) R.Heal(st, R.FriendTarget(st, p, lane)) end }
+  play = function(st, p, lane)
+    R.Heal(st, R.FriendTarget(st, p, lane))
+    R.RestoreMorale(st, p, 2)
+  end }
 
 -- ---------------------------------------------------------------------------
 -- Uncommon
@@ -264,8 +267,9 @@ add { id = "azuregos", name = "Azuregos", cost = 6, type = "unit", rarity = "epi
   arrive = function(st, u) eachEnemy(st, u.owner, function(x) R.Freeze(st, x) end) end }
 
 add { id = "kazzak", name = "Lord Kazzak", cost = 6, type = "unit", rarity = "epic", atk = 5, hp = 6,
-  kw = { cleave = true, drain = true }, flavor = "The Blasted Lands earned the name.",
-  icon = icons("Spell_Shadow_SummonInfernal"), npc = 12397 }
+  kw = { cleave = true }, text = "Arrive: restore 3 Morale.", flavor = "The Blasted Lands earned the name.",
+  icon = icons("Spell_Shadow_SummonInfernal"), npc = 12397,
+  arrive = function(st, u) R.RestoreMorale(st, u.owner, 3) end }
 
 -- ---------------------------------------------------------------------------
 -- Legendary

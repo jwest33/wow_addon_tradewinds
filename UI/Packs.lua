@@ -134,8 +134,9 @@ function P.Refresh()
   for i = 1, C.PACK_SIZE do slots[i]:SetShown(opened ~= nil) end
   local t = db.progress.travel or 0
   ctl.bar:SetValue(t / C.TRAVEL_PACK_SECONDS)
-  ctl.barText:SetText(("Flight time toward your next pack: %s / %s%s"):format(fmtTime(t), fmtTime(C.TRAVEL_PACK_SECONDS),
-    (ns.Travel and ns.Travel.IsFlying()) and "  |cff40ff40(in the air)|r" or ""))
+  local T = ns.Travel
+  ctl.barText:SetText(("Travel time toward your next pack: %s / %s%s"):format(fmtTime(t), fmtTime(C.TRAVEL_PACK_SECONDS),
+    (T and T.IsFlying()) and "  |cff40ff40(in the air)|r" or (T and T.IsRiding()) and "  |cff40ff40(on board)|r" or ""))
 end
 
 function P.Build(parent)
@@ -221,7 +222,7 @@ function P.Build(parent)
   earn:SetTextColor(0.75, 0.75, 0.75)
   earn:SetText(table.concat({
     "|cffffd100Ways to earn packs|r",
-    ("- Every %d minutes on a flight path"):format(C.TRAVEL_PACK_SECONDS / 60),
+    ("- Every %d minutes on a flight path, boat or zeppelin"):format(C.TRAVEL_PACK_SECONDS / 60),
     "- Your first win of the day, and every tenth level",
     "- Stars: your first win against each opponent, and winning with a deck of commons and uncommons",
     ("- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"):format(C.PACK_COST),

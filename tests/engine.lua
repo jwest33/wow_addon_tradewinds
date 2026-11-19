@@ -87,7 +87,15 @@ do
     check(ok, label .. " curve: " .. tostring(why))
   end
   validDeck(C.STARTER, "starter deck")
-  for _, o in ipairs(ns.Opponents) do validDeck(o.deck, o.name) end
+  for _, o in ipairs(ns.Opponents) do
+    validDeck(o.deck, o.name)
+    validDeck(o.heroic, o.name .. " (heroic)")
+    check(type(o.rematch) == "string" and type(o.style) == "table", o.name .. " has a rematch line and a style")
+    local has = false
+    for _, id in ipairs(o.heroic) do if id == o.signature then has = true end end
+    check(has, o.name .. "'s heroic deck plays their signature card")
+    check(table.concat(o.deck, ",") ~= table.concat(o.heroic, ","), o.name .. "'s heroic deck differs from their circuit deck")
+  end
 end
 
 -- 2. rules -----------------------------------------------------------------------
@@ -515,14 +523,13 @@ do
   st.players[1].hand = { "ambush", "ambush" }
   st.players[2].hand = { "grunt" }
   R.Resolve(st, { { { h = 1, lane = 1 }, { h = 2, lane = 2 } }, { { h = 1, lane = 1 } } }, { noAdvance = true })
-  check(st.players[2].board[1] == nil and old.hp == 4, "ambush: 4 damage to a unit that arrived this round, nothing to an older one")
+  check(st.players[2].board[1] == nil and old.hp == 2, "ambush: 4 damage to a unit that arrived this round, 2 to an older one")
 
   st = blank()
   local vk = put(st, 1, 1, "kobold")
   Cards.byId.vanish.play(st, 1, 1)
-  check(vk.kw.stealth and R.Attack(st, vk) == 3, "vanish: Stealth and +2 attack")
   R.EndRound(st)
-  check(vk.kw.stealth and R.Attack(st, vk) == 1, "the attack is for this round only")
+  check(vk.kw.stealth and R.Attack(st, vk) == 3 and vk.hp == 4 and vk.maxHp == 4, "vanish: Stealth and +2/+2, to keep")
 
   -- Dragonkin
   st = blank()
@@ -576,7 +583,19 @@ do
   k = put(st, 1, 1, "kobold")
   cast(st, 1, "might", 1)
   R.EndRound(st)
-  check(k.atk == 3, "blessing of might: +2 attack that stays")
+  check(k.atk == 3 and k.hp == 4, "blessing of might: +2/+2 that stays")
+
+  st = blank()
+  st.players[1].morale = 7
+  local bu = put(st, 1, 2, "croc")
+  bu.hp = 1
+  cast(st, 1, "bandage", 2)
+  check(bu.hp == 5 and st.players[1].morale == 9, "bandage: full heal and 2 Morale")
+
+  st = blank()
+  st.players[1].morale = 5
+  arrive(st, 1, 1, "kazzak")
+  check(st.players[1].morale == 8, "kazzak restores 3 Morale when he arrives")
 
   st = blank()
   local hurt, fresh, tough = put(st, 2, 1, "croc"), put(st, 2, 2, "croc"), put(st, 2, 3, "ghoul")
@@ -627,7 +646,7 @@ local function lcg(seed)
   end
 end
 
-local function playGame(seed, levels, decks)
+local function playGame(seed, levels, decks, styles)
   local rnd = lcg(seed)
   decks = decks or { randomDeck(rnd), randomDeck(rnd) }
   local st = R.NewGame({ seed = seed, decks = decks })
@@ -635,7 +654,7 @@ local function playGame(seed, levels, decks)
     local plans = {}
     for p = 1, 2 do
       if levels[p] == "pass" then plans[p] = {}
-      else plans[p] = AI.ChoosePlan(st, p, levels[p], rnd) end
+      else plans[p] = AI.ChoosePlan(st, p, levels[p], rnd, { style = styles and styles[p] }) end
     end
     R.Resolve(st, plans)
   end
@@ -679,12 +698,14 @@ do
   check(w[1] >= 60, "hard beats easy most of the time")
   w = series(100, { "normal", "easy" }, "normal vs easy")
   check(w[1] >= 55, "normal beats easy more often than not")
+  w = series(100, { "heroic", "normal" }, "heroic vs normal")
+  check(w[1] >= 55, "heroic beats normal more often than not")
 
   -- AI decks against the starter deck
   for _, o in ipairs(ns.Opponents) do
     local ww, dd, n = 0, 0, 60
     for i = 1, n do
-      local st = playGame(5000 + i, { "normal", o.level }, { C.STARTER, o.deck })
+      local st = playGame(5000 + i, { "normal", o.level }, { C.STARTER, o.deck }, { nil, o.style })
       if st.winner == 1 then ww = ww + 1 elseif st.winner == 0 then dd = dd + 1 end
     end
     print(("starter deck (normal play) vs %-22s (%s): wins %d%%, draws %d%%"):format(o.name, o.level,
@@ -712,22 +733,95 @@ do
     st.players[2].hand = { "potion", "shout", "potion" }
     for l = 1, R.LANES do st.players[2].board[l] = nil end
     st.players[2].morale = R.MAX_MORALE
-    for _, level in ipairs({ "easy", "normal", "hard" }) do
+    for _, level in ipairs(AI.LEVEL_ORDER) do
       if #AI.ChoosePlan(st, 2, level, lcg(seed)) > 0 then wasted = wasted + 1 end
     end
   end
   check(wasted == 0, ("no Healing Potion at full Morale, no Battle Shout without units (%d wasted)"):format(wasted))
+  bad = 0
+  for _, o in ipairs(ns.Opponents) do
+    for seed = 1, 6 do
+      local st = R.NewGame({ seed = seed * 37 + o.index, decks = { C.STARTER, o.heroic } })
+      local plan = AI.ChoosePlan(st, 2, "heroic", lcg(seed), { style = o.style })
+      if not (#plan == 1 and Cards.byId[plan[1].id].type == "unit") then bad = bad + 1 end
+    end
+  end
+  check(bad == 0, "heroic opponents open with a unit too")
+end
+
+-- Listing every plan, and the made-up replies
+do
+  local rnd = lcg(5)
+  local checked, illegal, dupes, overs, replies, badReplies = 0, 0, 0, 0, 0, 0
+  for g = 1, 12 do
+    local st = R.NewGame({ seed = g, decks = { randomDeck(rnd), randomDeck(rnd) } })
+    while not st.winner do
+      local all = AI.AllPlans(st, 2, 5000)
+      if all then
+        local keys, empty = {}, false
+        for _, p in ipairs(all) do
+          checked = checked + 1
+          if not R.CheckPlan(st, 2, p) then illegal = illegal + 1 end
+          local k = AI.PlanKey(p)
+          if keys[k] then dupes = dupes + 1 end
+          keys[k] = true
+          if #p == 0 then empty = true end
+        end
+        check(empty, "the plans include playing nothing")
+        if #all > 2 and AI.AllPlans(st, 2, #all - 1) ~= nil then overs = overs + 1 end
+      end
+      for _ = 1, 5 do
+        local q = 1
+        local reply = AI.SampleReply(st, q, rnd)
+        replies = replies + 1
+        local cost, lanes = 0, {}
+        for i, a in ipairs(reply) do
+          local c = Cards.byId[a.id]
+          cost = cost + c.cost
+          if a.h ~= i then badReplies = badReplies + 1 end
+          if c.type == "unit" then
+            if st.players[q].board[a.lane] or lanes[a.lane] then badReplies = badReplies + 1 end
+            lanes[a.lane] = true
+          end
+        end
+        if cost > st.players[q].supply or #reply > #st.players[q].hand then badReplies = badReplies + 1 end
+      end
+      R.Resolve(st, { AI.ChoosePlan(st, 1, "hard", rnd), AI.ChoosePlan(st, 2, "heroic", rnd) })
+    end
+  end
+  check(checked > 500 and illegal == 0 and dupes == 0, ("every listed plan is legal and listed once (%d plans)"):format(checked))
+  check(overs == 0, "too many plans for the limit: no list")
+  check(replies > 100 and badReplies == 0, "made-up replies fit the Supply, the hand size and the empty lanes")
+  -- styles change what the AI values
+  local full, hurt = blank(), blank()
+  hurt.players[2].morale = 6
+  local calm = AI.Evaluate(hurt, 1) - AI.Evaluate(full, 1)
+  local keen = AI.Evaluate(hurt, 1, { aggro = 1.5 }) - AI.Evaluate(full, 1, { aggro = 1.5 })
+  check(calm > 0 and keen > calm * 1.4, "an aggressive style values the opponent's lost Morale more")
 end
 
 -- 5. AI speed ----------------------------------------------------------------------
 do
   local st = R.NewGame({ seed = 42, decks = { randomDeck(lcg(1)), randomDeck(lcg(2)) } })
   for _ = 1, 4 do R.Resolve(st, { AI.ChoosePlan(st, 1, "normal", lcg(3)), AI.ChoosePlan(st, 2, "normal", lcg(4)) }) end
-  local t0 = os.clock()
-  for _ = 1, 5 do AI.ChoosePlan(st, 2, "hard", lcg(5)) end
-  local ms = (os.clock() - t0) / 5 * 1000
-  print(("hard AI decision: %.1f ms (round %d)"):format(ms, st.round))
-  check(ms < 400, "hard AI decides fast enough")
+  for _, level in ipairs({ "hard", "heroic" }) do
+    local t0 = os.clock()
+    for _ = 1, 5 do AI.ChoosePlan(st, 2, level, lcg(5)) end
+    local ms = (os.clock() - t0) / 5 * 1000
+    print(("%s AI decision: %.1f ms (round %d)"):format(level, ms, st.round))
+    check(ms < 400, level .. " AI decides fast enough")
+  end
+  -- the slowest case: a full hand in the middle of the game
+  local worst = 0
+  for g = 1, 20 do
+    local s = R.NewGame({ seed = g, decks = { randomDeck(lcg(g)), randomDeck(lcg(g + 50)) } })
+    for _ = 1, 3 do R.Resolve(s, { {}, {} }) end
+    local t0 = os.clock()
+    AI.ChoosePlan(s, 2, "heroic", lcg(g))
+    worst = math.max(worst, (os.clock() - t0) * 1000)
+  end
+  print(("heroic AI, full hand in round 4: at most %.0f ms"):format(worst))
+  check(worst < 1500, "heroic AI's slowest decision stays reasonable")
 end
 
 -- 6. collection ----------------------------------------------------------------------
@@ -912,6 +1006,46 @@ do
   t = tally(C.RecordResult(db, "prestor", "win", nextDay, { plain = true }))
   check(#t.cards == 0, "once")
 
+  -- heroic rematches
+  do
+    local h = {}
+    C.Init(h)
+    h.daily = { date = day, id = "rounds", n = 0, done = false }
+    check(not C.HeroicUnlocked(h), "heroic rematches start closed")
+    for _, o in ipairs(ns.Opponents) do
+      if o.index < #ns.Opponents then h.stars[o.id] = { true } end
+    end
+    local opened = false
+    for _, r in ipairs(C.RecordResult(h, "prestor", "win", day)) do if r.heroic then opened = true end end
+    check(opened and C.HeroicUnlocked(h), "beating the last opponent opens them, and says so")
+    for _, r in ipairs(C.RecordResult(h, "prestor", "win", day)) do check(not r.heroic, "it says so once") end
+    local wins, starsBefore = h.stats.wins, C.Stars(h, "dorn")[2]
+    h.collection.bangalash = nil
+    local t2 = tally(C.RecordResult(h, "dorn", "win", nextDay, { heroic = true, margin = 9, plain = true }))
+    check(t2.stars == 0 and C.Stars(h, "dorn")[2] == starsBefore and h.record.dorn == nil,
+      "a heroic win earns no stars and keeps its own record")
+    check(h.heroic.dorn.w == 1 and h.heroic.dorn.beaten and h.stats.wins == wins + 1, "the heroic record")
+    check(t2.shards == C.REWARD.win.heroic and t2.packs == C.REWARD.heroicPacks + 1, "heroic pay: shards, a pack, the day's first win")
+    check(#t2.cards == 1 and t2.cards[1].card == "bangalash" and t2.cards[1].holo and C.IsHolo(h, "bangalash"),
+      "first heroic win: their signature card, holographic")
+    h.collection.murkeye = 2
+    t2 = tally(C.RecordResult(h, "bluegill", "win", nextDay, { heroic = true }))
+    check(t2.cards[1].kind == "holo" and C.IsHolo(h, "murkeye") and h.collection.murkeye == 2,
+      "a signature card you already have turns holographic")
+    t2 = tally(C.RecordResult(h, "dorn", "win", nextDay, { heroic = true }))
+    check(#t2.cards == 0 and t2.packs == 0, "once per opponent")
+    for _, o in ipairs(ns.Opponents) do
+      if o.id ~= "prestor" then C.HeroicRecord(h, o.id).beaten = true end
+    end
+    h.collection.ragnaros = 1
+    t2 = tally(C.RecordResult(h, "prestor", "win", nextDay, { heroic = true }))
+    check(C.AllHeroic(h) and #t2.cards == 2 and t2.cards[2].card == ns.CHAMPION_CARD and C.IsHolo(h, ns.CHAMPION_CARD),
+      "every heroic rematch won: the champion's card turns holographic")
+    local l = h.stats.losses
+    C.RecordResult(h, "dorn", "loss", nextDay, { heroic = true, round = 8 })
+    check(h.heroic.dorn.l == 1 and h.stats.losses == l + 1, "heroic losses are recorded")
+  end
+
   -- levels, flight paths, flight time
   packs, shards = db.packs, db.shards
   t = tally(C.LevelUp(db, 23))
@@ -1025,6 +1159,12 @@ do
   check(v3.packs == p0 and v3.shards == s0, "migration 2 pays nothing")
   check(C.Unlocked(v3, "bluegill") and not C.Unlocked(v3, "sally") and C.Unlocked(v3, "grumbletusk") and C.Unlocked(v3, "fingers")
     and not C.Unlocked(v3, "graves"), "an opponent you had beaten stays open, and opens the one after")
+  -- v0.8.0 swapped Graves (was 6th) and Pellwick (was 7th): nobody loses access
+  local v4 = {}
+  C.Init(v4)
+  for _, id in ipairs({ "dorn", "bluegill", "sally", "grumbletusk", "fingers", "graves" }) do v4.stars[id] = { true } end
+  check(C.Unlocked(v4, "pellwick") and C.Unlocked(v4, "graves") and C.Unlocked(v4, "prestor"),
+    "beaten up to Graves under the old order: Pellwick, Graves and Prestor are all open")
 end
 
 -- 7b. deck slots

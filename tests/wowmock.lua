@@ -222,6 +222,7 @@ function time() return 1790000000 end
 function UnitName() return "Tester" end
 function UnitOnTaxi() return MOCK.onTaxi end
 function GetUnitSpeed() return MOCK.speed end
+function UnitPosition() if MOCK.posX then return MOCK.posY, MOCK.posX, 0, MOCK.inst or 0 end end
 function issecretvalue() return false end
 function GetCursorPosition() return 500, 400 end
 

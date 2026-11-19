@@ -10,7 +10,7 @@ you what to play and why, then you finish the match yourself. Finishing it
 earns a card pack.
 
 Games are saved after every round, so you can stop when you
-land and pick it up on the next flight. An update that changes the rules or
+land or dock and pick it up on the next trip. An update that changes the rules or
 cards ends a match in progress; that match doesn't count as a win or a loss.
 Other updates leave it alone.
 
@@ -57,7 +57,7 @@ lane as the strikes land. `/deckhand forecast off` hides the predictions.
 | Swift | Strikes before other units; a unit it kills doesn't strike back |
 | Guard | Unblocked enemies in neighbouring lanes strike it instead of your Morale |
 | Ranged | Strikes the weakest enemy unit anywhere (Morale if there are none) |
-| Pierce | Damage beyond the kill carries on to the enemy's Morale |
+| Pierce | Damage beyond the struck unit's health carries on to the enemy's Morale (a Sturdy unit that survives the hit still lets it through) |
 | Cleave | Also strikes the enemy units in the neighbouring lanes |
 | Venom | Destroys any unit it damages |
 | Drain | Damage it deals restores your Morale |
@@ -106,9 +106,10 @@ Where packs and shards come from:
 | | |
 |---|---|
 | First win of the day | 1 pack |
-| Every 20 minutes on a flight path | 1 pack |
+| Every 20 minutes travelling (flight path, boat or zeppelin) | 1 pack |
 | Every tenth level | 1 pack |
-| A win | 2, 4 or 6 shards by the opponent's level. The first 3 wins a day against each opponent pay in full, later ones 1 |
+| A win | 2, 4 or 6 shards by the opponent's level, 8 in a heroic rematch. The first 3 wins a day against each opponent pay in full, later ones 1 |
+| The first heroic win against each opponent | 1 pack, and their signature card, holographic |
 | A loss or draw that reached round 4 | 1 shard |
 | The daily task | 10 shards |
 | A level, a new flight path | 5 shards each |
@@ -131,8 +132,8 @@ The circuit is a ladder: beating an opponent opens the next one.
 | Sally Mudwhistle | normal | Booty Bay crew, removal | Fleet Master Seahorn |
 | Innkeeper Grumbletusk | normal | Horde tavern, Rally | Hogger |
 | Lil Fingers | normal | Defias, stealth and tricks | Edwin VanCleef |
-| Sexton Graves | hard | undead that come back | Baron Rivendare |
 | Archmage Pellwick | hard | spells and ranged | Azuregos |
+| Sexton Graves | hard | undead that come back | Baron Rivendare |
 | Lady Katrana Prestor | hard | the boss: guards, venom | Onyxia |
 
 Each opponent has three stars:
@@ -146,10 +147,32 @@ Each opponent has three stars:
 There is also one **daily task** (shown under the opponent list), such as
 "Destroy 10 enemy units" or "Play 6 Beasts".
 
-The computer plays honestly: it builds random legal plans, plays each one out
-on a copy of the game where you do nothing new, scores the board and keeps the
-best. It never sees your hand or your plan. Harder opponents try more plans
-and also check each one against you blocking their best attacker. Every
+### Heroic rematches
+
+Beat Lady Prestor and a **Heroic rematches** button appears on the opponent
+list: all eight again, each with a stronger deck built around their tribe and
+signature card, played by the strongest computer level. Heroic games keep their
+own record and earn no stars. A heroic win pays 8 shards; the first one
+against each opponent also pays a pack and a **holographic** copy of their
+signature card (or makes yours holographic). Win all eight and Ragnaros turns
+holographic too.
+
+### The computer
+
+It plays honestly. Each round it lists the plans it could play, plays each
+one out on a copy of the game and scores the board after combat. It never
+sees your hand or your plan. The levels differ in how hard they look:
+
+- **Easy** tries a handful of plans and picks loosely among the decent ones.
+- **Normal** tries about 60 and assumes you add nothing new.
+- **Hard** also tests every plan against a couple of made-up replies:
+  plays you could make with your Supply and the number of cards you hold,
+  drawn from ordinary cards (it can't see yours).
+- **Heroic** lists every legal plan (when there are at most 300) and tests
+  each against six made-up replies.
+
+Each opponent also has a style: Sally and Fingers go for your Morale,
+Bluegill, Graves and Pellwick care most about the board, and so on. Every
 opponent opens round 1 with a 1-cost unit, and none of them plays a card it
 rates worse than doing nothing (a Healing Potion at full Morale, say), however
 loosely the easy ones play.
@@ -168,9 +191,9 @@ loosely the easy ones play.
 - **Packs**: open one pack card by card, or all of them at once.
 - **Guide**: every rule, a round step by step, and each keyword with a
   diagram. The tutorial can be started from here too.
-- **Options**: sound, portraits, the forecast, opponent lines, the flight
-  prompt, closing on landing or in combat, the minimap button, replay speed
-  and window size.
+- **Options**: sound, portraits, the forecast, opponent lines, the travel
+  prompt, closing when you arrive or in combat, the minimap button, replay
+  speed and window size.
 
 The first time a keyword turns up in a match (in your hand or on the board),
 a box explains it with its diagram. Opponents say a line now and then: when
@@ -188,6 +211,9 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
   *have* to end a match: it's saved after every round.
 - `/deckhand rules`: opens the Guide
 - `/deckhand icons`: card icons this client doesn't have (for bug reports)
+- `/deckhand travel`: what Deckhand sees of your travel right now.
+  `/deckhand travel log` prints a line a second (to check boat detection on
+  a real crossing); run it again to stop.
 - Everything in the Options tab also has a command: `/deckhand help` lists
   them.
 
@@ -212,8 +238,14 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
   plays in the guided rounds, the coach's text). `UI/Tutorial.lua` draws the
   coach; `UI/Guide.lua` is the Guide tab. A test plays the script and checks
   that every round does what the coach says.
-- `Travel.lua`: flight detection. On this client `UnitOnTaxi` has been seen
-  to stay true after landing, so landing is also detected from speed.
+- `Travel.lua`: flights, boats and zeppelins. On this client `UnitOnTaxi`
+  has been seen to stay true after landing, so landing is also detected from
+  speed. There is no call that says you're on a boat, so a ride is recognised
+  from movement: you stand still while your map position keeps moving
+  sideways at boat speed for 6 seconds. It ends after 10 seconds without
+  moving (docked) or 30 seconds of running (you walked off). Loading screens
+  between continents are skipped over. This has not been checked on a real
+  boat yet.
 - Creature portraits are still images. The client turns a creature id into a
   display id through a *hidden* model, and the result is saved. No 3D model is
   ever shown, because shown models have hung this client's GPU before.
@@ -231,7 +263,20 @@ the collection, and plays a few hundred AI-vs-AI games (to check for errors,
 game length and balance). `tests/ui.lua` loads the whole
 addon against a strict WoW API mock, where an unknown widget method is an
 error. It plays games through the same functions the buttons call, then
-opens packs, edits the deck and takes a mock flight.
+opens packs, edits the deck and takes a mock flight and a mock boat ride.
+
+`tests/balance.lua` is the balance harness, run on demand (minutes, not
+seconds):
+
+```
+python tests/run_tests.py balance ai [games]       # the AI levels against each other
+python tests/run_tests.py balance ladder [games]   # the circuit with the starter deck, and the heroic rematches
+python tests/run_tests.py balance cards [n] [ids]  # each card's effect on winning
+```
+
+`cards` plays every card in nine decks (the starter and each opponent's)
+against the opponents, then the same games with a plain unit of the same cost
+in its place, and reports the difference in win rate.
 
 ## Next
 

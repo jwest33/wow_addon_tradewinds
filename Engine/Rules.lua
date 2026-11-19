@@ -21,7 +21,7 @@ ns.Rules = R
 
 -- Bump this whenever the rules or a card's behaviour change. A match saved
 -- under another number is ended on load without counting (Collection.Init).
-R.RULES_VERSION = 2
+R.RULES_VERSION = 3
 
 R.LANES = 4
 R.MAX_ROUNDS = 8
@@ -40,7 +40,7 @@ R.KEYWORDS = {
   { key = "swift", name = "Swift", text = "Strikes before other units. A unit it kills doesn't strike back." },
   { key = "guard", name = "Guard", text = "An unblocked enemy in a neighbouring lane strikes this unit instead of your Morale." },
   { key = "ranged", name = "Ranged", text = "Strikes the weakest enemy unit, wherever it is. With no enemy units it strikes Morale." },
-  { key = "pierce", name = "Pierce", text = "Damage beyond what kills the unit it strikes carries on to the enemy's Morale." },
+  { key = "pierce", name = "Pierce", text = "Damage beyond the health of the unit it strikes carries on to the enemy's Morale." },
   { key = "cleave", name = "Cleave", text = "Also strikes the enemy units in the neighbouring lanes." },
   { key = "venom", name = "Venom", text = "Destroys any unit it damages." },
   { key = "drain", name = "Drain", text = "Damage it deals restores that much of your Morale." },

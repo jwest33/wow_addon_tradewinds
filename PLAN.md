@@ -320,6 +320,60 @@ Status (v0.7.0, 2026-11-19): built, not yet seen in game.
 
 ### Phase 4: Depth (L)
 
+Status (v0.8.0, 2026-11-19): built, not yet seen in game.
+
+- 1, AI: plans are compared on the same random numbers; hard and heroic test
+  every plan against made-up replies (ordinary cards sized to your Supply and
+  hand count, never your real cards); heroic lists every legal plan when there
+  are at most 300; each opponent has a style (aggro / guard / board weights);
+  the AI thinks in 8 ms slices per frame. Measured over 500 games on random
+  decks: normal beats easy 73%, hard beats normal 57%, heroic beats hard 60%.
+  Two ideas lost and were dropped: listing every plan *without* replies (30%
+  against normal: it plays too exactly to "you add nothing"), and valuing
+  held cards by cost (no gain over counting them).
+- Heroic rematches (from Phase 1): open after beating Prestor; each opponent
+  has a heroic deck; the first heroic win pays a pack and a holographic copy
+  of their signature card, all eight a holographic Ragnaros.
+- 2, balance harness: `tests/balance.lua` (`ai`, `ladder`, `cards`), run on
+  demand. The first full `cards` run (55,872 games, each card against a
+  plain unit of its cost: 1/2, 2/3, 3/4, 4/5, 5/6, 6/7) found:
+  - Lord Kazzak far ahead of everything (+28 points of win rate; next was
+    Azuregos at +14). Cleave and Drain together on a big body. Now 5/6 Cleave,
+    "Arrive: restore 3 Morale" (+11.5, with the other epics).
+  - Cheap tactics well behind a plain unit: Ambush -12, Execute -9,
+    Blessing of Might -9, Bandage -9, Vanish -8, Stoneskin Gargoyle -5. Now:
+    Ambush deals 2 to a unit that didn't just arrive (-3); Execute costs 1
+    (-3.5); Might gives +2/+2 (+1); Bandage also restores 2 Morale (-4.5);
+    Vanish gives Stealth and +2/+2 to keep (0); Gargoyle is 3/5 (+2).
+  - Left alone: Fireball (-9; 4 damage would make Eviscerate pointless, and
+    it's the tutorial's card), Battle Shout (-9; +1/+1 to keep tested at -3
+    but made Dorn and Bluegill, who run two, much harder), Call of the Wild
+    (-11, but it was mostly tested in decks without Beasts). Healing Potion,
+    which the review suspected, is average (-2).
+  - Averages by rarity: common -1, uncommon 0, rare 0, epic +8, legendary +6.
+    Rares are no stronger than commons, which is worth a look later.
+  These cards changed behaviour, so the rules version is now 3.
+- B11 decided: Pierce counts damage beyond the struck unit's health, so a
+  Sturdy unit that survives still lets it through. The keyword text now says
+  so; the rules didn't change.
+- Ladder: Grumbletusk's and Graves' decks were softened and Graves and
+  Pellwick swapped places, so the circuit gets harder in order. With the
+  starter deck (200 games each, your side played by the normal AI /
+  the easy AI): Dorn 89 / 72%, Bluegill 76 / 60, Sally 57 / 40, Grumbletusk
+  39 / 23, Fingers 34 / 23, Pellwick 33 / 22, Graves 22 / 8, Prestor 17 / 5.
+  Before: 78 / 70 / 55 / 30 / 45 / 13 / 43 / 10 (Graves then 6th, Pellwick
+  7th). By the later opponents a player has a better deck than the starter.
+  Heroic rematches (Sally's, Pellwick's and Fingers' heroic decks were made
+  stronger after a first run), against Prestor's deck played by the hard AI
+  (a stand-in for a good collection; 200 games each): Dorn 43%, Bluegill 46,
+  Grumbletusk 47, Sally 54, Fingers 57, Pellwick 59, Graves 60, Prestor 60. With the
+  starter deck they are 8-57%.
+- 5, boats and zeppelins: detected from movement (standing still while being
+  carried sideways); `/deckhand travel log` is there to check it on a real
+  crossing.
+- Not done: 3's regional packs (the sets aren't regional, and the pace test
+  would need a new model); 3 and 4 were done in v0.4.0.
+
 1. **AI.**
    - Search every plan when the hand is small; sample only above a limit.
    - Model the player's reply by sampling plays from a generic card pool

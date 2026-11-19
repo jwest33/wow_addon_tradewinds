@@ -432,7 +432,8 @@ local function renderPanels()
       pn.counts:SetText(("Hand %d   Deck %d"):format(#st.players[p].hand, #st.players[p].deck))
     end
     if p == OPP and o then
-      pn.name:SetText(o.name)
+      local heroic = (ns.db.match and ns.db.match.heroic) or (not ns.db.match and finished and finished.heroic)
+      pn.name:SetText(heroic and (o.name .. " |cffc080ff(Heroic)|r") or o.name)
       pn.icon:SetTexture(UI.Icon(o.icon))
     else
       pn.name:SetText(UnitName and UnitName("player") or "You")
@@ -541,7 +542,7 @@ local function showGameOver()
   local ov = ctl.over
   local st = f.st
   if f.result == "win" then
-    ov.title:SetText("Victory!")
+    ov.title:SetText(f.heroic and "Heroic victory!" or "Victory!")
     ov.title:SetTextColor(1, 0.82, 0)
     ov.quote:SetText(o.short .. ": \"" .. o.lose .. "\"")
   elseif f.result == "loss" then
@@ -567,11 +568,16 @@ local function showGameOver()
     elseif r.card then
       if r.kind == "shards" then
         lines[#lines + 1] = ("%s (you have it already: |cff9fdfff+%d shards|r)"):format(UI.CardName(r.card), r.dupe)
+      elseif r.holo then
+        lines[#lines + 1] = ("%s %s (%s)"):format(UI.Rainbow(r.kind == "holo" and "Now holographic:" or "Holographic card:"),
+          UI.CardName(r.card), r.why)
       else
         lines[#lines + 1] = ("New card: %s (%s)"):format(UI.CardName(r.card), r.why)
       end
     elseif r.unlocked then
       lines[#lines + 1] = ("|cff40ff40%s will play you now.|r"):format(ns.OpponentById[r.unlocked].name)
+    elseif r.heroic then
+      lines[#lines + 1] = "|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"
     elseif r.packs then
       lines[#lines + 1] = ("|cffffd100+%d card pack%s|r (%s)"):format(r.packs, r.packs == 1 and "" or "s", r.why)
     elseif r.shards then
@@ -1022,15 +1028,28 @@ function G.Skip()
   end
 end
 
--- The computer's plan, worked out a little each frame so the game doesn't
--- stutter. It sees the board, its own hand and the counts of yours, never
--- your hand or your plan.
+-- The computer's plan, worked out a few milliseconds each frame so the game
+-- doesn't stutter. It sees the board, its own hand and the counts of yours,
+-- never your hand or your plan.
+local FRAME_MS = 8
 local function chooseAIPlan(st, level, done)
   thinking = true
+  local clock = debugprofilestop
+  local t0, n = 0, 0
+  local function yield()
+    n = n + 1
+    if clock then
+      if clock() - t0 >= FRAME_MS then coroutine.yield() end
+    elseif n % 10 == 0 then
+      coroutine.yield()
+    end
+  end
+  local o = opponent()
   local co = coroutine.create(function()
-    return AI.ChoosePlan(st, OPP, level, ns.Rand, { yield = coroutine.yield })
+    return AI.ChoosePlan(st, OPP, level, ns.Rand, { yield = yield, style = o and o.style })
   end)
   local function step()
+    if clock then t0 = clock() end
     local ok, res = coroutine.resume(co)
     if not ok then
       thinking, busy = false, false
@@ -1072,7 +1091,9 @@ function G.LockIn()
       end)
     end
   end
-  choose(st, tm and ns.Tutorial.LEVEL or opponent().level, function(aiPlan)
+  local m0 = ns.db.match
+  local level = tm and ns.Tutorial.LEVEL or (m0.heroic and "heroic") or opponent().level
+  choose(st, level, function(aiPlan)
     if current() ~= st then busy = false; G.Refresh(); return end
     -- The round is played on a copy, which replaces the saved game only if
     -- it went through. If a card errors, the match stays as it was.
@@ -1115,11 +1136,16 @@ end
 -- ---------------------------------------------------------------------------
 -- Starting and ending games
 -- ---------------------------------------------------------------------------
-function G.Start(oppId)
+-- heroic: a heroic rematch (their heroic deck and AI).
+function G.Start(oppId, heroic)
   local o = ns.OpponentById[oppId]
   local ok, why = C.CheckDeck(ns.db)
   if not ok then
     UI.Error(why .. " Fix it in the Cards tab.")
+    return
+  end
+  if heroic and not C.HeroicUnlocked(ns.db) then
+    UI.Error(("Heroic rematches open once you've beaten %s."):format(ns.Opponents[#ns.Opponents].short))
     return
   end
   if not C.Unlocked(ns.db, oppId) then
@@ -1128,19 +1154,20 @@ function G.Start(oppId)
   end
   local mine, theirs = {}, {}
   for i, id in ipairs(ns.db.deck) do mine[i] = id end
-  for i, id in ipairs(o.deck) do theirs[i] = id end
+  for i, id in ipairs(heroic and o.heroic or o.deck) do theirs[i] = id end
   local st = R.NewGame({
     seed = math.random(1, 2147483646), decks = { mine, theirs },
     names = { UnitName and UnitName("player") or "You", o.name },
   })
   ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION,
-    plain = C.PlainDeck(mine) }
+    plain = C.PlainDeck(mine), heroic = heroic and true or nil }
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
-  G.Log("%s: \"%s\"", o.short, o.hello)
+  local hello = heroic and "rematch" or "hello"
+  G.Log("%s%s: \"%s\"", heroic and "|cffc080ffHeroic|r " or "", o.short, o[hello])
   G.Log("|cffffd100Round 1|r")
   G.Refresh()
-  G.Say("hello", true)
+  G.Say(hello, true)
 end
 
 -- The tutorial: a guided match against Dorn (Data/Tutorial.lua). It doesn't
@@ -1181,16 +1208,17 @@ function G.EndGame(conceded)
     end
   else
     rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), {
-      conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain,
+      conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain, heroic = m.heroic,
     })
   end
   finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded, stats = m.stats,
-    tutorial = m.tutorial }
+    tutorial = m.tutorial, heroic = m.heroic }
   UI.Sound(result == "win" and "win" or "lose")
   ns.db.match = nil
   plan, sel = {}, nil
   local o = ns.OpponentById[m.opp]
-  ns.Print("%s%s against %s (Morale %d to %d).", m.tutorial and "Tutorial: " or "", result == "win" and "|cff40ff40Victory|r"
+  ns.Print("%s%s against %s (Morale %d to %d).", m.tutorial and "Tutorial: " or m.heroic and "Heroic: " or "",
+    result == "win" and "|cff40ff40Victory|r"
     or result == "loss" and "|cffff4040Defeat|r" or "Draw", o.name, math.max(0, st.players[ME].morale),
     math.max(0, st.players[OPP].morale))
   if m.tutorial then ns.Announce(rewards) end
@@ -1262,10 +1290,20 @@ end
 -- ---------------------------------------------------------------------------
 -- Lobby
 -- ---------------------------------------------------------------------------
-local LEVEL_COLOR = { easy = "|cff40ff40Easy|r", normal = "|cffffd100Normal|r", hard = "|cffff6040Hard|r" }
+local LEVEL_COLOR = { easy = "|cff40ff40Easy|r", normal = "|cffffd100Normal|r", hard = "|cffff6040Hard|r",
+  heroic = "|cffc080ffHeroic|r" }
 local rows = {}
 
 local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
+local CREST_ON = { 0.75, 0.5, 1 }
+
+-- The lobby shows the circuit, or the heroic rematches once they're open.
+local heroicView = false
+function G.HeroicView() return heroicView end
+function G.SetHeroicView(on)
+  heroicView = (on and C.HeroicUnlocked(ns.db)) and true or false
+  G.RefreshLobby()
+end
 
 function G.RefreshLobby()
   local ok, why = C.CheckDeck(ns.db)
@@ -1274,15 +1312,36 @@ function G.RefreshLobby()
   else
     lobby.deck:SetText("|cffff6040" .. why .. "|r Fix it in the Cards tab.")
   end
+  local heroicOpen = C.HeroicUnlocked(ns.db)
+  if not heroicOpen then heroicView = false end
+  lobby.heroicBtn:SetShown(heroicOpen)
+  lobby.heroicBtn:SetText(heroicView and "Back to the circuit" or "Heroic rematches")
+  lobby.title:SetText(heroicView and "The Tavern Circuit: |cffc080ffHeroic|r" or "The Tavern Circuit")
+  lobby.sub:SetText(heroicView
+    and "Their best decks, their sharpest play."
+    or "Pick an opponent. Games are saved, so you can stop any time.")
   for _, r in ipairs(rows) do
     local o = r.opp
     local open = C.Unlocked(ns.db, o.id)
-    local stars = C.Stars(ns.db, o.id)
-    for i, tex in ipairs(r.stars) do
-      local col = stars[i] and STAR_ON or STAR_OFF
-      tex:SetVertexColor(col[1], col[2], col[3])
+    local rec
+    if heroicView then
+      rec = ns.db.heroic[o.id]
+      for i, tex in ipairs(r.stars) do
+        tex:SetShown(i == 1)
+        local col = (rec and rec.beaten) and CREST_ON or STAR_OFF
+        tex:SetVertexColor(col[1], col[2], col[3])
+      end
+      r.lvl:SetText(LEVEL_COLOR.heroic)
+    else
+      rec = ns.db.record[o.id]
+      local stars = C.Stars(ns.db, o.id)
+      for i, tex in ipairs(r.stars) do
+        tex:Show()
+        local col = stars[i] and STAR_ON or STAR_OFF
+        tex:SetVertexColor(col[1], col[2], col[3])
+      end
+      r.lvl:SetText(LEVEL_COLOR[o.level] or o.level)
     end
-    local rec = ns.db.record[o.id]
     if not open then
       r.record:SetText("Beat " .. ns.Opponents[o.index - 1].short .. " first")
     elseif rec and (rec.w + rec.l + rec.d) > 0 then
@@ -1314,10 +1373,12 @@ local function buildLobby()
   title:SetPoint("TOPLEFT", 4, -2)
   title:SetText("The Tavern Circuit")
   title:SetTextColor(1, 0.82, 0)
+  lobby.title = title
   local sub = UI.Text(lobby, 10)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
   sub:SetText("Pick an opponent. Games are saved, so you can stop any time.")
   sub:SetTextColor(0.7, 0.7, 0.7)
+  lobby.sub = sub
   lobby.deck = UI.Text(lobby, 10)
   lobby.deck:SetPoint("TOPRIGHT", -4, -2)
 
@@ -1338,6 +1399,7 @@ local function buildLobby()
     local lvl = UI.Text(r, 10)
     lvl:SetPoint("LEFT", name, "RIGHT", 8, 0)
     lvl:SetText(LEVEL_COLOR[o.level] or o.level)
+    r.lvl = lvl
     local ttl = UI.Text(r, 10)
     ttl:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
     ttl:SetText(o.title)
@@ -1353,11 +1415,25 @@ local function buildLobby()
     r.record = UI.Text(r, 10)
     r.record:SetPoint("RIGHT", r, "RIGHT", -106, 0)
     r.record:SetTextColor(0.75, 0.75, 0.75)
-    r.play = UI.Button(r, "Play", 90, 26, function() G.Start(o.id) end)
+    r.play = UI.Button(r, "Play", 90, 26, function() G.Start(o.id, heroicView) end)
     r.play:SetPoint("RIGHT", -8, 0)
     r:EnableMouse(true)
     r:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      if heroicView then
+        GameTooltip:AddLine(o.name .. " |cffc080ff(Heroic)|r")
+        GameTooltip:AddLine("\"" .. o.rematch .. "\"", 0.85, 0.85, 0.85, true)
+        local rec = ns.db.heroic[o.id]
+        if rec and rec.beaten then
+          GameTooltip:AddLine("Beaten on heroic.", 0.75, 0.5, 1)
+        else
+          GameTooltip:AddLine(("First heroic win: a card pack and a %s %s."):format(UI.Rainbow("holographic"),
+            UI.CardName(o.signature)), 1, 0.82, 0, true)
+        end
+        GameTooltip:AddLine(("Wins pay %d shards."):format(C.REWARD.win.heroic), 0.62, 0.87, 1)
+        GameTooltip:Show()
+        return
+      end
       GameTooltip:AddLine(o.name)
       GameTooltip:AddLine("\"" .. o.hello .. "\"", 0.85, 0.85, 0.85, true)
       local stars = C.Stars(ns.db, o.id)
@@ -1392,6 +1468,11 @@ local function buildLobby()
   local guide = UI.Button(lobby, "Guide", 100, 20, function() UI.SelectTab("guide") end)
   guide:SetPoint("TOPRIGHT", -4, -17)
   UI.SimpleTooltip(guide, "Guide", "Every rule and keyword, with diagrams.")
+  lobby.heroicBtn = UI.Button(lobby, "Heroic rematches", 150, 20, function() G.SetHeroicView(not heroicView) end)
+  lobby.heroicBtn:SetPoint("TOPRIGHT", -242, -17)
+  UI.SimpleTooltip(lobby.heroicBtn, "Heroic rematches", "Every opponent again, with their best deck and the sharpest computer play.",
+    "The first win against each pays a card pack and a holographic copy of their signature card.")
+  lobby.heroicBtn:Hide()
 
   -- the first time: offer the tutorial
   local w = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)

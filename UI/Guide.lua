@@ -94,13 +94,15 @@ local function winningText()
     W .. "Victory|r  win. Pays a card pack.",
     W .. "Decisive|r  win with at least " .. C.REWARD.decisive .. " more Morale than them. Pays their signature card.",
     W .. "Rank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs.",
+    "Beat the last of them and " .. W .. "heroic rematches|r open: everyone again, with their best deck and sharpest play. " ..
+      "The first heroic win against each pays a pack and their signature card, holographic.",
     "",
     H .. "Your deck|r",
     ("Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 " ..
       "cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."):format(R.DECK_SIZE),
     "",
     H .. "Collecting|r",
-    "Packs come from flying, levelling and winning. Shards from duplicates and games buy packs or craft the card you want. " ..
+    "Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. " ..
       "The Packs tab lists every source.",
   }, "\n")
 end

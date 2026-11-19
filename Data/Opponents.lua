@@ -7,7 +7,13 @@
 --
 -- Lines: hello (a match starts), win / lose (they win / you win), and during
 -- play hit (they hit your Morale hard), hurt (you hit theirs hard) and low
--- (they're close to losing).
+-- (they're close to losing). rematch: hello for a heroic rematch.
+--
+-- style: how their AI weighs things (Engine/AI.lua): aggro (your Morale),
+-- guard (their own), board (units). 1 is neutral.
+--
+-- heroic: their deck for heroic rematches, which open once the whole circuit
+-- is beaten (Collection.HeroicUnlocked). It's played by the heroic AI.
 local _, ns = ...
 
 local function deck(spec)
@@ -30,6 +36,10 @@ ns.Opponents = {
     hit = "The pack hunts together, friend.", hurt = "Ow! Easy, that one bites.",
     low = "Hold on, hold on. I'm still in this.",
     signature = "bangalash",
+    style = { board = 1.1 },
+    rematch = "Back again? Then the pack's coming out properly this time.",
+    heroic = deck { wolf = 2, cub = 2, owl = 2, boar = 2, spider = 1, packleader = 2, raptor = 2, scorpid = 2, bear = 1,
+      bangalash = 1, gorilla = 1, callwild = 2 },
     deck = deck { wolf = 2, boar = 2, strider = 2, spider = 2, croc = 2, raptor = 1, kobold = 2, vulture = 2, bat = 1, potion = 2, shout = 2 },
   },
   {
@@ -40,6 +50,10 @@ ns.Opponents = {
     hit = "Mrrgl! That's murloc for 'gotcha'.", hurt = "You're scaring the fish.",
     low = "Reel it in slow now... slow...",
     signature = "murkeye",
+    style = { board = 1.2 },
+    rematch = "The whole shoal came to watch. Don't disappoint them.",
+    heroic = deck { coastrunner = 2, murloc = 2, tidehunter = 2, netter = 2, lurker = 2, oracle = 2, warrior = 2, murkeye = 1,
+      shoal = 1, shout = 2, warstomp = 2 },
     deck = deck { coastrunner = 2, murloc = 2, tidehunter = 2, netter = 2, lurker = 2, oracle = 2, warrior = 1, shoal = 1,
       murkeye = 1, potion = 1, shout = 2, turtle = 2 },
   },
@@ -51,6 +65,10 @@ ns.Opponents = {
     hit = "Broadside! Ha!", hurt = "Oi, that's coming out of your wages.",
     low = "Not sinking yet, landlubber.",
     signature = "seahorn",
+    style = { aggro = 1.25, guard = 0.85 },
+    rematch = "Double or nothing. And I'm not dealing from the top.",
+    heroic = deck { murloc = 2, peon = 2, gnoll = 2, pillager = 2, ghoul = 2, demo = 2, archer = 1, evisc = 2, gryphon = 2,
+      seahorn = 1, shredder = 1, bruiser = 1 },
     deck = deck { kobold = 2, murloc = 2, thug = 2, gnoll = 2, axe = 2, demo = 2, fireball = 2, evisc = 2,
       potion = 1, tinker = 1, bruiser = 1, shredder = 1 },
   },
@@ -62,8 +80,12 @@ ns.Opponents = {
     hit = "That's the house special.", hurt = "Lok'tar... that one stung.",
     low = "Somebody pour me a drink. A big one.",
     signature = "hogger",
-    deck = deck { grunt = 2, troll = 2, axe = 2, ghoul = 2, bat = 1, warmaster = 2, shout = 2, kodo = 1,
-      wolf = 2, bandage = 1, hogger = 1, gnoll = 2 },
+    style = { aggro = 1.1, board = 1.1 },
+    rematch = "Kitchen's closed. Now we play for real.",
+    heroic = deck { wolf = 2, peon = 1, grunt = 2, troll = 2, ghoul = 2, bat = 2, warmaster = 2, kodo = 1, hogger = 1,
+      shout = 1, might = 2, brave = 2 },
+    deck = deck { grunt = 2, thug = 2, axe = 2, ghoul = 2, bat = 1, crusader = 1, shout = 2, croc = 1,
+      wolf = 2, bandage = 1, hogger = 1, gnoll = 2, peon = 1 },
   },
   {
     id = "fingers", name = "Lil Fingers", short = "Fingers", title = "Deals for the Brotherhood. Counts for herself.", level = "normal",
@@ -73,19 +95,12 @@ ns.Opponents = {
     hit = "Didn't see that coming? Nobody does.", hurt = "Rude. I was going to do that to you.",
     low = "Call it a draw? No? Worth a try.",
     signature = "vancleef",
+    style = { aggro = 1.3, board = 0.9 },
+    rematch = "The Brotherhood sends its regards. All of it.",
+    heroic = deck { footpad = 2, pillager = 2, smuggler = 2, nightblade = 2, demo = 1, taskmaster = 2, ambush = 2, vanish = 2,
+      evisc = 2, smite = 1, vancleef = 1, gryphon = 1 },
     deck = deck { footpad = 2, thug = 2, pillager = 2, smuggler = 2, nightblade = 2, taskmaster = 2, ambush = 2, vanish = 1,
       evisc = 2, demo = 1, smite = 1, vancleef = 1 },
-  },
-  {
-    id = "graves", name = "Sexton Graves", short = "Graves", title = "Tends the Raven Hill plots. They tend back.", level = "hard",
-    icon = { I .. "INV_Misc_Bone_HumanSkull_01", I .. "Spell_Shadow_RaiseDead" },
-    hello = "Quiet night. Most of my regulars don't talk.",
-    win = "I'll save you a plot.", lose = "Well. That hasn't happened since I was alive.",
-    hit = "Dig deeper. I'll wait.", hurt = "Careful. I bruise. Slowly.",
-    low = "I've been closer to dead. Much closer.",
-    signature = "rivendare",
-    deck = deck { skeleton = 2, corpse = 2, ghoul = 2, deathcoil = 2, banshee = 2, necro = 1, gargoyle = 2, patchwork = 2,
-      raise = 1, rivendare = 1, bat = 2, execute = 1 },
   },
   {
     id = "pellwick", name = "Archmage Pellwick", short = "Pellwick", title = "Retired. Allegedly.", level = "hard",
@@ -95,8 +110,27 @@ ns.Opponents = {
     hit = "Precisely as calculated.", hurt = "Hm. A rounding error.",
     low = "Recalculating... recalculating...",
     signature = "azuregos",
+    style = { board = 1.25, aggro = 0.9 },
+    rematch = "I've revised my calculations. You won't enjoy them.",
+    heroic = deck { kobold = 2, apprentice = 2, poly = 2, tinker = 2, mountaineer = 2, archer = 2, bruiser = 2, azuregos = 1,
+      drake = 2, scalebane = 1, chain = 1, nova = 1 },
     deck = deck { apprentice = 2, fireball = 2, poly = 1, blizzard = 1, chain = 1, mountaineer = 2, croc = 2,
       tinker = 2, potion = 2, azuregos = 1, kobold = 2, bruiser = 1, scorpid = 1 },
+  },
+  {
+    id = "graves", name = "Sexton Graves", short = "Graves", title = "Tends the Raven Hill plots. They tend back.", level = "hard",
+    icon = { I .. "INV_Misc_Bone_HumanSkull_01", I .. "Spell_Shadow_RaiseDead" },
+    hello = "Quiet night. Most of my regulars don't talk.",
+    win = "I'll save you a plot.", lose = "Well. That hasn't happened since I was alive.",
+    hit = "Dig deeper. I'll wait.", hurt = "Careful. I bruise. Slowly.",
+    low = "I've been closer to dead. Much closer.",
+    signature = "rivendare",
+    style = { board = 1.2, guard = 1.1 },
+    rematch = "I dug up the good ones for you.",
+    heroic = deck { skeleton = 2, corpse = 2, ghoul = 2, bat = 1, deathcoil = 2, banshee = 2, necro = 2, patchwork = 2,
+      gargoyle = 2, raise = 1, rivendare = 1, execute = 1 },
+    deck = deck { skeleton = 2, corpse = 2, thug = 2, deathcoil = 2, banshee = 2, necro = 1, gargoyle = 2, patchwork = 2,
+      raise = 1, rivendare = 1, gnoll = 2, execute = 1 },
   },
   {
     id = "prestor", name = "Lady Katrana Prestor", short = "Lady Prestor", title = "Of House Prestor. Very real.", level = "hard",
@@ -106,6 +140,10 @@ ns.Opponents = {
     hit = "Did that hurt? How dreadful.", hurt = "You'll regret that, mortal.",
     low = "Enough. I tire of these games.",
     signature = "onyxia",
+    style = { aggro = 1.1, guard = 1.1 },
+    rematch = "No more games, mortal. Well. One more.",
+    heroic = deck { kobold = 2, whelp = 2, mountaineer = 2, technician = 2, scorpid = 1, crusader = 1, dragonspawn = 2,
+      drake = 1, drakkisath = 1, scalebane = 1, flamebreath = 1, onyxia = 1, evisc = 2, potion = 1 },
     deck = deck { crusader = 2, mountaineer = 2, bear = 2, murloc = 2, potion = 2, evisc = 2, princess = 1,
       bruiser = 2, scorpid = 2, shieldwall = 1, onyxia = 1, spider = 1 },
   },

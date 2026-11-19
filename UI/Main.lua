@@ -201,7 +201,7 @@ local function makeToast()
   toast:Hide()
 end
 
--- kind: "flight" | "pack" | nil (hide); n: how many packs
+-- kind: "flight" | "boat" | "pack" | nil (hide); n: how many packs
 function UI.Toast(kind, why, n)
   if not kind then
     if toast then toast:Hide() end
@@ -209,9 +209,13 @@ function UI.Toast(kind, why, n)
   end
   if UI.IsShown() then return end
   if not toast then makeToast() end
-  if kind == "flight" then
+  if kind == "flight" or kind == "boat" then
     toast.title:SetText("Deckhand")
-    toast.text:SetText(ns.db.match and "Your game is waiting. Play while you fly?" or "Deal a hand while you fly?")
+    if kind == "flight" then
+      toast.text:SetText(ns.db.match and "Your game is waiting. Play while you fly?" or "Deal a hand while you fly?")
+    else
+      toast.text:SetText(ns.db.match and "Your game is waiting. Play on the crossing?" or "Deal a hand for the crossing?")
+    end
     toast.go:SetText("Play")
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
   else

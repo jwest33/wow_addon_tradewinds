@@ -155,7 +155,7 @@ add { id = "banshee", name = "Wailing Banshee", cost = 3, type = "unit", rarity 
   icon = icons("Spell_Shadow_PsychicScream"),
   fallen = function(st, u) R.Buff(st, across(st, u), -2, 0) end }
 
-add { id = "gargoyle", name = "Stoneskin Gargoyle", cost = 4, type = "unit", rarity = "uncommon", atk = 3, hp = 4, tribe = "undead",
+add { id = "gargoyle", name = "Stoneskin Gargoyle", cost = 4, type = "unit", rarity = "uncommon", atk = 3, hp = 5, tribe = "undead",
   kw = { regen = true }, flavor = "Cracks, then doesn't.", icon = icons("Spell_Shadow_UnholyStrength", "Ability_Hunter_Pet_Bat") }
 
 add { id = "rivendare", name = "Baron Rivendare", cost = 5, type = "unit", rarity = "legendary", atk = 4, hp = 5, tribe = "undead",
@@ -219,23 +219,17 @@ add { id = "smite", name = "Mr. Smite", cost = 5, type = "unit", rarity = "epic"
   end }
 
 add { id = "ambush", name = "Ambush", cost = 1, type = "tactic", rarity = "common", target = "enemy",
-  text = "Deal 4 damage to the enemy unit in a lane, if it arrived this round.",
+  text = "Deal 4 damage to the enemy unit in a lane if it arrived this round, otherwise 2.",
   flavor = "They walked right into it.", icon = icons("Ability_Rogue_Ambush"),
   play = function(st, p, lane)
     local t = R.EnemyTarget(st, p, lane)
-    if t and t.new then R.Damage(st, t, 4) end
+    if t then R.Damage(st, t, t.new and 4 or 2) end
   end }
 
 add { id = "vanish", name = "Vanish", cost = 1, type = "tactic", rarity = "uncommon", target = "friend",
-  text = "Give one of your units Stealth, and +2 attack this round.", flavor = "Now you see me.",
+  text = "Give one of your units Stealth and +2/+2.", flavor = "Now you see me.",
   icon = icons("Ability_Vanish"),
-  play = function(st, p, lane)
-    local u = R.FriendTarget(st, p, lane)
-    if u then
-      R.Buff(st, u, 0, 0, "stealth")
-      R.TempAttack(st, u, 2)
-    end
-  end }
+  play = function(st, p, lane) R.Buff(st, R.FriendTarget(st, p, lane), 2, 2, "stealth") end }
 
 -- ---------------------------------------------------------------------------
 -- Dragonkin
@@ -316,11 +310,11 @@ add { id = "warstomp", name = "War Stomp", cost = 2, type = "tactic", rarity = "
   end }
 
 add { id = "might", name = "Blessing of Might", cost = 1, type = "tactic", rarity = "common", target = "friend",
-  text = "Give one of your units +2 attack.", flavor = "Hit it harder, with the Light's permission.",
+  text = "Give one of your units +2/+2.", flavor = "Hit it harder, with the Light's permission.",
   icon = icons("Spell_Holy_FistOfJustice"),
-  play = function(st, p, lane) R.Buff(st, R.FriendTarget(st, p, lane), 2, 0) end }
+  play = function(st, p, lane) R.Buff(st, R.FriendTarget(st, p, lane), 2, 2) end }
 
-add { id = "execute", name = "Execute", cost = 2, type = "tactic", rarity = "rare", target = "enemy",
+add { id = "execute", name = "Execute", cost = 1, type = "tactic", rarity = "rare", target = "enemy",
   text = "Destroy the enemy unit in a lane, if it is damaged.", flavor = "Finish what someone else started.",
   icon = icons("INV_Sword_48", "Ability_Warrior_Decisivestrike"),
   play = function(st, p, lane)

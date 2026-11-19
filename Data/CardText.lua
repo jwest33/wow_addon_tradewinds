@@ -9,7 +9,7 @@ local SHORT = {
   fireball = "3 damage, or 2 to Morale if empty",
   shout = "Your units: +1 attack this round",
   potion = "Restore 4 Morale",
-  bandage = "Fully heal a unit",
+  bandage = "Fully heal a unit. Restore 2 Morale",
   watcher = "Fallen: 2 damage across",
   vulture = "+1 attack when a unit dies",
   tinker = "Arrive: draw a card",
@@ -26,6 +26,7 @@ local SHORT = {
   hogger = "Arrive: 1/1 Runts beside him",
   princess = "Fallen: restore 4 Morale",
   azuregos = "Arrive: freeze every enemy",
+  kazzak = "Arrive: restore 3 Morale",
   onyxia = "Arrive: 2 damage to every enemy",
   -- Roads of Azeroth
   cub = "Arrive: +1 attack with a Beast",
@@ -52,8 +53,8 @@ local SHORT = {
   smuggler = "Arrive: draw with a Defias",
   taskmaster = "Other Defias: +1 attack",
   smite = "Arrive: freeze across and beside",
-  ambush = "4 damage to a unit that just arrived",
-  vanish = "Stealth, +2 attack this round",
+  ambush = "4 damage to a new arrival, else 2",
+  vanish = "Stealth and +2/+2",
   drake = "Arrive: 1 damage to every enemy",
   technician = "Your Dragonkin: +1 attack",
   drakkisath = "Arrive: other Dragonkin +2 health",
@@ -63,7 +64,7 @@ local SHORT = {
   sapper = "Fallen: 1 damage across and beside",
   seahorn = "Arrive: draw 2 cards",
   warstomp = "Freeze a unit and those beside",
-  might = "+2 attack",
+  might = "+2/+2",
   execute = "Destroy a damaged unit",
 }
 
