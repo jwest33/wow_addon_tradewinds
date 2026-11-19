@@ -40,8 +40,13 @@ check(UI.tab == "play", "starts on the Play tab")
 -- tooltips on every card (also starts portrait lookups)
 do
   local probe = CreateFrame("Button", nil, UIParent)
+  UI.CardTooltip(probe, "hogger")
+  MOCK.Advance(2)
+  check(db.settings.portraits == false and (db.displays or {})[448] == nil, "portraits are off by default: nothing looked up")
+  db.settings.portraits = true
   for _, c in ipairs(Cards.list) do UI.CardTooltip(probe, c.id) end
   MOCK.Advance(2)
+  db.settings.portraits = false
   check(db.displays[448] == 10448, "Hogger's portrait looked up and saved")
   UI.CardTooltip(probe, "hogger")
   check(GameTooltip.lines[1] == "Hogger", "tooltip title")

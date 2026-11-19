@@ -10,7 +10,7 @@ local checks, ctl = {}, {}
 
 local TOGGLES = {
   { "sound", "Sound", "Card, combat and pack sounds." },
-  { "portraits", "Creature portraits", "Show the creature's portrait beside a card's tooltip, when it has one." },
+  { "portraits", "Creature portraits", "Show a portrait of the creature beside a card's tooltip, when it has one. Off by default." },
   { "forecast", "Round forecast", "While planning: lane markers, the predicted Morale change and units marked \"dies\"." },
   { "toast", "Offer a game on take-off", "Show a small prompt when a flight starts." },
   { "hideOnLand", "Close on landing", "Close the window when your flight ends. Your game is saved." },

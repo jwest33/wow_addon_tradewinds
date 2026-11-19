@@ -44,7 +44,7 @@ C.SETTING_DEFAULTS = {
   hideOnLand = true,   -- close the window when the flight ends
   hideInCombat = true,
   speed = 1,           -- replay speed
-  portraits = true,    -- creature portraits in card tooltips
+  portraits = false,   -- a creature portrait beside card tooltips (opt-in)
   forecast = true,     -- show what your planned round would do
   minimap = true,
   minimapAngle = 200,
@@ -98,6 +98,10 @@ C.MIGRATIONS = {
     db.decks = type(db.decks) == "table" and db.decks or {}
     if type(db.deck) == "table" then db.decks[1] = db.deck end
     db.deckSlot = 1
+  end,
+  -- 4 (v0.5.2): the portrait beside card tooltips is off unless asked for.
+  function(db)
+    if type(db.settings) == "table" then db.settings.portraits = false end
   end,
 }
 C.SCHEMA = #C.MIGRATIONS
