@@ -12,6 +12,7 @@ local TOGGLES = {
   { "sound", "Sound", "Card, combat and pack sounds." },
   { "portraits", "Creature portraits", "Show a portrait of the creature beside a card's tooltip, when it has one. Off by default." },
   { "forecast", "Round forecast", "While planning: lane markers, the predicted Morale change and units marked \"dies\"." },
+  { "chatter", "Opponent lines", "Your opponent says a line now and then during a match (a big hit, a close call). Click it to dismiss." },
   { "toast", "Offer a game on take-off", "Show a small prompt when a flight starts." },
   { "hideOnLand", "Close on landing", "Close the window when your flight ends. Your game is saved." },
   { "hideInCombat", "Close in combat", "Close the window when combat starts." },
@@ -106,8 +107,9 @@ function O.Build(parent)
 
   y = y - 30
   local tips = UI.Button(page, "Show the first-time tips again", 220, 22, function()
-    ns.db.settings.seenRules, ns.db.settings.seenLaneTip = nil, nil
-    ns.Print("The tips will show again the next time you open the Play tab and start a match.")
+    local S = ns.db.settings
+    S.seenRules, S.seenLaneTip, S.seenKw, S.seenWelcome = nil, nil, nil, nil
+    ns.Print("The welcome, the lane tip and the keyword tips will show again.")
   end)
   tips:SetPoint("TOPLEFT", x, y)
 

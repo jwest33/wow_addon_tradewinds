@@ -24,7 +24,8 @@ C.PACK_ODDS = { legendary = 5, epic = 30, rare = 250 }
 C.PITY = 25                    -- at most this many packs in a row without an epic or better
 C.HOLO_ODDS = 100              -- 1 pack in this many has a holographic card
 C.TRAVEL_PACK_SECONDS = 1200
-C.STARTER_PACKS = 2
+C.STARTER_PACKS = 1
+C.TUTORIAL_PACKS = 1           -- for finishing the tutorial, once
 C.REWARD = {
   win = { easy = 2, normal = 4, hard = 6 },  -- shards, by the opponent's level
   fullWins = 3,       -- wins per opponent per day that pay the full amount
@@ -53,6 +54,7 @@ C.SETTING_DEFAULTS = {
   minimapAngle = 200,
   scale = 1,
   sound = true,
+  chatter = true,      -- the opponent's lines during a match
 }
 C.DECK_SLOTS = 3
 
@@ -105,6 +107,18 @@ C.MIGRATIONS = {
   -- 4 (v0.5.2): the portrait beside card tooltips is off unless asked for.
   function(db)
     if type(db.settings) == "table" then db.settings.portraits = false end
+  end,
+  -- 5 (v0.7.0): first-time tips for each keyword, and a welcome that offers
+  -- the tutorial. Someone who has already played has seen the keywords and
+  -- doesn't need the welcome (the tutorial is still there, with its pack).
+  function(db)
+    local s = db.stats
+    local played = type(s) == "table" and ((tonumber(s.wins) or 0) + (tonumber(s.losses) or 0) + (tonumber(s.draws) or 0)) or 0
+    if played > 0 and type(db.settings) == "table" then
+      db.settings.seenKw = {}
+      for _, k in ipairs(ns.Rules.KEYWORDS) do db.settings.seenKw[k.key] = true end
+      db.settings.seenWelcome = true
+    end
   end,
 }
 C.SCHEMA = #C.MIGRATIONS
@@ -608,6 +622,14 @@ function C.RecordResult(db, oppId, result, today, info)
     end
   end
   return pay(db, out)
+end
+
+-- The tutorial match was played to the end (any result). Pays once.
+function C.FinishTutorial(db)
+  db.tutorial = type(db.tutorial) == "table" and db.tutorial or {}
+  if db.tutorial.done then return {} end
+  db.tutorial.done = true
+  return pay(db, { { packs = C.TUTORIAL_PACKS, why = "finishing the tutorial" } })
 end
 
 -- A level gained: shards, and a pack on every tenth level.

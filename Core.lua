@@ -69,8 +69,12 @@ ns.On("PLAYER_LOGIN", function()
       o and o.name or "the computer")
   end
   local m = ns.db.match
+  local s = ns.db.stats
   if m then
-    ns.Print("Your game against %s is waiting. Type /deckhand to continue.", ns.OpponentById[m.opp].name)
+    ns.Print("Your %s is waiting. Type /deckhand to continue.",
+      m.tutorial and "tutorial" or ("game against " .. ns.OpponentById[m.opp].name))
+  elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
+    ns.Print("New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack.")
   elseif ns.db.packs > 0 then
     ns.Print("You have %d unopened card pack%s. Type /deckhand to play.", ns.db.packs, ns.db.packs == 1 and "" or "s")
   end
@@ -124,29 +128,20 @@ local SETTINGS = {
   combat = { "hideInCombat", "Close the window when combat starts" },
   portraits = { "portraits", "Creature portraits in card tooltips" },
   sound = { "sound", "Sound" },
+  chatter = { "chatter", "Opponent lines during a match" },
   forecast = { "forecast", "Lane markers and Morale forecast while planning" },
   minimap = { "minimap", "Minimap button" },
 }
 
 local HELP = {
-  "/deckhand - show or hide the game  (/deckhand play | cards | packs | options opens a tab)",
+  "/deckhand - show or hide the game  (/deckhand play | cards | packs | guide | options opens a tab)",
+  "/deckhand tutorial - a guided match against Flightmaster Dorn",
   "/deckhand end - end the match you're in (counts as a loss, no reward)",
   "/deckhand speed 1-3 - how fast rounds play out",
   "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
-  "/deckhand toast | land | combat | portraits | forecast | sound | minimap [on|off] - options (also in the Options tab)",
+  "/deckhand toast | land | combat | portraits | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)",
   "/deckhand icons - list card icons this client doesn't have (for bug reports)",
-  "/deckhand rules - how to play",
-}
-
-local RULES = {
-  "Both players start with 12 Morale. Each round you get Supply (1, 2, 3 ... up to 6) and draw a card.",
-  "Draws in rounds 1-3 always cost no more than that round's Supply (round 1: a unit). Later draws are random.",
-  "Pick cards from your hand: units go into one of your 4 lanes, tactics target a lane. Then Lock In.",
-  "Both sides reveal at once. New units arrive, then tactics resolve, then combat:",
-  "every unit strikes the enemy unit straight across from it in its lane (each column is a lane),",
-  "or the enemy's Morale if nothing is across from it. The markers between the rows show what each lane will do.",
-  "The game ends when someone's Morale hits 0, or after round 8 (highest Morale wins).",
-  "Hover any card for what its keywords do.",
+  "/deckhand rules - the rules (the Guide tab)",
 }
 
 SLASH_DECKHAND1 = "/deckhand"
@@ -157,8 +152,13 @@ SlashCmdList.DECKHAND = function(msg)
   local S = ns.db.settings
   if cmd == "" then
     Deckhand_Toggle()
-  elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "options" then
+  elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "options" or cmd == "guide" then
     ns.UI.Show(cmd)
+  elseif cmd == "rules" then
+    ns.UI.Show("guide")
+  elseif cmd == "tutorial" then
+    ns.UI.Show("play")
+    ns.UI.Game.StartTutorial()
   elseif cmd == "end" or cmd == "concede" then
     if ns.db.match then ns.UI.Game.AskEndMatch() else ns.Print("You're not in a match.") end
   elseif cmd == "speed" then
@@ -184,8 +184,6 @@ SlashCmdList.DECKHAND = function(msg)
     local missing = ns.UI.MissingIcons()
     if #missing == 0 then ns.Print("All card icons found.") end
     for _, line in ipairs(missing) do ns.Print(line) end
-  elseif cmd == "rules" then
-    for _, line in ipairs(RULES) do ns.Print(line) end
   else
     for _, line in ipairs(HELP) do ns.Print(line) end
   end

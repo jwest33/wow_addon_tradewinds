@@ -10,7 +10,7 @@ end
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
 local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
-  ["Data/Opponents.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
+  ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Deckhand.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
@@ -1051,6 +1051,21 @@ do
   old.decks[2] = { "kobold", "gone", "wolf" }
   C.Init(old)
   check(#old.decks[2] == 2, "cards that no longer exist leave every deck")
+  -- migration 5: someone who has played skips the welcome and the keyword tips
+  local played = {}
+  C.Init(played)
+  played.schema, played.stats.wins = 4, 3
+  C.Init(played)
+  check(played.settings.seenWelcome and played.settings.seenKw.swift and played.settings.seenKw.stealth,
+    "migration 5: a player with games behind them has seen the keywords")
+  local fresh5 = {}
+  C.Init(fresh5)
+  check(not fresh5.settings.seenWelcome and not fresh5.settings.seenKw, "a new character gets the welcome and the tips")
+  check(fresh5.packs == C.STARTER_PACKS and C.STARTER_PACKS == 1, "one starter pack (the tutorial pays the second)")
+  local t1 = C.FinishTutorial(fresh5)
+  local t2 = C.FinishTutorial(fresh5)
+  check(#t1 == 1 and t1[1].packs == C.TUTORIAL_PACKS and #t2 == 0 and fresh5.packs == 1 + C.TUTORIAL_PACKS,
+    "finishing the tutorial pays once")
 end
 
 -- 8. the pace of the collection -------------------------------------------------------
@@ -1117,6 +1132,79 @@ do
     total, half, most, one, all))
   check(most >= 28 and most <= 48, "75% of the pack cards takes about three weeks of packs (" .. most .. ")")
   check(one >= 90 and one <= 170, "one of every pack card takes two to three months of packs (" .. one .. ")")
+end
+
+
+-- 9. the tutorial --------------------------------------------------------------------
+-- Plays the script and checks that each round does what the coach says.
+do
+  local T = ns.Tutorial
+  local st = T.NewGame()
+  check(st.stacked and st.round == 1 and st.init == 1 and #st.players[1].hand == R.OPENING_HAND + 1,
+    "tutorial: stacked decks, you have initiative")
+  local affordable = {}
+  for _, id in ipairs(st.players[1].hand) do
+    if Cards.byId[id].cost <= st.players[1].supply then affordable[#affordable + 1] = id end
+  end
+  check(#affordable == 1 and affordable[1] == "kobold", "round 1: the Kobold is the only card you can play")
+  local function play(r)
+    local round = T.ROUNDS[r]
+    check(T.Round(st) == round, "tutorial round " .. r .. " is scripted")
+    local mine, theirs = T.PlanFor(st, 1, round.you), T.PlanFor(st, 2, round.dorn)
+    check(mine and theirs, "tutorial round " .. r .. ": the scripted cards are in both hands")
+    check(#T.Remaining(st, {}) == #round.you and #T.Remaining(st, mine) == 0, "tutorial round " .. r .. ": the plan matches")
+    check(R.CheckPlan(st, 1, mine) and R.CheckPlan(st, 2, theirs), "tutorial round " .. r .. ": both plans are legal")
+    check(T.Allowed(st, {}, round.you[1].id, round.you[1].lane) and not T.Allowed(st, {}, round.you[1].id, 5)
+      and not T.Allowed(st, {}, "ogre"), "tutorial round " .. r .. ": only the asked-for play is allowed")
+    st.events = {}
+    R.Resolve(st, { mine, theirs })
+    local ev = st.events
+    st.events = nil
+    return ev
+  end
+  local P, D = st.players[1], st.players[2]
+  play(1)
+  check(P.morale == 11 and D.morale == 11, "round 1: each Kobold hits the other's Morale")
+  play(2)
+  check(D.board[4] == nil and P.board[4].id == "thug" and P.board[2].id == "kobold" and D.board[2].id == "strider",
+    "round 2: the Thug blocks Dorn's Kobold and destroys it")
+  check(P.morale == 11 and D.morale == 12, "round 2: nothing gets through; Plainstrider's Arrive gives Dorn Morale back")
+  local ev = play(3)
+  local cast, died, combat, raptorStrikes = nil, nil, nil, 0
+  for i, e in ipairs(ev) do
+    if e.t == "tactic" and e.id == "fireball" then cast = i end
+    if e.t == "die" and e.id == "raptor" then died = i end
+    if e.t == "phase" and e.name == "combat" then combat = i end
+    if e.t == "strike" and e.p == 2 and e.lane == 3 then raptorStrikes = raptorStrikes + 1 end
+  end
+  check(cast and died and combat and cast < died and died < combat and raptorStrikes == 0,
+    "round 3: Fireball hits the Lashtail after it arrives, and it never strikes")
+  check(D.morale == 9 and P.morale == 11 and P.board[1].id == "wolf", "round 3: the Wolf and the Thug hit Dorn's Morale")
+  ev = play(4)
+  local guarded = false
+  for _, e in ipairs(ev) do
+    if e.t == "strike" and e.p == 2 and e.lane == 3 and e.tp == 1 and e.tl == 2 then guarded = true end
+  end
+  check(guarded and P.morale == 11 and P.board[2] and P.board[2].id == "bear",
+    "round 4: Dorn's Boar strikes the Guard Bear instead of your Morale")
+  check(D.morale == 6 and T.Round(st) == nil and st.round == T.GUIDED + 1, "round 5 is yours to play, 11 Morale to 6")
+  -- from there the player should usually win
+  local wins, n = 0, 60
+  for seed = 1, n do
+    local c = R.Clone(st)
+    local rnd = lcg(seed * 13)
+    while not c.winner do R.Resolve(c, { AI.ChoosePlan(c, 1, "normal", rnd), AI.ChoosePlan(c, 2, T.LEVEL, rnd) }) end
+    if c.winner == 1 then wins = wins + 1 end
+  end
+  print(("tutorial: from round 5 the player wins %d%%"):format(math.floor(wins / n * 100 + 0.5)))
+  check(wins >= n * 0.75, "the tutorial is usually won")
+  -- about 100 characters a line, five lines in the coach's box
+  local function visible(s) return #(s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+  for _, r in ipairs(T.ROUNDS) do
+    check(visible(r.say) <= 400 and visible(r.after) <= 400 and visible(r.watch) <= 90,
+      "the coach's text fits its box: " .. r.say:sub(1, 30))
+  end
+  check(visible(T.FREE) <= 400, "the hand-over text fits too")
 end
 
 

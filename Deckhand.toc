@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Deckhand
 ## Notes: A Warcraft card game for flights and boat rides. Earn packs while you travel, build a deck, beat the tavern regulars.
-## Version: 0.6.0
+## Version: 0.7.0
 ## IconTexture: Interface\Icons\INV_Misc_Ticket_Darkmoon_01
 ## SavedVariablesPerCharacter: DeckhandCharDB
 ## AddonCompartmentFunc: Deckhand_Toggle
@@ -11,6 +11,7 @@ Engine\Cards.lua
 Engine\CardsRoads.lua
 Engine\AI.lua
 Data\Opponents.lua
+Data\Tutorial.lua
 Data\CardText.lua
 Collection.lua
 Core.lua
@@ -18,6 +19,8 @@ UI\Widgets.lua
 UI\Portraits.lua
 UI\Main.lua
 UI\Game.lua
+UI\Tutorial.lua
+UI\Guide.lua
 UI\Binder.lua
 UI\Packs.lua
 UI\Options.lua

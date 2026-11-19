@@ -269,6 +269,195 @@ def holo_ring():
 
 
 # ---------------------------------------------------------------------------
+# Rules diagrams (the Guide tab and the first-time keyword tips): a little
+# board of three lanes, the enemy's row on top and yours below, with arrows
+# for who strikes what. 256x128, shown at full size.
+DW, DH = 256, 128
+LANE_X = [48, 128, 208]           # lane centres
+ROW_Y = {"them": 27, "you": 101}  # tile centres
+TILE = (60, 40)
+FOE = ((96, 34, 30), (190, 80, 66))     # fill, edge
+OWN = ((30, 52, 96), (88, 136, 214))
+GOLD = (255, 210, 90)
+RED = (255, 90, 80)
+GREEN = (110, 235, 110)
+WHITE = (240, 236, 226)
+
+
+class Diagram:
+    def __init__(self):
+        self.img = new(DW, DH)
+        self.d = ImageDraw.Draw(self.img)
+        put(self.img, flat(DW, DH, (22, 19, 15)), rmask(DW, DH, [1, 1, DW - 1, DH - 1], 8))
+        stroke(self.img, DW, DH, [1, 1, DW - 1, DH - 1], 8, (98, 82, 54), 1.5)
+        for x in (88, 168):
+            self.d.line(sc([x, 8, x, DH - 8]), fill=(60, 52, 40, 255), width=S)
+
+    def box(self, lane, row):
+        cx, cy = LANE_X[lane - 1], ROW_Y[row]
+        return [cx - TILE[0] / 2, cy - TILE[1] / 2, cx + TILE[0] / 2, cy + TILE[1] / 2]
+
+    def text(self, xy, s, size, col, anchor="mm"):
+        self.d.text((xy[0] * S, xy[1] * S), s, font=font(size * S), fill=col + (255,), anchor=anchor,
+                    stroke_width=S, stroke_fill=(12, 10, 8, 255))
+
+    def empty(self, lane, row):
+        b = self.box(lane, row)
+        self.d.rounded_rectangle(sc(b), 5 * S, outline=(78, 70, 58, 255), width=S)
+
+    def unit(self, lane, row, stats, label=None, atk_col=None, hp_col=None, dead=False):
+        fill, edge = OWN if row == "you" else FOE
+        b = self.box(lane, row)
+        self.d.rounded_rectangle(sc(b), 5 * S, fill=fill + (255,), outline=edge + (255,), width=int(1.5 * S))
+        cx, cy = LANE_X[lane - 1], ROW_Y[row]
+        if label:
+            self.text((cx, b[1] + 8), label, 9, GOLD)
+        atk, hp = stats.split("/")
+        y = cy + (5 if label else 0)
+        self.text((cx - 3, y), atk, 15, atk_col or WHITE, "rm")
+        self.text((cx, y), "/", 15, (170, 160, 140), "mm")
+        self.text((cx + 3, y), hp, 15, hp_col or WHITE, "lm")
+        if dead:
+            for a, c in (((b[0] + 8, b[1] + 6), (b[2] - 8, b[3] - 6)), ((b[0] + 8, b[3] - 6), (b[2] - 8, b[1] + 6))):
+                self.d.line(sc([a[0], a[1], c[0], c[1]]), fill=RED + (255,), width=3 * S)
+
+    def arrow(self, a, b, col, label=None, lpos=0.5, loff=(0, 0), size=9):
+        import math
+        (x0, y0), (x1, y1) = a, b
+        ang = math.atan2(y1 - y0, x1 - x0)
+        head = 8
+        bx, by = x1 - math.cos(ang) * head * 0.8, y1 - math.sin(ang) * head * 0.8
+        self.d.line(sc([x0, y0, bx, by]), fill=col + (255,), width=3 * S)
+        pts = [(x1, y1),
+               (x1 - math.cos(ang - 0.5) * head, y1 - math.sin(ang - 0.5) * head),
+               (x1 - math.cos(ang + 0.5) * head, y1 - math.sin(ang + 0.5) * head)]
+        self.d.polygon([(x * S, y * S) for x, y in pts], fill=col + (255,))
+        if label:
+            mx, my = x0 + (x1 - x0) * lpos + loff[0], y0 + (y1 - y0) * lpos + loff[1]
+            self.text((mx, my), label, size, col)
+
+    def save(self, key):
+        return finish(self.img, DW, DH, "Diagram_" + key)
+
+
+def top(lane):
+    return (LANE_X[lane - 1], ROW_Y["them"] + TILE[1] / 2 + 1)
+
+
+def bot(lane):
+    return (LANE_X[lane - 1], ROW_Y["you"] - TILE[1] / 2 - 1)
+
+
+def diagrams():
+    out = []
+    # lanes: open lane hits Morale, facing units fight, theirs gets through
+    g = Diagram()
+    g.unit(1, "you", "2/2")
+    g.empty(1, "them")
+    g.text((LANE_X[0], ROW_Y["them"]), "-2 Morale", 10, RED)
+    g.arrow(bot(1), (LANE_X[0], ROW_Y["them"] + 9), GOLD)
+    g.unit(2, "you", "2/3")
+    g.unit(2, "them", "3/2")
+    g.arrow((LANE_X[1] - 7, bot(2)[1]), (LANE_X[1] - 7, top(2)[1]), GOLD)
+    g.arrow((LANE_X[1] + 7, top(2)[1]), (LANE_X[1] + 7, bot(2)[1]), RED)
+    g.unit(3, "them", "1/2")
+    g.empty(3, "you")
+    g.text((LANE_X[2], ROW_Y["you"]), "-1 Morale", 10, RED)
+    g.arrow(top(3), (LANE_X[2], ROW_Y["you"] - 9), RED)
+    out.append(g.save("lanes"))
+
+    g = Diagram()   # swift
+    g.unit(2, "you", "3/2", "Swift")
+    g.unit(2, "them", "2/2", dead=True)
+    g.arrow(bot(2), top(2), GOLD, "first", loff=(22, 0), size=10)
+    out.append(g.save("swift"))
+
+    g = Diagram()   # guard
+    g.unit(1, "them", "2/2")
+    g.empty(1, "you")
+    g.unit(2, "you", "3/6", "Guard")
+    g.arrow((LANE_X[0] + 6, top(1)[1]), (LANE_X[1] - 26, ROW_Y["you"] - 14), RED, "2", loff=(-10, 4), size=11)
+    g.empty(3, "them")
+    g.empty(3, "you")
+    out.append(g.save("guard"))
+
+    g = Diagram()   # ranged
+    g.unit(1, "you", "2/3", "Ranged")
+    g.unit(2, "them", "3/4")
+    g.unit(3, "them", "2/1", dead=True)
+    g.text((LANE_X[2] + 6, ROW_Y["them"] + 36), "weakest", 10, GOLD)
+    g.arrow((LANE_X[0] + 20, bot(1)[1]), (LANE_X[2] - 24, top(3)[1] + 4), GOLD)
+    g.empty(1, "them")
+    out.append(g.save("ranged"))
+
+    g = Diagram()   # pierce
+    g.unit(2, "you", "5/3", "Pierce")
+    g.unit(2, "them", "2/2", dead=True)
+    g.arrow(bot(2), top(2), GOLD, "5", loff=(10, 0), size=11)
+    g.arrow((LANE_X[1] + 32, ROW_Y["them"]), (LANE_X[2] - 26, ROW_Y["them"]), RED)
+    g.text((LANE_X[2] + 8, ROW_Y["them"]), "-3 Morale", 10, RED)
+    out.append(g.save("pierce"))
+
+    g = Diagram()   # cleave
+    g.unit(2, "you", "3/5", "Cleave")
+    for lane in (1, 2, 3):
+        g.unit(lane, "them", "2/3")
+    g.arrow(bot(2), top(2), GOLD)
+    g.arrow((LANE_X[1] - 14, bot(2)[1]), (LANE_X[0] + 14, top(1)[1]), GOLD)
+    g.arrow((LANE_X[1] + 14, bot(2)[1]), (LANE_X[2] - 14, top(3)[1]), GOLD)
+    out.append(g.save("cleave"))
+
+    g = Diagram()   # venom
+    g.unit(2, "you", "1/3", "Venom")
+    g.unit(2, "them", "6/6", dead=True)
+    g.arrow(bot(2), top(2), GOLD, "1", loff=(10, 0), size=11)
+    out.append(g.save("venom"))
+
+    g = Diagram()   # drain
+    g.unit(2, "you", "2/2", "Drain")
+    g.unit(2, "them", "3/4", hp_col=RED)
+    g.arrow(bot(2), top(2), GOLD, "2", loff=(10, 0), size=11)
+    g.arrow((LANE_X[1] - 32, ROW_Y["you"]), (LANE_X[0] + 14, ROW_Y["you"]), GREEN)
+    g.text((LANE_X[0] - 16, ROW_Y["you"]), "+2 Morale", 10, GREEN)
+    out.append(g.save("drain"))
+
+    g = Diagram()   # sturdy
+    g.unit(2, "you", "2/1", "Sturdy", hp_col=GREEN)
+    g.unit(2, "them", "5/5")
+    g.arrow(top(2), bot(2), RED, "5", loff=(10, 0), size=11)
+    g.text((LANE_X[2] - 4, ROW_Y["you"]), "survives", 10, GREEN)
+    out.append(g.save("sturdy"))
+
+    g = Diagram()   # regenerate
+    g.unit(1, "you", "3/1", "Regen", hp_col=RED)
+    g.unit(3, "you", "3/4", "Regen", hp_col=GREEN)
+    g.arrow((LANE_X[0] + 34, ROW_Y["you"]), (LANE_X[2] - 34, ROW_Y["you"]), GREEN)
+    g.text((LANE_X[1], ROW_Y["you"] - 30), "end of round", 10, GREEN)
+    out.append(g.save("regen"))
+
+    g = Diagram()   # rally
+    g.unit(1, "you", "3/2", atk_col=GREEN)
+    g.unit(2, "you", "3/3", "Rally")
+    g.unit(3, "you", "3/2", atk_col=GREEN)
+    g.arrow((LANE_X[1], ROW_Y["you"] - 24), (LANE_X[0] + 14, ROW_Y["you"] - 26), GREEN, "+1", loff=(0, -10), size=11)
+    g.arrow((LANE_X[1], ROW_Y["you"] - 24), (LANE_X[2] - 14, ROW_Y["you"] - 26), GREEN, "+1", loff=(0, -10), size=11)
+    out.append(g.save("rally"))
+
+    g = Diagram()   # stealth
+    b = g.box(2, "them")
+    g.d.rounded_rectangle(sc(b), 5 * S, fill=(70, 40, 92, 255), outline=(176, 120, 230, 255), width=int(1.5 * S))
+    g.text((LANE_X[1], ROW_Y["them"]), "Tactic", 11, WHITE)
+    g.unit(2, "you", "4/3", "Stealth")
+    g.arrow(top(2), (LANE_X[1], ROW_Y["you"] - 22), (176, 120, 230))
+    cx, cy = LANE_X[1], 63
+    for dx in (-1, 1):
+        g.d.line(sc([cx - 9, cy - 9 * dx, cx + 9, cy + 9 * dx]), fill=RED + (255,), width=3 * S)
+    g.text((LANE_X[2] + 2, 63), "can't target", 10, RED)
+    out.append(g.save("stealth"))
+    return out
+
+
+# ---------------------------------------------------------------------------
 def tint(img, col):
     r, g, b, a = img.split()
 
@@ -336,7 +525,13 @@ if __name__ == "__main__":
     star()
     holo_foil()
     holo_ring()
+    dia = diagrams()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
         mock(sys.argv[1], parts)
         print("mock:", sys.argv[1])
+        sheet = Image.new("RGBA", (DW * 3 + 40, (DH + 10) * 4 + 10), (30, 26, 22, 255))
+        for i, im in enumerate(dia):
+            sheet.alpha_composite(im, (10 + (i % 3) * (DW + 10), 10 + (i // 3) * (DH + 10)))
+        p = pathlib.Path(sys.argv[1])
+        sheet.save(p.with_name(p.stem + "_diagrams.png"))

@@ -292,6 +292,22 @@ opening and a deck edit look right in game at scale 0.8, 1.0 and 1.3.
 
 ### Phase 3: Onboarding (M)
 
+Status (v0.7.0, 2026-11-19): built, not yet seen in game.
+
+- 1: the tutorial is four scripted rounds (lanes and Morale, blocking,
+  a tactic landing after the reveal, Guard) with stacked decks
+  (`R.NewGame{ stacked = true }`), then free play against the easy AI from
+  11 Morale to 6. Dorn coaches from a box over the log, with an arrow and a
+  ring on what to click; other cards and lanes are refused until the round
+  is done. Starter packs are now 1, plus 1 for finishing the tutorial once.
+  A first-run welcome offers it (characters that have played skip that).
+- 2: the Guide tab, with generated diagrams for the lanes and every keyword.
+  The old rules box and the chat rules are gone; `/deckhand rules` opens it.
+- 3: keyword tips, one at a time, the first time a keyword is in your hand or
+  on the board (characters that have played have them marked as seen).
+- 4: opponent lines (hello, a big hit either way, close to losing) in a
+  bubble under their panel and in the log, with an option to turn them off.
+
 1. **Tutorial match** against Dorn with a fixed seed and deck: three guided
    rounds that teach lanes and blocking, tactics landing after the reveal,
    and one keyword. It replaces the rules text as the first-run experience.

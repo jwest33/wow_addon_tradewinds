@@ -313,6 +313,131 @@ do
   check(db.packs == 0 and #MOCK.chat > chat and MOCK.chat[chat + 1]:find("Opened 4 packs"), "open all opens every pack and says what was in them")
 end
 
+-- the tutorial
+do
+  check(db.settings.seenWelcome == nil and not (db.tutorial and db.tutorial.done), "a new character hasn't seen the tutorial")
+  local packs = db.packs
+  local s0 = { db.stats.wins, db.stats.losses, db.stats.draws }
+  local function handIndex(id)
+    for h, x in ipairs(db.match.st.players[1].hand) do if x == id then return h end end
+  end
+  UI.SelectTab("guide")
+  G.StartTutorial()
+  local m = db.match
+  check(m and m.tutorial and m.opp == "dorn" and UI.tab == "play", "the tutorial starts on the Play tab")
+  check(db.settings.seenWelcome and UI.Tutorial.coach:IsShown(), "the coach is talking")
+  check(UI.Tutorial.pointer:IsShown(), "the arrow points at the card to play")
+  G.ClickHand(handIndex("thug"), "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("Not that one yet"), "the coach refuses other cards")
+  G.ClickHand(handIndex("kobold"), "LeftButton")
+  G.ClickSlot(1, 1, "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("lane 2") and G.Selected(), "and other lanes")
+  G.ClickSlot(1, 2, "LeftButton")
+  G.LockIn()
+  MOCK.Advance(60)
+  check(db.match.st.round == 2 and UI.Tutorial.Gate(db.match), "round 1 played; the coach explains it")
+  G.ClickHand(handIndex("thug"), "LeftButton")
+  check(G.Selected() == nil, "no planning until you click Next")
+  UI.Tutorial.Next()
+  for r = 2, ns.Tutorial.GUIDED do
+    G.LockIn()
+    check(MOCK.errors[#MOCK.errors]:find("Dorn:"), "round " .. r .. ": can't lock in before playing what Dorn asked")
+    for _, want in ipairs(ns.Tutorial.ROUNDS[r].you) do
+      G.ClickHand(handIndex(want.id), "LeftButton")
+      local c = Cards.byId[want.id]
+      G.ClickSlot((c.type == "tactic" and c.target == "enemy") and 2 or 1, want.lane, "LeftButton")
+    end
+    G.LockIn()
+    MOCK.Advance(60)
+    check(db.match.st.round == r + 1, "tutorial round " .. r .. " played")
+    UI.Tutorial.Next()
+  end
+  local _, kind = UI.Tutorial.Gate(db.match)
+  check(kind == "free", "then Dorn hands over")
+  UI.Tutorial.Next()
+  check(UI.Tutorial.Gate(db.match) == nil and not UI.Tutorial.coach:IsShown(), "free play: the coach steps back")
+  local rounds = 0
+  while db.match and rounds < 10 do
+    rounds = rounds + 1
+    autoPlan()
+    G.LockIn()
+    MOCK.Advance(60)
+  end
+  check(db.match == nil and db.tutorial.done and db.packs == packs + C.TUTORIAL_PACKS, "finishing the tutorial pays a pack")
+  check(db.stats.wins == s0[1] and db.stats.losses == s0[2] and db.stats.draws == s0[3], "and doesn't count on the circuit")
+  G.Continue()
+  G.StartTutorial()
+  MOCK.popup = nil
+  G.AskEndMatch()
+  check(MOCK.popup and MOCK.popup.name == "DECKHAND_END_TUTORIAL", "leaving the tutorial asks first")
+  StaticPopupDialogs[MOCK.popup.name].OnAccept()
+  check(db.match == nil and db.packs == packs + C.TUTORIAL_PACKS and db.stats.losses == s0[2], "leaving it: no pack, no loss")
+  G.Continue()
+end
+
+-- first-time keyword tips
+do
+  db.settings.seenKw = nil
+  db.settings.seenLaneTip = true
+  G.Start("dorn")
+  local st = db.match.st
+  st.players[1].hand = { "kobold", "wolf" }
+  for p = 1, 2 do st.players[p].board = {} end
+  G.Refresh()
+  check(G.KeywordTip() == "swift", "a Swift card in hand: the Swift tip")
+  G.DismissKeyword()
+  check(db.settings.seenKw.swift and G.KeywordTip() == nil, "dismissed, and not shown again")
+  R.Summon(st, 2, 1, "mountaineer").new = nil
+  G.Refresh()
+  check(G.KeywordTip() == "guard", "a Guard on the board: the Guard tip")
+  G.DismissKeyword()
+  G.EndMatch(); G.Continue()
+end
+
+-- the opponent's lines
+do
+  db.settings.chatter = true
+  G.Start("dorn")
+  check(G.Bubble() == "hello", "the opponent says hello")
+  MOCK.Advance(6)
+  check(G.Bubble() == nil, "and the bubble goes away")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {}; st.players[p].hand = {} end
+  st.players[2].morale = 3
+  G.LockIn()
+  for _ = 1, 80 do
+    if db.match.shown then break end
+    MOCK.Advance(0.25)
+  end
+  check(db.match.shown and G.Bubble() == "low", "close to losing, they say so")
+  check(db.match.log[#db.match.log]:find(ns.OpponentById.dorn.low, 1, true), "the line is in the log")
+  MOCK.Advance(6)
+  check(G.Bubble() == nil, "the bubble fades")
+  G.LockIn()
+  MOCK.Advance(60)
+  local lows = 0
+  for _, line in ipairs(db.match.log) do
+    if line:find(ns.OpponentById.dorn.low, 1, true) then lows = lows + 1 end
+  end
+  check(db.match.said.low == true and lows == 1, "only once a match")
+  db.settings.chatter = false
+  G.Say("hit")
+  check(db.match.said.hit == nil, "chatter off: quiet")
+  db.settings.chatter = true
+  G.EndMatch(); G.Continue()
+end
+
+-- the guide
+do
+  SlashCmdList.DECKHAND("rules")
+  check(UI.tab == "guide", "/deckhand rules opens the Guide")
+  for _, key in ipairs({ "basics", "round", "kw1", "kw2", "cards", "winning" }) do
+    UI.Guide.Show(key)
+    check(UI.Guide.Shown() == key, "guide section " .. key)
+  end
+  UI.SelectTab("play")
+end
+
 -- holographic cards
 do
   local plain = function(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end

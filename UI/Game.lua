@@ -1,5 +1,7 @@
 -- The Play tab: the opponent list, the board, planning a round, the computer
--- opponent's turn, the round replay and the end-of-game screen.
+-- opponent's turn, the round replay and the end-of-game screen. Also the
+-- tutorial match (its script is Data/Tutorial.lua, its coach UI/Tutorial.lua),
+-- the first-time tips and the opponent's lines.
 --
 -- You are always player 1 and the computer player 2. The running game lives
 -- in DeckhandCharDB.match, so it survives /reload and logging out.
@@ -41,6 +43,7 @@ local markers = {}  -- per lane, between the rows: what the lane does in combat
 local replayMarks = {}
 local token = 0     -- invalidates stale replay timers
 local startReplay   -- defined with the replay code below
+local renderTips    -- defined with the keyword tips below
 
 local function current() return ns.db.match and ns.db.match.st end
 local function shown() return current() or (finished and finished.st) end
@@ -50,6 +53,21 @@ local function opponent()
 end
 local function who(p) return p == ME and "You" or (opponent() and opponent().short or "They") end
 local function whose(p) return p == ME and "your" or ((opponent() and opponent().short or "their") .. "'s") end
+
+-- The match, if it's the tutorial.
+local function tutorialMatch()
+  local m = ns.db.match
+  return (m and m.tutorial) and m or nil
+end
+
+-- Can you plan right now? Not while a round plays out or the opponent
+-- thinks, nor while the tutorial's coach waits for you to click Next.
+local function isPlanning()
+  if not current() or view or busy then return false end
+  local tm = tutorialMatch()
+  if tm and UI.Tutorial and UI.Tutorial.Gate(tm) then return false end
+  return true
+end
 
 -- ---------------------------------------------------------------------------
 -- Log (a panel beside the window)
@@ -347,7 +365,7 @@ local function renderSlot(p, l)
   local slot = slots[p][l]
   local card = slot.card
   local u = S and S.players[p].board[l]
-  local planning = current() and not view and not busy
+  local planning = isPlanning()
   local dies = planning and forecast and forecast.dies[p][l]
   local maybe = planning and forecast and forecast.maybe[p][l]
   if u then
@@ -425,7 +443,8 @@ end
 local function renderHand()
   local st = shown()
   local hand = view and view.hand or st.players[ME].hand
-  local planning = current() and not view and not busy
+  local planning = isPlanning()
+  local tm = planning and tutorialMatch()
   local list = {}
   local planned = planning and plannedHand() or {}
   for h = 1, #hand do
@@ -444,7 +463,8 @@ local function renderHand()
       b:ClearAllPoints()
       b:SetPoint("TOPLEFT", board, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 5), HAND_Y + ((planning and sel == h) and 10 or 0))
       b:SetSelected(planning and sel == h)
-      b:SetDim(not planning or (sel ~= h and Cards.byId[hand[h]].cost > left))
+      b:SetDim(not planning or (sel ~= h and Cards.byId[hand[h]].cost > left)
+        or (tm and sel ~= h and not ns.Tutorial.Allowed(st, plan, hand[h])) and true or false)
     else
       b.h = nil
       b:Hide()
@@ -456,6 +476,8 @@ local function hintText(st)
   if thinking then return (opponent().short or "They") .. " is choosing..." end
   if view then return "Playing out the round. Click the board to skip." end
   if not current() then return "" end
+  local tm = tutorialMatch()
+  if tm and UI.Tutorial.Gate(tm) then return "Click " .. (tm.st.round > ns.Tutorial.GUIDED and "Let's play" or "Next") .. " to carry on." end
   if sel then
     local c = Cards.byId[st.players[ME].hand[sel]]
     if c.type == "unit" then return "Click one of your empty lanes (bottom row) for " .. c.name .. "." end
@@ -480,7 +502,7 @@ local function renderControls()
   local S = view or st
   ctl.round:SetText(("Round %d of %d"):format(S.round, R.MAX_ROUNDS))
   ctl.init:SetText(S.init == ME and "You have initiative" or (who(OPP) .. " has initiative"))
-  local planning = current() and not view and not busy
+  local planning = isPlanning()
   if planning then
     ctl.supply:SetText(("%d/%d"):format(supplyLeft(st), st.players[ME].supply))
   else
@@ -491,6 +513,7 @@ local function renderControls()
   ctl.clear:SetEnabled(planning and #plan > 0)
   ctl.replay:SetEnabled((planning and ns.db.match.last) and true or false)
   ctl.endMatch:SetShown(current() ~= nil)
+  ctl.endMatch:SetText(tutorialMatch() and "Leave tutorial" or "End match")
   -- untargeted tactics in the plan
   local n = 0
   if planning then
@@ -555,9 +578,113 @@ local function showGameOver()
       lines[#lines + 1] = ("|cff9fdfff+%d shard%s|r (%s)"):format(r.shards, r.shards == 1 and "" or "s", r.why)
     end
   end
-  if f.conceded then lines[#lines + 1] = "|cff909090Ended early: no reward.|r" end
+  if f.tutorial then
+    if f.conceded then
+      lines = { "|cff909090You left the tutorial. Start it again any time from the Play tab or the Guide.|r" }
+    else
+      table.insert(lines, 2, "|cffffd100Tutorial complete!|r")
+      lines[#lines + 1] = "Next: the tavern circuit. Dorn is first on the list, and this time he's not holding back."
+      lines[#lines + 1] = "|cffb0b0b0The Guide tab has every rule and keyword.|r"
+    end
+  elseif f.conceded then
+    lines[#lines + 1] = "|cff909090Ended early: no reward.|r"
+  end
   ov.body:SetText(table.concat(lines, "\n"))
   ov:Show()
+end
+
+-- ---------------------------------------------------------------------------
+-- First-time keyword tips: the first time a keyword is in your hand or on
+-- the board, while you plan, a box explains it (one at a time).
+-- ---------------------------------------------------------------------------
+local function nextKeyword(st)
+  local seen = ns.db.settings.seenKw or {}
+  local function first(kw)
+    if not kw then return nil end
+    for _, k in ipairs(R.KEYWORDS) do
+      if kw[k.key] and not seen[k.key] then return k end
+    end
+  end
+  for _, id in ipairs(st.players[ME].hand) do
+    local k = first(Cards.byId[id].kw)
+    if k then return k end
+  end
+  for p = 1, 2 do
+    for l = 1, R.LANES do
+      local u = st.players[p].board[l]
+      local k = u and first(u.kw)
+      if k then return k end
+    end
+  end
+end
+
+renderTips = function(st, tm)
+  local tip = ctl.kwTip
+  if not tip then return end
+  local k = isPlanning() and not tm and ns.db.settings.seenLaneTip and not ctl.laneTip:IsShown() and nextKeyword(st)
+  if not k then
+    tip:Hide()
+    return
+  end
+  tip.key = k.key
+  tip.title:SetText("New keyword: " .. k.name)
+  tip.diagram.tex:SetTexture(UI.ART .. "Diagram_" .. k.key)
+  tip.text:SetText(k.text)
+  tip:Show()
+end
+
+function G.DismissKeyword()
+  local tip = ctl.kwTip
+  if not (tip and tip:IsShown() and tip.key) then return end
+  ns.db.settings.seenKw = ns.db.settings.seenKw or {}
+  ns.db.settings.seenKw[tip.key] = true
+  tip:Hide()
+  G.Refresh()
+end
+
+function G.KeywordTip() return ctl.kwTip and ctl.kwTip:IsShown() and ctl.kwTip.key or nil end
+
+-- ---------------------------------------------------------------------------
+-- The opponent's lines: a speech bubble by their panel for a few seconds
+-- (click it to dismiss), and the log. Off with the "chatter" setting.
+-- ---------------------------------------------------------------------------
+local bubbleToken = 0
+
+function G.Say(kind, noLog)
+  local o = opponent()
+  local line = o and o[kind]
+  if not line or not ns.db.settings.chatter or tutorialMatch() or not ctl.bubble then return end
+  if not noLog then G.Log("%s: \"%s\"", o.short, line) end
+  local b = ctl.bubble
+  b.kind = kind
+  b.text:SetText(line)
+  b:Show()
+  bubbleToken = bubbleToken + 1
+  local mine = bubbleToken
+  C_Timer.After(5, function() if mine == bubbleToken then b:Hide() end end)
+end
+
+function G.Bubble() return ctl.bubble and ctl.bubble:IsShown() and ctl.bubble.kind or nil end
+
+-- After a round has played out for the first time: a big hit either way, or
+-- the opponent close to losing, may get a line. At most one a round, each
+-- kind at most twice a match ("low" once).
+local function chatterAfterRound(m)
+  if not (m and m.last) or m.tutorial or m.st.winner then return end
+  local toMe, toThem = 0, 0
+  for _, e in ipairs(m.last.events) do
+    if e.t == "morale" and e.delta < 0 then
+      if e.p == ME then toMe = toMe - e.delta else toThem = toThem - e.delta end
+    end
+  end
+  m.said = m.said or {}
+  local kind
+  if m.st.players[OPP].morale <= 4 and not m.said.low then kind = "low"
+  elseif toMe >= 4 and toMe >= toThem and (m.said.hit or 0) < 2 then kind = "hit"
+  elseif toThem >= 4 and (m.said.hurt or 0) < 2 then kind = "hurt" end
+  if not kind then return end
+  m.said[kind] = kind == "low" and true or ((m.said[kind] or 0) + 1)
+  G.Say(kind)
 end
 
 function G.Refresh()
@@ -580,24 +707,29 @@ function G.Refresh()
   lobby:Hide()
   board:Show()
   forecast = nil
-  if current() and not view and not busy and ns.db.settings.forecast then forecast = computeForecast(st) end
+  if isPlanning() and ns.db.settings.forecast then forecast = computeForecast(st) end
   for p = 1, 2 do
     for l = 1, R.LANES do renderSlot(p, l) end
   end
   renderMarkers()
-  if ctl.laneTip and not ns.db.settings.seenLaneTip and current() and not view and not busy then
-    ctl.laneTip:Show()
+  local tm = tutorialMatch()
+  if ctl.laneTip then
+    ctl.laneTip:SetShown((not ns.db.settings.seenLaneTip and isPlanning() and not tm) and true or false)
   end
+  renderTips(st, tm)
   renderPanels()
   renderHand()
   renderControls()
   if finished then showGameOver() else ctl.over:Hide() end
+  if UI.Tutorial then
+    UI.Tutorial.Refresh(tm, { planning = isPlanning(), view = view, finished = finished, plan = plan, sel = sel, api = G.api })
+  end
 end
 
 -- ---------------------------------------------------------------------------
 -- Clicks
 -- ---------------------------------------------------------------------------
-local function planning() return current() and not view and not busy end
+local function planning() return isPlanning() end
 
 function G.ClickHand(h, button)
   if view then G.Skip() return end
@@ -609,6 +741,11 @@ function G.ClickHand(h, button)
     return
   end
   local c = Cards.byId[st.players[ME].hand[h]]
+  local tm = tutorialMatch()
+  if tm and not ns.Tutorial.Allowed(st, plan, st.players[ME].hand[h]) then
+    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
+    return
+  end
   if c.cost > supplyLeft(st) then
     UI.Error(("Not enough supply for %s (%d)."):format(c.name, c.cost))
     return
@@ -647,6 +784,10 @@ function G.ClickSlot(p, l, button)
   local ok, why = validTarget(st, p, l)
   if not ok then
     if why then UI.Error(why) end
+    return
+  end
+  if tutorialMatch() and not ns.Tutorial.Allowed(st, plan, st.players[ME].hand[sel], l) then
+    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
     return
   end
   plan[#plan + 1] = { h = sel, id = st.players[ME].hand[sel], lane = l }
@@ -829,12 +970,15 @@ local function finishReplay()
   view = nil
   busy = false
   skipping = false
-  if ns.db.match then ns.db.match.shown = true end
+  local m = ns.db.match
+  local first = m and m.shown == false
+  if m then m.shown = true end
   ctl.banner:Hide()
   ctl.phase:SetText("")
   local st = current()
   if st and st.winner then G.EndGame() end
   G.Refresh()
+  if first then chatterAfterRound(ns.db.match) end
 end
 
 local function pump(mine)
@@ -908,10 +1052,27 @@ function G.LockIn()
   if not planning() then return end
   local ok, err = R.CheckPlan(st, ME, plan)
   if not ok then UI.Error(err) return end
+  local tm = tutorialMatch()
+  local scripted = tm and ns.Tutorial.Round(st)
+  if scripted and #ns.Tutorial.Remaining(st, plan) > 0 then
+    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
+    return
+  end
   busy, sel = true, nil
   UI.Sound("lock")
   G.Refresh()
-  chooseAIPlan(st, opponent().level, function(aiPlan)
+  local choose = chooseAIPlan
+  if scripted then
+    -- the tutorial's scripted rounds: Dorn plays his set hand
+    choose = function(s, _, done)
+      thinking = true
+      C_Timer.After(0.6, function()
+        thinking = false
+        done(ns.Tutorial.PlanFor(s, OPP, scripted.dorn) or {})
+      end)
+    end
+  end
+  choose(st, tm and ns.Tutorial.LEVEL or opponent().level, function(aiPlan)
     if current() ~= st then busy = false; G.Refresh(); return end
     -- The round is played on a copy, which replaces the saved game only if
     -- it went through. If a card errors, the match stays as it was.
@@ -943,8 +1104,10 @@ function G.LockIn()
         if e.p == OPP then n.kills = n.kills + 1 else n.lost = n.lost + 1 end
       end
     end
-    local task = C.TaskEvents(ns.db, ns.Today(), events, ME)
-    if task then ns.Announce({ task }) end
+    if not m.tutorial then
+      local task = C.TaskEvents(ns.db, ns.Today(), events, ME)
+      if task then ns.Announce({ task }) end
+    end
     startReplay(m.last)
   end)
 end
@@ -977,6 +1140,29 @@ function G.Start(oppId)
   G.Log("%s: \"%s\"", o.short, o.hello)
   G.Log("|cffffd100Round 1|r")
   G.Refresh()
+  G.Say("hello", true)
+end
+
+-- The tutorial: a guided match against Dorn (Data/Tutorial.lua). It doesn't
+-- use your deck and doesn't count on the circuit; finishing it the first
+-- time pays a pack.
+function G.StartTutorial()
+  if current() then
+    UI.Error("Finish or end the match you're in first.")
+    return
+  end
+  local T = ns.Tutorial
+  local o = ns.OpponentById[T.OPP]
+  local st = T.NewGame({ UnitName and UnitName("player") or "You", o.name })
+  ns.db.match = { opp = o.id, st = st, tutorial = true, tut = { ack = 0 }, started = time and time() or 0,
+    version = ns.VERSION, rules = R.RULES_VERSION }
+  ns.db.settings.seenWelcome = true
+  ns.db.settings.seenLaneTip = true   -- the coach covers lanes
+  plan, sel, finished, view = {}, nil, nil, nil
+  if logFrame then logFrame.msgs:Clear() end
+  G.Log("%s: \"Pull up a stool. I'll show you how it's done.\"", o.short)
+  G.Log("|cffffd100Round 1|r")
+  if UI.tab ~= "play" then UI.SelectTab("play") else G.Refresh() end
 end
 
 function G.EndGame(conceded)
@@ -985,16 +1171,29 @@ function G.EndGame(conceded)
   local st = m.st
   local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
   local mine, theirs = math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale)
-  local rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), {
-    conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain,
-  })
-  finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded, stats = m.stats }
+  local rewards
+  if m.tutorial then
+    rewards = conceded and {} or C.FinishTutorial(ns.db)
+    if not conceded then
+      -- the coach taught Guard
+      ns.db.settings.seenKw = ns.db.settings.seenKw or {}
+      ns.db.settings.seenKw.guard = true
+    end
+  else
+    rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), {
+      conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain,
+    })
+  end
+  finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded, stats = m.stats,
+    tutorial = m.tutorial }
   UI.Sound(result == "win" and "win" or "lose")
   ns.db.match = nil
   plan, sel = {}, nil
   local o = ns.OpponentById[m.opp]
-  ns.Print("%s against %s (Morale %d to %d).", result == "win" and "|cff40ff40Victory|r" or result == "loss"
-    and "|cffff4040Defeat|r" or "Draw", o.name, math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale))
+  ns.Print("%s%s against %s (Morale %d to %d).", m.tutorial and "Tutorial: " or "", result == "win" and "|cff40ff40Victory|r"
+    or result == "loss" and "|cffff4040Defeat|r" or "Draw", o.name, math.max(0, st.players[ME].morale),
+    math.max(0, st.players[OPP].morale))
+  if m.tutorial then ns.Announce(rewards) end
   UI.Refresh()
 end
 
@@ -1011,12 +1210,23 @@ if StaticPopupDialogs then
     hideOnEscape = true,
     preferredIndex = 3,
   }
+  StaticPopupDialogs.DECKHAND_END_TUTORIAL = {
+    text = "Leave the tutorial?\nYou can start it again from the Play tab.",
+    button1 = "Leave",
+    button2 = "Keep going",
+    OnAccept = function() G.EndMatch() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+  }
 end
 
 function G.AskEndMatch()
   if not current() then return end
-  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.DECKHAND_END_MATCH then
-    StaticPopup_Show("DECKHAND_END_MATCH", opponent().name)
+  local which = tutorialMatch() and "DECKHAND_END_TUTORIAL" or "DECKHAND_END_MATCH"
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs[which] then
+    StaticPopup_Show(which, opponent().name)
   else
     G.EndMatch()
   end
@@ -1086,6 +1296,9 @@ function G.RefreshLobby()
   end
   local s = ns.db.stats
   lobby.stats:SetText(("Overall: %d won, %d lost, %d drawn"):format(s.wins, s.losses, s.draws))
+  local done = ns.db.tutorial and ns.db.tutorial.done
+  lobby.tutorial:SetText(done and "Tutorial" or ("Tutorial (+%d pack)"):format(C.TUTORIAL_PACKS))
+  lobby.welcome:SetShown(not ns.db.settings.seenWelcome)
   local d, task = C.Daily(ns.db, ns.Today())
   if d.done then
     lobby.daily:SetText(("|cff40ff40Daily task done:|r %s."):format(task.text))
@@ -1093,24 +1306,6 @@ function G.RefreshLobby()
     lobby.daily:SetText(("|cffffd100Daily task:|r %s  (%d/%d)  |cff9fdfff+%d shards|r"):format(task.text, d.n, task.goal, C.REWARD.daily))
   end
 end
-
-local RULES_TEXT = table.concat({
-  "|cffffd100How to play|r",
-  "",
-  "You and your opponent each start with |cffffffff12 Morale|r. The game lasts up to 8 rounds.",
-  "",
-  "Each round you draw a card and get |cffffffffSupply|r to spend: 1 in round 1, 2 in round 2, and so on up to 6. Your draws in rounds 1-3 never cost more than that round's Supply (round 1's is always a unit), so you always have something to play.",
-  "",
-  "Plan your round: click a card in your hand, then click where it goes. Units go into your four lanes (the bottom row). Tactics target a lane. Right-click a planned card to take it back. Then press |cffffffffLock In|r.",
-  "",
-  "Both sides are revealed at once. New units arrive, then tactics resolve (whoever has initiative goes first; it alternates), then combat.",
-  "",
-  "|cffffd100Lanes:|r each column on the board is a lane. In combat every unit strikes the enemy unit straight across from it in its lane. If that enemy slot is empty, it hits the enemy's Morale instead. So put units where nothing faces them to hit Morale, and across from their attackers to block them. The markers between the rows show what each lane will do.",
-  "",
-  "Damage on units stays until they die. The game ends when someone's Morale reaches 0, or after round 8, and the higher Morale wins.",
-  "",
-  "Hover any card to see what its keywords do. Beating an opponent unlocks the next one; each has three stars to earn. The Packs tab lists the ways to earn cards.",
-}, "\n")
 
 local function buildLobby()
   lobby = CreateFrame("Frame", nil, page)
@@ -1190,27 +1385,51 @@ local function buildLobby()
   lobby.stats:SetPoint("BOTTOMLEFT", 6, 6)
   lobby.stats:SetTextColor(0.75, 0.75, 0.75)
 
-  local rules = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
-  rules:SetPoint("TOPLEFT", 110, -40)
-  rules:SetPoint("BOTTOMRIGHT", -110, 60)
-  rules:SetFrameLevel(lobby:GetFrameLevel() + 10)
-  UI.Backdrop(rules, { 0.04, 0.035, 0.03, 0.98 }, { 0.75, 0.6, 0.25 }, true)
-  rules:EnableMouse(true)
-  local rt = UI.Text(rules, 12)
-  rt:SetPoint("TOPLEFT", 18, -14)
-  rt:SetPoint("TOPRIGHT", -18, -14)
-  rt:SetJustifyH("LEFT")
-  rt:SetJustifyV("TOP")
-  rt:SetText(RULES_TEXT)
-  local closeRules = UI.Button(rules, "Got it", 80, 22, function() rules:Hide() end)
-  closeRules:SetPoint("BOTTOM", 0, 10)
-  rules:Hide()
-  local howTo = UI.Button(lobby, "How to play", 100, 20, function() rules:SetShown(not rules:IsShown()) end)
-  howTo:SetPoint("TOPRIGHT", -4, -17)
-  if not ns.db.settings.seenRules then
-    rules:Show()
-    ns.db.settings.seenRules = true
-  end
+  lobby.tutorial = UI.Button(lobby, "Tutorial", 130, 20, function() G.StartTutorial() end)
+  lobby.tutorial:SetPoint("TOPRIGHT", -108, -17)
+  UI.SimpleTooltip(lobby.tutorial, "Tutorial", "A short guided match against Flightmaster Dorn: four rounds with his help, then you finish it.",
+    "It doesn't use your deck or count on the circuit. Finishing it the first time earns a card pack.")
+  local guide = UI.Button(lobby, "Guide", 100, 20, function() UI.SelectTab("guide") end)
+  guide:SetPoint("TOPRIGHT", -4, -17)
+  UI.SimpleTooltip(guide, "Guide", "Every rule and keyword, with diagrams.")
+
+  -- the first time: offer the tutorial
+  local w = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
+  w:SetSize(470, 250)
+  w:SetPoint("TOP", 0, -90)
+  w:SetFrameLevel(lobby:GetFrameLevel() + 10)
+  UI.Backdrop(w, { 0.04, 0.035, 0.03, 0.98 }, { 0.75, 0.6, 0.25 }, true)
+  w:EnableMouse(true)
+  local icon = w:CreateTexture(nil, "ARTWORK")
+  icon:SetSize(48, 48)
+  icon:SetPoint("TOPLEFT", 18, -18)
+  icon:SetTexture(UI.Icon(ns.OpponentById[ns.Tutorial.OPP].icon))
+  local wt = UI.Text(w, 16)
+  wt:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -4)
+  wt:SetText("Welcome to Deckhand")
+  wt:SetTextColor(1, 0.82, 0)
+  local wb = UI.Text(w, 12)
+  wb:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -12)
+  wb:SetWidth(434)
+  wb:SetJustifyH("LEFT")
+  wb:SetSpacing(3)
+  wb:SetText("A card game for flights and boat rides. Flightmaster Dorn will show you how it works in a short " ..
+    "guided match: four rounds with his help, then you finish it yourself. Finishing it earns a card pack.\n\n" ..
+    "|cffb0b0b0Know how to play already? Skip it. The tutorial stays on this page, and the Guide tab has every rule.|r")
+  local go = UI.Button(w, "Play the tutorial", 150, 26, function() G.StartTutorial() end)
+  go:SetPoint("BOTTOMLEFT", 18, 16)
+  local read = UI.Button(w, "Open the Guide", 130, 26, function()
+    ns.db.settings.seenWelcome = true
+    UI.SelectTab("guide")
+  end)
+  read:SetPoint("LEFT", go, "RIGHT", 8, 0)
+  local skip = UI.Button(w, "Skip", 80, 26, function()
+    ns.db.settings.seenWelcome = true
+    w:Hide()
+  end)
+  skip:SetPoint("BOTTOMRIGHT", -18, 16)
+  w:Hide()
+  lobby.welcome = w
 end
 
 -- ---------------------------------------------------------------------------
@@ -1398,10 +1617,32 @@ local function buildBoard()
   local ok = UI.Button(tip, "Got it", 80, 22, function()
     ns.db.settings.seenLaneTip = true
     tip:Hide()
+    G.Refresh()
   end)
   ok:SetPoint("BOTTOM", 0, 8)
   tip:Hide()
   ctl.laneTip = tip
+
+  -- the first time a keyword turns up
+  local kt = CreateFrame("Frame", nil, board, UI.TEMPLATE)
+  kt:SetSize(300, 246)
+  kt:SetPoint("CENTER", board, "TOPLEFT", laneX(1) + (4 * SW + 3 * LGAP) / 2, MID_Y)
+  kt:SetFrameLevel(board:GetFrameLevel() + 36)
+  UI.Backdrop(kt, { 0.05, 0.045, 0.04, 0.98 }, { 0.5, 0.75, 1 }, true)
+  kt:EnableMouse(true)
+  kt.title = UI.Text(kt, 14)
+  kt.title:SetPoint("TOP", 0, -10)
+  kt.title:SetTextColor(0.5, 0.75, 1)
+  kt.diagram = UI.Guide.Diagram(kt, "lanes", 256, 128)
+  kt.diagram:SetPoint("TOP", 0, -30)
+  kt.text = UI.Text(kt, 12)
+  kt.text:SetPoint("TOP", kt.diagram, "BOTTOM", 0, -6)
+  kt.text:SetWidth(272)
+  kt.text:SetJustifyH("CENTER")
+  local gotIt = UI.Button(kt, "Got it", 80, 22, function() G.DismissKeyword() end)
+  gotIt:SetPoint("BOTTOM", 0, 8)
+  kt:Hide()
+  ctl.kwTip = kt
 
   -- right column
   local sl = UI.Text(board, 11)
@@ -1467,6 +1708,23 @@ local function buildBoard()
   ctl.hint:SetPoint("TOP", board, "TOPLEFT", PAGE_W / 2, HAND_Y - UI.CARD_H - 6)
   ctl.hint:SetTextColor(0.9, 0.9, 0.9)
 
+  -- the opponent's lines, under their panel
+  local bub = CreateFrame("Button", nil, board, UI.TEMPLATE)
+  bub:SetSize(236, 44)
+  bub:SetPoint("TOPLEFT", panels[OPP], "BOTTOMLEFT", 0, -4)
+  bub:SetFrameLevel(board:GetFrameLevel() + 28)
+  UI.Backdrop(bub, { 0.93, 0.89, 0.78, 0.97 }, { 0.35, 0.27, 0.15 }, true)
+  bub.text = UI.Text(bub, 11)
+  bub.text:SetPoint("TOPLEFT", 8, -4)
+  bub.text:SetPoint("BOTTOMRIGHT", -8, 4)
+  bub.text:SetJustifyH("LEFT")
+  bub.text:SetJustifyV("MIDDLE")
+  bub.text:SetTextColor(0.2, 0.13, 0.06)
+  bub.text:SetShadowOffset(0, 0)
+  bub:SetScript("OnClick", function(self) self:Hide() end)
+  bub:Hide()
+  ctl.bubble = bub
+
   -- the tactic being cast, over the lanes
   local bn = CreateFrame("Frame", nil, board, UI.TEMPLATE)
   bn:SetSize(320, 142)
@@ -1515,10 +1773,23 @@ local function buildBoard()
   ctl.over = ov
 end
 
+-- What the tutorial's coach needs to point at things.
+G.api = {
+  handFrame = function(id)
+    for i = 1, R.HAND_MAX do
+      local b = handCards[i]
+      if b:IsShown() and b.h and b.cardId == id then return b end
+    end
+  end,
+  slot = function(p, l) return slots[p][l] end,
+  lock = function() return ctl.lock end,
+}
+
 function G.Build(parent)
   page = parent
   buildLobby()
   buildBoard()
   buildLog(board)
+  if UI.Tutorial then UI.Tutorial.Build(board, LOG_Y + 22, PAGE_W, 102) end
   page:SetScript("OnShow", function() G.Refresh() end)
 end

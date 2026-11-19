@@ -294,12 +294,13 @@ R.GUIDED_DRAWS = {
 }
 
 -- rule: optional { cost = max cost, unit = units only }; falls back to the top
--- card when nothing left in the deck qualifies.
+-- card when nothing left in the deck qualifies. A stacked game (the tutorial)
+-- always draws the top card.
 function R.Draw(st, p, n, rule)
   local P = st.players[p]
   for _ = 1, n or 1 do
     local id
-    if rule then
+    if rule and not st.stacked then
       local ok = {}
       for i, x in ipairs(P.deck) do
         local c = card(x)
@@ -555,9 +556,11 @@ function R.StartRound(st)
   R.Cleanup(st)
 end
 
--- opts: seed, decks = { {ids}, {ids} }, names = { a, b }, first = 1|2 (optional)
+-- opts: seed, decks = { {ids}, {ids} }, names = { a, b }, first = 1|2 (optional),
+-- stacked = true: the decks aren't shuffled and every draw takes the top card
+-- (the last one in the list), guided or not. The tutorial uses it.
 function R.NewGame(o)
-  local st = { v = 1, round = 0, rng = R.Seed(o.seed), uid = 0, players = {} }
+  local st = { v = 1, round = 0, rng = R.Seed(o.seed), uid = 0, players = {}, stacked = o.stacked or nil }
   for p = 1, 2 do
     local deck = {}
     for i, id in ipairs(o.decks[p]) do card(id); deck[i] = id end
@@ -565,7 +568,7 @@ function R.NewGame(o)
       name = o.names and o.names[p] or ("Player " .. p),
       morale = R.START_MORALE, deck = deck, hand = {}, grave = {}, board = {}, supply = 0,
     }
-    shuffle(st, deck)
+    if not o.stacked then shuffle(st, deck) end
   end
   st.first = o.first or R.Random(st, 2)
   for p = 1, 2 do R.Draw(st, p, R.OPENING_HAND) end

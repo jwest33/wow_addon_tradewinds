@@ -32,7 +32,7 @@ local TEXTURE = { "SetTexture", "GetTexture", "SetColorTexture", "SetTexCoord", 
   "SetBlendMode", "SetDrawLayer" }
 local FONTSTRING = { "SetFont", "SetText", "GetText", "SetTextColor", "SetJustifyH", "SetJustifyV", "SetWordWrap",
   "SetShadowOffset", "SetSpacing", "GetStringWidth", "SetFontObject" }
-local ANIMGROUP = { "CreateAnimation", "Play", "Stop", "SetScript", "IsPlaying" }
+local ANIMGROUP = { "CreateAnimation", "Play", "Stop", "SetScript", "IsPlaying", "SetLooping" }
 local ANIM = { "SetFromAlpha", "SetToAlpha", "SetDuration", "SetStartDelay", "SetOffset", "SetOrder" }
 
 local function strict(obj, kind, lists)

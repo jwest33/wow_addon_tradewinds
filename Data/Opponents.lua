@@ -4,6 +4,10 @@
 --
 -- signature: a card that isn't in packs. It's the reward for the opponent's
 -- second star (Collection.STARS), or it can be crafted.
+--
+-- Lines: hello (a match starts), win / lose (they win / you win), and during
+-- play hit (they hit your Morale hard), hurt (you hit theirs hard) and low
+-- (they're close to losing).
 local _, ns = ...
 
 local function deck(spec)
@@ -23,6 +27,8 @@ ns.Opponents = {
     icon = { I .. "Ability_Mount_Gryphon_01", I .. "Ability_Hunter_Pet_WindSerpent" },
     hello = "Got a few minutes before the next bird's ready. Deal 'em.",
     win = "Ha! The beasts always know.", lose = "Fair's fair. Safe flight, friend.",
+    hit = "The pack hunts together, friend.", hurt = "Ow! Easy, that one bites.",
+    low = "Hold on, hold on. I'm still in this.",
     signature = "bangalash",
     deck = deck { wolf = 2, boar = 2, strider = 2, spider = 2, croc = 2, raptor = 1, kobold = 2, vulture = 2, bat = 1, potion = 2, shout = 2 },
   },
@@ -31,6 +37,8 @@ ns.Opponents = {
     icon = { I .. "INV_Misc_Fish_02", I .. "Trade_Fishing" },
     hello = "Sit, sit. The murlocs taught me this one.",
     win = "Mrgl. That means 'pay up'.", lose = "Hm. They never taught me that part.",
+    hit = "Mrrgl! That's murloc for 'gotcha'.", hurt = "You're scaring the fish.",
+    low = "Reel it in slow now... slow...",
     signature = "murkeye",
     deck = deck { coastrunner = 2, murloc = 2, tidehunter = 2, netter = 2, lurker = 2, oracle = 2, warrior = 1, shoal = 1,
       murkeye = 1, potion = 1, shout = 2, turtle = 2 },
@@ -40,6 +48,8 @@ ns.Opponents = {
     icon = { I .. "INV_Misc_Coin_01" },
     hello = "Long crossing. Let's make it interesting.",
     win = "Pay up, landlubber.", lose = "Cheated, probably. Again tomorrow?",
+    hit = "Broadside! Ha!", hurt = "Oi, that's coming out of your wages.",
+    low = "Not sinking yet, landlubber.",
     signature = "seahorn",
     deck = deck { kobold = 2, murloc = 2, thug = 2, gnoll = 2, axe = 2, demo = 2, fireball = 2, evisc = 2,
       potion = 1, tinker = 1, bruiser = 1, shredder = 1 },
@@ -49,6 +59,8 @@ ns.Opponents = {
     icon = { I .. "INV_Drink_05", I .. "INV_Misc_Head_Orc_01" },
     hello = "House rules: loser buys the next round.",
     win = "Another round on you, then.", lose = "Bah. Drinks are on me.",
+    hit = "That's the house special.", hurt = "Lok'tar... that one stung.",
+    low = "Somebody pour me a drink. A big one.",
     signature = "hogger",
     deck = deck { grunt = 2, troll = 2, axe = 2, ghoul = 2, bat = 1, warmaster = 2, shout = 2, kodo = 1,
       wolf = 2, bandage = 1, hogger = 1, gnoll = 2 },
@@ -58,6 +70,8 @@ ns.Opponents = {
     icon = { I .. "INV_Misc_Bandana_03", I .. "Ability_Stealth" },
     hello = "Keep your hands where I can see them. Mine too, if you can.",
     win = "Nothing personal. It's all personal.", lose = "You're quick. Edwin should hear about you.",
+    hit = "Didn't see that coming? Nobody does.", hurt = "Rude. I was going to do that to you.",
+    low = "Call it a draw? No? Worth a try.",
     signature = "vancleef",
     deck = deck { footpad = 2, thug = 2, pillager = 2, smuggler = 2, nightblade = 2, taskmaster = 2, ambush = 2, vanish = 1,
       evisc = 2, demo = 1, smite = 1, vancleef = 1 },
@@ -67,6 +81,8 @@ ns.Opponents = {
     icon = { I .. "INV_Misc_Bone_HumanSkull_01", I .. "Spell_Shadow_RaiseDead" },
     hello = "Quiet night. Most of my regulars don't talk.",
     win = "I'll save you a plot.", lose = "Well. That hasn't happened since I was alive.",
+    hit = "Dig deeper. I'll wait.", hurt = "Careful. I bruise. Slowly.",
+    low = "I've been closer to dead. Much closer.",
     signature = "rivendare",
     deck = deck { skeleton = 2, corpse = 2, ghoul = 2, deathcoil = 2, banshee = 2, necro = 1, gargoyle = 2, patchwork = 2,
       raise = 1, rivendare = 1, bat = 2, execute = 1 },
@@ -76,6 +92,8 @@ ns.Opponents = {
     icon = { I .. "Spell_Holy_MagicalSentry", I .. "Spell_Nature_StarFall" },
     hello = "I've calculated every outcome. Please, proceed.",
     win = "As predicted.", lose = "A statistical anomaly. Fascinating.",
+    hit = "Precisely as calculated.", hurt = "Hm. A rounding error.",
+    low = "Recalculating... recalculating...",
     signature = "azuregos",
     deck = deck { apprentice = 2, fireball = 2, poly = 1, blizzard = 1, chain = 1, mountaineer = 2, croc = 2,
       tinker = 2, potion = 2, azuregos = 1, kobold = 2, bruiser = 1, scorpid = 1 },
@@ -85,6 +103,8 @@ ns.Opponents = {
     icon = { I .. "INV_Misc_Head_Dragon_Black", I .. "INV_Misc_Head_Dragon_01" },
     hello = "How delightful. A commoner wishes to play.",
     win = "How fortuitous.", lose = "Enjoy it, little mortal.",
+    hit = "Did that hurt? How dreadful.", hurt = "You'll regret that, mortal.",
+    low = "Enough. I tire of these games.",
     signature = "onyxia",
     deck = deck { crusader = 2, mountaineer = 2, bear = 2, murloc = 2, potion = 2, evisc = 2, princess = 1,
       bruiser = 2, scorpid = 2, shieldwall = 1, onyxia = 1, spider = 1 },

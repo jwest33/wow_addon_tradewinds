@@ -1,5 +1,5 @@
--- The main window (tabs: Play, Cards, Packs), the flight / pack toast and the
--- minimap button.
+-- The main window (tabs: Play, Cards, Packs, Guide, Options), the flight /
+-- pack toast and the minimap button.
 local _, ns = ...
 local UI = ns.UI
 
@@ -10,6 +10,7 @@ local TABS = {
   { key = "play", label = "Play", module = "Game" },
   { key = "cards", label = "Cards", module = "Binder" },
   { key = "packs", label = "Packs", module = "Packs" },
+  { key = "guide", label = "Guide", module = "Guide" },
   { key = "options", label = "Options", module = "Options" },
 }
 
