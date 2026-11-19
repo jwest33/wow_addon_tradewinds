@@ -49,7 +49,10 @@ C.SETTING_DEFAULTS = {
   minimap = true,
   minimapAngle = 200,
   scale = 1,
+  sound = true,
+  preview = true,      -- a double-size copy of a card beside its tooltip
 }
+C.DECK_SLOTS = 3
 
 function C.MaxCopies(id)
   return C.MAX_COPIES[Cards.byId[id].rarity] or 2
@@ -90,6 +93,12 @@ C.MIGRATIONS = {
         end
       end
     end
+  end,
+  -- 3 (v0.5.0): three deck slots. The deck you had is the first.
+  function(db)
+    db.decks = type(db.decks) == "table" and db.decks or {}
+    if type(db.deck) == "table" then db.decks[1] = db.deck end
+    db.deckSlot = 1
   end,
 }
 C.SCHEMA = #C.MIGRATIONS
@@ -137,6 +146,9 @@ function C.Init(db, rules)
     db.shards = 0
   end
   db.deck = db.deck or {}
+  db.decks = db.decks or {}
+  db.deckSlot = (type(db.deckSlot) == "number" and db.deckSlot >= 1 and db.deckSlot <= C.DECK_SLOTS) and db.deckSlot or 1
+  db.decks[db.deckSlot] = db.deck   -- db.deck is always the deck in use
   db.packs = db.packs or 0
   db.shards = db.shards or 0
   db.stats = db.stats or { wins = 0, losses = 0, draws = 0 }
@@ -154,8 +166,15 @@ function C.Init(db, rules)
   for id in pairs(db.collection) do
     if not (Cards.byId[id] and Cards.byId[id].collectible) then db.collection[id] = nil end
   end
-  for i = #db.deck, 1, -1 do
-    if not (Cards.byId[db.deck[i]] and Cards.byId[db.deck[i]].collectible) then table.remove(db.deck, i) end
+  for slot = 1, C.DECK_SLOTS do
+    local deck = db.decks[slot]
+    if type(deck) == "table" then
+      for i = #deck, 1, -1 do
+        if not (Cards.byId[deck[i]] and Cards.byId[deck[i]].collectible) then table.remove(deck, i) end
+      end
+    else
+      db.decks[slot] = nil
+    end
   end
   if db.match and (not playable(db.match) or (rules and db.match.rules ~= rules)) then
     local opp = type(db.match) == "table" and db.match.opp or nil
@@ -335,9 +354,29 @@ function C.CheckDeck(db)
   return C.CheckCurve(db.deck)
 end
 
+-- Replaces the deck in use.
+function C.SetDeck(db, list)
+  db.deck = list
+  db.decks[db.deckSlot] = list
+end
+
 function C.ResetDeck(db)
-  db.deck = {}
-  for i, id in ipairs(C.STARTER) do db.deck[i] = id end
+  local list = {}
+  for i, id in ipairs(C.STARTER) do list[i] = id end
+  C.SetDeck(db, list)
+end
+
+-- Switches to deck slot i. A slot never used starts as the starter deck.
+function C.SelectDeck(db, i)
+  if type(i) ~= "number" or i < 1 or i > C.DECK_SLOTS or i ~= math.floor(i) then return false end
+  db.decks[db.deckSlot] = db.deck
+  db.deckSlot = i
+  if type(db.decks[i]) == "table" then
+    db.deck = db.decks[i]
+  else
+    C.ResetDeck(db)
+  end
+  return true
 end
 
 -- A deck with nothing rarer than uncommon (the third star).

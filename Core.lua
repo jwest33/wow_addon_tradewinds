@@ -123,16 +123,18 @@ local SETTINGS = {
   land = { "hideOnLand", "Close the window when you land" },
   combat = { "hideInCombat", "Close the window when combat starts" },
   portraits = { "portraits", "Creature portraits in card tooltips" },
+  preview = { "preview", "Large card preview beside tooltips" },
+  sound = { "sound", "Sound" },
   forecast = { "forecast", "Lane markers and Morale forecast while planning" },
   minimap = { "minimap", "Minimap button" },
 }
 
 local HELP = {
-  "/deckhand - show or hide the game  (/deckhand play | cards | packs opens a tab)",
+  "/deckhand - show or hide the game  (/deckhand play | cards | packs | options opens a tab)",
   "/deckhand end - end the match you're in (counts as a loss, no reward)",
   "/deckhand speed 1-3 - how fast rounds play out",
   "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
-  "/deckhand toast | land | combat | portraits | forecast | minimap [on|off] - options",
+  "/deckhand toast | land | combat | portraits | preview | forecast | sound | minimap [on|off] - options (also in the Options tab)",
   "/deckhand icons - list card icons this client doesn't have (for bug reports)",
   "/deckhand rules - how to play",
 }
@@ -156,7 +158,7 @@ SlashCmdList.DECKHAND = function(msg)
   local S = ns.db.settings
   if cmd == "" then
     Deckhand_Toggle()
-  elseif cmd == "play" or cmd == "cards" or cmd == "packs" then
+  elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "options" then
     ns.UI.Show(cmd)
   elseif cmd == "end" or cmd == "concede" then
     if ns.db.match then ns.UI.Game.AskEndMatch() else ns.Print("You're not in a match.") end
@@ -183,8 +185,6 @@ SlashCmdList.DECKHAND = function(msg)
     local missing = ns.UI.MissingIcons()
     if #missing == 0 then ns.Print("All card icons found.") end
     for _, line in ipairs(missing) do ns.Print(line) end
-  elseif cmd == "art" then
-    ns.UI.ArtTest()
   elseif cmd == "rules" then
     for _, line in ipairs(RULES) do ns.Print(line) end
   else

@@ -14,7 +14,7 @@ local REGION = {
 local FRAME = {
   "CreateTexture", "CreateFontString", "SetScript", "GetScript", "HookScript", "EnableMouse", "EnableMouseWheel",
   "SetFrameLevel", "GetFrameLevel", "SetFrameStrata", "RegisterEvent", "UnregisterEvent", "RegisterUnitEvent",
-  "SetMovable", "StartMoving", "StopMovingOrSizing", "RegisterForDrag", "SetClampedToScreen", "SetToplevel",
+  "SetMovable", "StartMoving", "StopMovingOrSizing", "RegisterForDrag", "IsMouseOver", "SetClampedToScreen", "SetToplevel",
   "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor",
   -- Button
   "RegisterForClicks", "SetText", "GetText", "SetEnabled", "IsEnabled", "Enable", "Disable", "SetHighlightTexture",

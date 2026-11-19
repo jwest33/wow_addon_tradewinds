@@ -1,5 +1,6 @@
--- Shared UI pieces: fonts and colours, icon lookup, the card frame used on the
--- board, in the hand, in the binder and in packs, and the card tooltip.
+-- Shared UI pieces: fonts and colours, icon lookup, sounds, the card frame
+-- used on the board, in the hand, in the binder and in packs, and the card
+-- tooltip with its large preview.
 local _, ns = ...
 local R, Cards = ns.Rules, ns.Cards
 
@@ -7,16 +8,25 @@ local UI = {}
 ns.UI = UI
 
 UI.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-UI.CARD_W, UI.CARD_H = 66, 92
+UI.CARD_W, UI.CARD_H = 92, 128
 UI.TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
 UI.ART = "Interface\\AddOns\\" .. ns.ADDON_FOLDER .. "\\Art\\"   -- textures made by tools/gen_art.py
 
+-- text colours (names, tooltips)
 UI.RARITY_COLOR = {
   common = { 0.80, 0.80, 0.80 },
   uncommon = { 0.12, 1.00, 0.00 },
   rare = { 0.20, 0.55, 1.00 },
   epic = { 0.70, 0.30, 1.00 },
   legendary = { 1.00, 0.50, 0.00 },
+}
+-- card border tints: the same hues, toned down
+local BORDER_COLOR = {
+  common = { 0.62, 0.62, 0.62 },
+  uncommon = { 0.27, 0.74, 0.22 },
+  rare = { 0.26, 0.50, 0.95 },
+  epic = { 0.64, 0.34, 0.90 },
+  legendary = { 0.96, 0.56, 0.12 },
 }
 
 function UI.Hex(r, g, b)
@@ -78,6 +88,35 @@ function UI.Error(msg)
     UIErrorsFrame:AddMessage(msg, 1, 0.25, 0.25)
   else
     ns.Print(msg)
+  end
+end
+
+-- ---------------------------------------------------------------------------
+-- Sounds: each has a list of the game's own sound kit names; the first one
+-- this client has is played. Off with the Sound option.
+-- ---------------------------------------------------------------------------
+local SOUNDS = {
+  pick = { "IG_ABILITY_PAGE_TURN", "IG_CHARACTER_INFO_TAB" },
+  place = { "IG_ABILITY_ICON_DROP", "IG_BACKPACK_CLOSE" },
+  back = { "IG_BACKPACK_CLOSE", "IG_CHARACTER_INFO_CLOSE" },
+  lock = { "IG_MAINMENU_OPTION_CHECKBOX_ON", "IG_CHARACTER_INFO_TAB" },
+  tactic = { "IG_SPELLBOOK_OPEN", "IG_ABILITY_PAGE_TURN" },
+  win = { "IG_QUEST_LIST_COMPLETE", "IG_QUEST_LIST_OPEN" },
+  lose = { "IG_QUEST_LOG_ABANDON_QUEST", "IG_QUEST_LIST_CLOSE", "IG_MAINMENU_CLOSE" },
+  packOpen = { "IG_BACKPACK_OPEN" },
+  reveal = { "IG_SPELLBOOK_OPEN" },
+  rare = { "IG_QUEST_LIST_COMPLETE" },
+  tab = { "IG_CHARACTER_INFO_TAB" },
+}
+
+function UI.Sound(key)
+  if not (ns.db and ns.db.settings.sound and PlaySound and SOUNDKIT) then return end
+  for _, name in ipairs(SOUNDS[key] or {}) do
+    local id = SOUNDKIT[name]
+    if id then
+      pcall(PlaySound, id)
+      return
+    end
   end
 end
 
@@ -148,12 +187,12 @@ function UI.AttachFloat(owner)
   f:SetSize(60, 20)
   f:SetPoint("CENTER", owner, "CENTER", 0, 4)
   f:SetFrameLevel(owner:GetFrameLevel() + 6)
-  f.text = UI.Text(f, 18, "THICKOUTLINE")
+  f.text = UI.Text(f, 20, "THICKOUTLINE")
   f.text:SetPoint("CENTER")
   f:SetAlpha(0)
   local ag = f:CreateAnimationGroup()
   local move = ag:CreateAnimation("Translation")
-  move:SetOffset(0, 22)
+  move:SetOffset(0, 26)
   move:SetDuration(0.9)
   local fade = ag:CreateAnimation("Alpha")
   fade:SetFromAlpha(1)
@@ -173,7 +212,8 @@ end
 -- A full-size colour flash over `owner`.
 function UI.AttachFlash(owner)
   local f = CreateFrame("Frame", nil, owner)
-  f:SetAllPoints()
+  f:SetPoint("TOPLEFT", 2, -2)
+  f:SetPoint("BOTTOMRIGHT", -2, 2)
   f:SetFrameLevel(owner:GetFrameLevel() + 5)
   f.tex = f:CreateTexture(nil, "OVERLAY")
   f.tex:SetAllPoints()
@@ -189,92 +229,122 @@ function UI.AttachFlash(owner)
   end
 end
 
+-- A short jab toward the target and back: owner:Lunge(dy).
+function UI.AttachLunge(owner)
+  local ag = owner:CreateAnimationGroup()
+  local out = ag:CreateAnimation("Translation")
+  out:SetDuration(0.09)
+  out:SetOrder(1)
+  local back = ag:CreateAnimation("Translation")
+  back:SetDuration(0.16)
+  back:SetOrder(2)
+  owner.Lunge = function(_, dy)
+    ag:Stop()
+    out:SetOffset(0, dy)
+    back:SetOffset(0, -dy)
+    ag:Play()
+  end
+end
+
 -- ---------------------------------------------------------------------------
--- Card frame
+-- Card frame. The frame art is three layers: the icon, the card body with a
+-- window over the icon (Art/CardBase), and a grey border tinted by rarity
+-- (Art/CardBorder). Positions come from the texture's layout (tools/gen_art.py)
+-- scaled by K.
 -- ---------------------------------------------------------------------------
 local Card = {}
+local K = UI.CARD_W / 256      -- texture pixels to screen units
+local V = 358 / 512            -- the card fills the top of its 256x512 texture
+local ART_BOX = { 16, 16, 240, 166 }
+local NAME_BOX = { 10, 158, 246, 214 }
+local TEXT_BOX = { 16, 220, 240, 320 }
+local KEYWORD_COLOR = "|cff1c3f7a"
+
+local function badge(b, file, point, x, y, r, g, bl)
+  local t = b:CreateTexture(nil, "OVERLAY", nil, 1)
+  t:SetTexture(UI.ART .. file)
+  t:SetSize(25, 25)
+  t:SetPoint("CENTER", b, point, x, y)
+  t:SetVertexColor(r, g, bl)
+  local fs = UI.Text(b, 13, "OUTLINE")
+  fs:SetPoint("CENTER", t, "CENTER", 0, 0)
+  return t, fs
+end
 
 function UI.CreateCard(parent)
-  local b = CreateFrame("Button", nil, parent, UI.TEMPLATE)
+  local b = CreateFrame("Button", nil, parent)
   b:SetSize(UI.CARD_W, UI.CARD_H)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  UI.Backdrop(b, { 0.07, 0.06, 0.05, 0.97 }, { 0.5, 0.5, 0.5 }, true)
 
-  b.art = b:CreateTexture(nil, "ARTWORK")
-  b.art:SetPoint("TOPLEFT", 4, -4)
-  b.art:SetPoint("TOPRIGHT", -4, -4)
-  b.art:SetHeight(46)
-  b.art:SetTexCoord(0.08, 0.92, 0.17, 0.83)
+  b.art = b:CreateTexture(nil, "BACKGROUND")
+  b.art:SetPoint("TOPLEFT", ART_BOX[1] * K, -ART_BOX[2] * K)
+  b.art:SetSize((ART_BOX[3] - ART_BOX[1]) * K, (ART_BOX[4] - ART_BOX[2]) * K)
+  b.art:SetTexCoord(0.08, 0.92, 0.22, 0.78)
 
-  b.costBg = b:CreateTexture(nil, "OVERLAY")
-  b.costBg:SetSize(17, 17)
-  b.costBg:SetPoint("TOPLEFT", 1, -1)
-  b.costBg:SetColorTexture(0.06, 0.14, 0.42, 0.95)
-  b.cost = UI.Text(b, 12, "OUTLINE")
-  b.cost:SetPoint("CENTER", b.costBg, "CENTER", 0, 0)
+  b.base = b:CreateTexture(nil, "BORDER")
+  b.base:SetAllPoints()
+  b.base:SetTexture(UI.ART .. "CardBase")
+  b.base:SetTexCoord(0, 1, 0, V)
 
-  b.name = UI.Text(b, 9)
-  b.name:SetPoint("TOPLEFT", b.art, "BOTTOMLEFT", -2, -2)
-  b.name:SetPoint("TOPRIGHT", b.art, "BOTTOMRIGHT", 2, -2)
-  b.name:SetHeight(22)
+  b.frame = b:CreateTexture(nil, "ARTWORK")
+  b.frame:SetAllPoints()
+  b.frame:SetTexture(UI.ART .. "CardBorder")
+  b.frame:SetTexCoord(0, 1, 0, V)
+
+  b.name = UI.Text(b, 8)
+  b.name:SetPoint("CENTER", b, "TOP", 0, -(NAME_BOX[2] + NAME_BOX[4]) / 2 * K)
+  b.name:SetSize((NAME_BOX[3] - NAME_BOX[1] - 8) * K, (NAME_BOX[4] - NAME_BOX[2]) * K)
   b.name:SetJustifyH("CENTER")
-  b.name:SetJustifyV("TOP")
+  b.name:SetJustifyV("MIDDLE")
   b.name:SetWordWrap(true)
+  b.name:SetTextColor(0.98, 0.94, 0.84)
 
-  b.kw = UI.Text(b, 8)
-  b.kw:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 2, 17)
-  b.kw:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 17)
-  b.kw:SetJustifyH("CENTER")
-  b.kw:SetWordWrap(false)
-  b.kw:SetTextColor(0.45, 0.85, 1)
+  -- keywords and the card's short rules text, on the parchment
+  b.text = UI.Text(b, 8)
+  b.text:SetPoint("CENTER", b, "TOP", 0, -(TEXT_BOX[2] + TEXT_BOX[4]) / 2 * K)
+  b.text:SetSize((TEXT_BOX[3] - TEXT_BOX[1] - 10) * K, (TEXT_BOX[4] - TEXT_BOX[2] - 6) * K)
+  b.text:SetJustifyH("CENTER")
+  b.text:SetJustifyV("MIDDLE")
+  b.text:SetWordWrap(true)
+  b.text:SetTextColor(0.18, 0.13, 0.08)
+  b.text:SetShadowOffset(0, 0)
 
-  b.atkBg = b:CreateTexture(nil, "OVERLAY")
-  b.atkBg:SetSize(20, 15)
-  b.atkBg:SetPoint("BOTTOMLEFT", 2, 2)
-  b.atkBg:SetColorTexture(0.35, 0.18, 0.02, 0.95)
-  b.atk = UI.Text(b, 12, "OUTLINE")
-  b.atk:SetPoint("CENTER", b.atkBg, "CENTER", 0, 0)
+  b.costBg, b.cost = badge(b, "Gem", "TOPLEFT", 8, -8, 0.24, 0.47, 1)
+  b.atkBg, b.atk = badge(b, "BadgeAttack", "BOTTOMLEFT", 8, 8, 1, 0.59, 0.16)
+  b.hpBg, b.hp = badge(b, "BadgeHealth", "BOTTOMRIGHT", -8, 8, 0.88, 0.2, 0.2)
 
-  b.hpBg = b:CreateTexture(nil, "OVERLAY")
-  b.hpBg:SetSize(20, 15)
-  b.hpBg:SetPoint("BOTTOMRIGHT", -2, 2)
-  b.hpBg:SetColorTexture(0.35, 0.04, 0.04, 0.95)
-  b.hp = UI.Text(b, 12, "OUTLINE")
-  b.hp:SetPoint("CENTER", b.hpBg, "CENTER", 0, 0)
+  b.typeText = UI.Text(b, 8)
+  b.typeText:SetPoint("BOTTOM", 0, 6)
+  b.typeText:SetTextColor(0.75, 0.72, 0.62)
 
-  b.typeText = UI.Text(b, 9)
-  b.typeText:SetPoint("BOTTOM", 0, 4)
-  b.typeText:SetTextColor(0.75, 0.75, 0.75)
-
-  b.tag = UI.Text(b, 10, "OUTLINE")
-  b.tag:SetPoint("TOP", b.art, "TOP", 0, -2)
+  b.tag = UI.Text(b, 11, "OUTLINE")
+  b.tag:SetPoint("TOP", b.art, "TOP", 0, -3)
 
   b.dim = b:CreateTexture(nil, "OVERLAY", nil, 7)
-  b.dim:SetAllPoints()
+  b.dim:SetPoint("TOPLEFT", 2, -2)
+  b.dim:SetPoint("BOTTOMRIGHT", -2, 2)
   b.dim:SetColorTexture(0, 0, 0, 0.55)
   b.dim:Hide()
 
   -- card back (unopened pack cards)
-  b.back = CreateFrame("Frame", nil, b, UI.TEMPLATE)
+  b.back = CreateFrame("Frame", nil, b)
   b.back:SetAllPoints()
   b.back:SetFrameLevel(b:GetFrameLevel() + 3)
-  UI.Backdrop(b.back, { 0.10, 0.13, 0.30, 1 }, { 0.75, 0.62, 0.25 }, true)
-  b.back.icon = b.back:CreateTexture(nil, "ARTWORK")
-  b.back.icon:SetSize(38, 38)
-  b.back.icon:SetPoint("CENTER", 0, 6)
-  b.back.icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
-  b.back.icon:SetDesaturated(true)
-  b.back.icon:SetAlpha(0.6)
+  b.back.tex = b.back:CreateTexture(nil, "ARTWORK")
+  b.back.tex:SetAllPoints()
+  b.back.tex:SetTexture(UI.ART .. "CardBack")
+  b.back.tex:SetTexCoord(0, 1, 0, V)
   b.back.text = UI.Text(b.back, 9)
-  b.back.text:SetPoint("BOTTOM", 0, 8)
+  b.back.text:SetPoint("BOTTOM", 0, 12)
   b.back.text:SetText("click")
-  b.back.text:SetTextColor(0.75, 0.7, 0.5)
+  b.back.text:SetTextColor(0.85, 0.75, 0.5)
   b.back:EnableMouse(false)
   b.back:Hide()
 
   b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
   UI.AttachFlash(b)
   UI.AttachFloat(b)
+  UI.AttachLunge(b)
 
   for k, v in pairs(Card) do b[k] = v end
   b:SetScript("OnEnter", b.ShowTooltip)
@@ -282,12 +352,18 @@ function UI.CreateCard(parent)
   return b
 end
 
-local function kwLine(kw)
+-- What's printed on the card: its keywords, then its short rules text.
+local function faceText(c, kw)
   local names = {}
   for _, k in ipairs(Cards.KeywordList(kw)) do names[#names + 1] = k.name end
-  if #names > 2 then return names[1] .. ", " .. names[2] .. "+" end
-  return table.concat(names, ", ")
+  local parts = {}
+  if #names > 0 then parts[1] = KEYWORD_COLOR .. table.concat(names, ", ") .. "|r" end
+  if c.short then parts[#parts + 1] = c.short end
+  return table.concat(parts, "\n")
 end
+UI.FaceText = faceText
+
+local TACTIC_LABEL = { enemy = "Tactic: enemy lane", friend = "Tactic: your unit", none = "Tactic" }
 
 -- id: card; unit: a unit on the board (current stats) or nil; st: the game or
 -- replay view the unit is in (for attack bonuses).
@@ -300,9 +376,8 @@ function Card:SetCard(id, unit, st)
   self.art:SetDesaturated(false)
   self.cost:SetText(c.cost)
   self.name:SetText(c.name)
-  local col = UI.RARITY_COLOR[c.rarity]
-  self.border = col
-  self:SetBackdropBorderColor(col[1], col[2], col[3], 1)
+  self.border = BORDER_COLOR[c.rarity]
+  self.frame:SetVertexColor(self.border[1], self.border[2], self.border[3])
   self.tag:SetText("")
   if c.type == "unit" then
     local atk, hp, maxHp, kw = c.atk, c.hp, c.hp, c.kw
@@ -313,13 +388,13 @@ function Card:SetCard(id, unit, st)
     self.atk:SetText(atk)
     if atk > c.atk then self.atk:SetTextColor(0.3, 1, 0.3)
     elseif atk < c.atk then self.atk:SetTextColor(1, 0.4, 0.4)
-    else self.atk:SetTextColor(1, 0.85, 0.3) end
+    else self.atk:SetTextColor(1, 1, 1) end
     self.hp:SetText(math.max(0, hp))
-    if hp < maxHp then self.hp:SetTextColor(1, 0.35, 0.35)
+    if hp < maxHp then self.hp:SetTextColor(1, 0.75, 0.2)
     elseif maxHp > c.hp then self.hp:SetTextColor(0.3, 1, 0.3)
     else self.hp:SetTextColor(1, 1, 1) end
     self.atk:Show(); self.atkBg:Show(); self.hp:Show(); self.hpBg:Show()
-    self.kw:SetText(kwLine(kw))
+    self.text:SetText(faceText(c, kw))
     self.typeText:SetText("")
     if unit and unit.frozen then
       self.art:SetVertexColor(0.45, 0.7, 1)
@@ -330,8 +405,8 @@ function Card:SetCard(id, unit, st)
     end
   else
     self.atk:Hide(); self.atkBg:Hide(); self.hp:Hide(); self.hpBg:Hide()
-    self.kw:SetText(c.target == "enemy" and "Target: enemy" or c.target == "friend" and "Target: yours" or "")
-    self.typeText:SetText("Tactic")
+    self.text:SetText(c.short or "")
+    self.typeText:SetText(TACTIC_LABEL[c.target] or "Tactic")
   end
   self:SetDim(false)
   self:SetAlpha(1)
@@ -351,8 +426,8 @@ end
 
 -- Gold border when selected, back to the rarity colour otherwise.
 function Card:SetSelected(on)
-  local col = on and { 1, 0.82, 0 } or self.border or { 0.5, 0.5, 0.5 }
-  self:SetBackdropBorderColor(col[1], col[2], col[3], 1)
+  local col = on and { 1, 0.86, 0.2 } or self.border or BORDER_COLOR.common
+  self.frame:SetVertexColor(col[1], col[2], col[3])
 end
 
 function Card:SetTag(text, r, g, b)
@@ -366,31 +441,48 @@ function Card:ShowTooltip()
 end
 
 -- ---------------------------------------------------------------------------
--- Tooltip (with the creature's portrait beside it when there is one)
+-- Tooltip, with a double-size copy of the card beside it (the Preview
+-- option) and the creature's portrait when there is one.
 -- ---------------------------------------------------------------------------
-local portrait
+local portrait, preview
+
+local function previewCard()
+  if preview then return preview end
+  preview = UI.CreateCard(GameTooltip)
+  preview:SetScale(2)
+  preview:EnableMouse(false)
+  preview:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", -2, 0)
+  preview:Hide()
+  return preview
+end
 
 local function portraitFrame()
   if portrait then return portrait end
   portrait = CreateFrame("Frame", nil, GameTooltip, UI.TEMPLATE)
   portrait:SetSize(76, 76)
-  portrait:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", -2, 0)
   UI.Backdrop(portrait, { 0.05, 0.05, 0.05, 0.95 }, { 0.6, 0.5, 0.3 })
   portrait.tex = portrait:CreateTexture(nil, "ARTWORK")
   portrait.tex:SetPoint("TOPLEFT", 3, -3)
   portrait.tex:SetPoint("BOTTOMRIGHT", -3, 3)
   portrait:Hide()
-  GameTooltip:HookScript("OnHide", function() portrait:Hide(); portrait.card = nil end)
+  GameTooltip:HookScript("OnHide", function()
+    portrait:Hide()
+    portrait.card = nil
+    if preview then preview:Hide() end
+  end)
   return portrait
 end
 
-local function showPortrait(c)
+local function showPortrait(c, beside)
   local f = portraitFrame()
   f:Hide()
   f.card = c
+  f:ClearAllPoints()
+  if beside then f:SetPoint("TOPRIGHT", beside, "TOPLEFT", -2, 0)
+  else f:SetPoint("TOPRIGHT", GameTooltip, "TOPLEFT", -2, 0) end
   if not (c.npc and ns.db and ns.db.settings.portraits and ns.Portraits) then return end
   local shown = ns.Portraits.Apply(f.tex, c, function()
-    if f.card == c and GameTooltip:IsShown() then showPortrait(c) end
+    if f.card == c and GameTooltip:IsShown() then showPortrait(c, beside) end
   end)
   if shown then f:Show() end
 end
@@ -440,5 +532,12 @@ function UI.CardTooltip(owner, id, unit, st, extra)
     for _, line in ipairs(extra) do tip:AddLine(line, 0.85, 0.85, 0.85, true) end
   end
   tip:Show()
-  showPortrait(c)
+  local beside
+  if ns.db and ns.db.settings.preview then
+    beside = previewCard()
+    beside:SetCard(id, unit, st)
+  elseif preview then
+    preview:Hide()
+  end
+  showPortrait(c, beside)
 end

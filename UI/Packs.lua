@@ -12,11 +12,6 @@ local ctl = {}
 local slots = {}
 local opened -- { results, shown = { bool x5 } }
 
-local function sound(key)
-  local id = SOUNDKIT and SOUNDKIT[key]
-  if id and PlaySound then pcall(PlaySound, id) end
-end
-
 local function fmtTime(s)
   s = math.floor(s)
   return ("%d:%02d"):format(math.floor(s / 60), s % 60)
@@ -38,9 +33,9 @@ local function reveal(i)
   slot.card:Flash(col[1], col[2], col[3])
   if c.rarity == "legendary" or c.rarity == "epic" then
     slot.card:Float(c.rarity == "legendary" and "Legendary!" or "Epic!", col[1], col[2], col[3])
-    sound("IG_QUEST_LIST_COMPLETE")
+    UI.Sound("rare")
   else
-    sound("IG_SPELLBOOK_OPEN")
+    UI.Sound("reveal")
   end
   slot.label:SetText(r.kind == "shards" and ("|cff9fdfff+%d shard%s|r"):format(r.shards, r.shards == 1 and "" or "s")
     or KIND_LABEL[r.kind])
@@ -50,6 +45,38 @@ end
 local function revealAll()
   if not opened then return end
   for i = 1, C.PACK_SIZE do reveal(i) end
+end
+
+-- Opens every pack at once: the new cards are listed in chat, and the last
+-- pack is laid out as usual.
+local function openAll()
+  revealAll()
+  local n, shards, last, names = 0, 0, nil, {}
+  while ns.db.packs > 0 do
+    local results = C.OpenPack(ns.db, ns.Rand)
+    if not results then break end
+    n, last = n + 1, results
+    for _, r in ipairs(results) do
+      if r.kind == "new" then names[#names + 1] = UI.CardName(r.id) end
+      shards = shards + (r.shards or 0)
+    end
+  end
+  if n == 0 then
+    UI.Error("No packs to open.")
+    return
+  end
+  opened = { results = last, shown = {} }
+  for i = 1, C.PACK_SIZE do
+    slots[i].card:SetBack()
+    slots[i].label:SetText("")
+  end
+  revealAll()
+  ns.Print("Opened %d pack%s: %d new card%s, %d shard%s from extra copies.", n, n == 1 and "" or "s",
+    #names, #names == 1 and "" or "s", shards, shards == 1 and "" or "s")
+  for i = 1, #names, 6 do
+    ns.Print("New: %s", table.concat(names, ", ", i, math.min(#names, i + 5)))
+  end
+  UI.Refresh()
 end
 
 local function openPack()
@@ -64,11 +91,11 @@ local function openPack()
     slots[i].card:SetBack()
     slots[i].label:SetText("")
   end
-  sound("IG_BACKPACK_OPEN")
+  UI.Sound("packOpen")
   UI.Refresh()
 end
 
-P.Open, P.RevealAll = openPack, revealAll
+P.Open, P.RevealAll, P.OpenAll = openPack, revealAll, openAll
 
 function P.Refresh()
   if not page then return end
@@ -76,6 +103,7 @@ function P.Refresh()
   ctl.count:SetText(db.packs)
   ctl.open:SetEnabled(db.packs > 0)
   ctl.open:SetText(db.packs > 0 and "Open a pack" or "No packs")
+  ctl.openAll:SetEnabled(db.packs > 1)
   ctl.shards:SetText(("%d / %d"):format(db.shards, C.PACK_COST))
   ctl.buy:SetEnabled(db.shards >= C.PACK_COST)
   local pending = false
@@ -109,10 +137,13 @@ function P.Build(parent)
   ctl.count:SetTextColor(1, 0.82, 0)
   ctl.open = UI.Button(page, "Open a pack", 120, 26, openPack)
   ctl.open:SetPoint("TOPLEFT", page, "TOPLEFT", 160, -14)
+  ctl.openAll = UI.Button(page, "Open all", 90, 26, openAll)
+  ctl.openAll:SetPoint("LEFT", ctl.open, "RIGHT", 6, 0)
+  UI.SimpleTooltip(ctl.openAll, "Open all", "Opens every pack you have. The new cards are listed in chat.")
 
   local sIcon = page:CreateTexture(nil, "ARTWORK")
   sIcon:SetSize(32, 32)
-  sIcon:SetPoint("TOPLEFT", page, "TOPLEFT", 320, -10)
+  sIcon:SetPoint("TOPLEFT", page, "TOPLEFT", 470, -10)
   sIcon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Enchant_ShardBrilliantSmall", "Interface\\Icons\\INV_Misc_Gem_Pearl_04" }))
   local sLabel = UI.Text(page, 11)
   sLabel:SetPoint("TOPLEFT", sIcon, "TOPRIGHT", 8, 0)
@@ -132,13 +163,13 @@ function P.Build(parent)
   ctl.buy = UI.Button(page, "Buy a pack", 100, 22, function()
     if C.BuyPack(ns.db) then UI.Refresh() end
   end)
-  ctl.buy:SetPoint("TOPLEFT", page, "TOPLEFT", 430, -14)
+  ctl.buy:SetPoint("TOPLEFT", page, "TOPLEFT", 600, -14)
 
-  local x0 = (544 - (C.PACK_SIZE * (UI.CARD_W + 14) - 14)) / 2
+  local x0 = (784 - (C.PACK_SIZE * (UI.CARD_W + 24) - 24)) / 2
   for i = 1, C.PACK_SIZE do
     local s = CreateFrame("Frame", nil, page)
     s:SetSize(UI.CARD_W, UI.CARD_H + 18)
-    s:SetPoint("TOPLEFT", page, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 14), -86)
+    s:SetPoint("TOPLEFT", page, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 24), -84)
     s.card = UI.CreateCard(s)
     s.card:SetPoint("TOP")
     s.card:SetScript("OnClick", function() reveal(i) end)
@@ -148,15 +179,15 @@ function P.Build(parent)
     slots[i] = s
   end
   ctl.empty = UI.Text(page, 11)
-  ctl.empty:SetPoint("TOP", page, "TOP", 0, -130)
+  ctl.empty:SetPoint("TOP", page, "TOP", 0, -140)
   ctl.empty:SetText("Open a pack to see what's inside. Click each card to turn it over.")
   ctl.empty:SetTextColor(0.6, 0.6, 0.6)
   ctl.revealAll = UI.Button(page, "Reveal all", 100, 22, revealAll)
-  ctl.revealAll:SetPoint("TOP", page, "TOP", 0, -206)
+  ctl.revealAll:SetPoint("TOP", page, "TOP", 0, -240)
 
   local bar = CreateFrame("StatusBar", nil, page, UI.TEMPLATE)
-  bar:SetSize(420, 14)
-  bar:SetPoint("TOP", page, "TOP", 0, -252)
+  bar:SetSize(520, 16)
+  bar:SetPoint("TOP", page, "TOP", 0, -278)
   bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
   bar:SetStatusBarColor(0.3, 0.6, 1)
   bar:SetMinMaxValues(0, 1)
@@ -166,8 +197,8 @@ function P.Build(parent)
   ctl.barText:SetPoint("TOP", bar, "BOTTOM", 0, -4)
 
   local earn = UI.Text(page, 10)
-  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -284)
-  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -30, -284)
+  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 132, -330)
+  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -132, -330)
   earn:SetJustifyH("LEFT")
   earn:SetSpacing(3)
   earn:SetTextColor(0.75, 0.75, 0.75)

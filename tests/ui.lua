@@ -302,6 +302,58 @@ do
   UI.Refresh()
   check(C.BuyPack(db) and db.shards == 5, "buy a pack")
   UI.Packs.Open(); UI.Packs.Open()
+  db.packs = 4
+  local chat = #MOCK.chat
+  UI.Packs.OpenAll()
+  check(db.packs == 0 and #MOCK.chat > chat and MOCK.chat[chat + 1]:find("Opened 4 packs"), "open all opens every pack and says what was in them")
+end
+
+-- options tab
+do
+  UI.SelectTab("options")
+  check(UI.tab == "options", "options tab opens")
+  UI.Options.Set("sound", false)
+  UI.Options.Set("preview", false)
+  check(db.settings.sound == false and db.settings.preview == false, "options change settings")
+  local probe = CreateFrame("Button", nil, UIParent)
+  UI.CardTooltip(probe, "hogger")    -- no preview now; must not error
+  UI.Options.Set("preview", true)
+  UI.CardTooltip(probe, "hogger")
+  UI.Options.Set("scale", 1.2)
+  check(db.settings.scale == 1.2, "window size")
+  UI.Options.Set("scale", 1)
+  SlashCmdList.DECKHAND("options")
+end
+
+-- the last round is saved with the match: Replay shows it again, and a
+-- replay cut short (a /reload) is shown when the board next opens
+do
+  G.Start("dorn")
+  check(db.match.last == nil, "nothing to replay before the first round")
+  autoPlan()
+  G.LockIn()
+  MOCK.Advance(0.2)
+  local m = db.match
+  check(m.last and #m.last.events > 0 and m.shown == false, "the round is saved while it plays out")
+  check(type(m.last.view.hand) == "table" and m.last.view.players[1].handCount == #m.last.view.hand,
+    "with your hand as it was")
+  MOCK.Advance(60)
+  check(m.shown == true and m.stats and m.stats.dealt >= 0 and m.log and #m.log > 0, "afterwards: marked as shown, numbers and log kept")
+  local st, round, lines = m.st, m.st.round, #m.log
+  G.Replay()
+  MOCK.Advance(0.2)
+  check(m.shown == true and db.match.st == st, "Replay shows the round again")
+  G.LockIn()                         -- ignored while the replay runs
+  MOCK.Advance(60)
+  check(db.match.st == st and st.round == round and #m.log > lines, "and changes nothing")
+  m.shown = false                    -- as if the game was reloaded mid-replay
+  G.Refresh()
+  check(G.Selected() == nil and db.match.shown == false, "an unseen round starts replaying when the board opens")
+  MOCK.Advance(60)
+  check(db.match.shown == true and db.match.st == st, "and ends where the game really is")
+  local f = G.Forecast()
+  check(f and f.maybe and f.dies, "the forecast tells certain deaths from possible ones")
+  G.EndMatch(); G.Continue()
 end
 
 -- stars, rewards and the daily task through a real match
@@ -354,6 +406,37 @@ do
   StaticPopupDialogs.DECKHAND_CRAFT.OnAccept()
   check(db.collection.kazzak == 1 and db.shards == 3, "confirming twice makes one card")
   MOCK.shift = false
+
+  -- filters
+  local total = #UI.Binder.Shown()
+  check(total == #Cards.collectible, "no filters: every card")
+  UI.Binder.SetFilter("kind", "murloc")
+  local murlocs = UI.Binder.Shown()
+  local allMurlocs = #murlocs > 0
+  for _, c in ipairs(murlocs) do if c.tribe ~= "murloc" then allMurlocs = false end end
+  check(allMurlocs, "filter by tribe (" .. #murlocs .. " Murlocs)")
+  UI.Binder.SetFilter("kind", "all")
+  UI.Binder.SetFilter("rarity", "legendary")
+  check(#UI.Binder.Shown() == 4, "filter by rarity")
+  UI.Binder.SetFilter("cost", 1)
+  check(#UI.Binder.Shown() == 0, "filters combine (no 1-cost legendaries)")
+  UI.Binder.SetFilter("rarity", "all"); UI.Binder.SetFilter("cost", "all")
+  UI.Binder.SetFilter("own", "deck")
+  local inDeck = {}
+  for _, id in ipairs(db.deck) do inDeck[id] = true end
+  local kinds = 0
+  for _ in pairs(inDeck) do kinds = kinds + 1 end
+  check(#UI.Binder.Shown() == kinds, "filter: in your deck")
+  UI.Binder.SetFilter("own", "all")
+
+  -- deck slots
+  local first = db.deck
+  UI.Binder.SelectDeck(2)
+  check(db.deckSlot == 2 and db.deck ~= first and #db.deck == 20 and db.decks[1] == first, "a second deck starts as the starter deck")
+  UI.Binder.Click("kobold", "RightButton")
+  check(#db.deck == 19 and #first == 20, "editing one deck leaves the other alone")
+  UI.Binder.SelectDeck(1)
+  check(db.deck == first and #db.decks[2] == 19, "and switching back restores it")
   local n = #db.deck
   UI.Binder.Click("kobold", "RightButton")
   check(#db.deck == n - 1, "right-click takes a card out")
@@ -410,7 +493,7 @@ end
 do
   local allowed = { DeckhandCharDB = true, Deckhand_Toggle = true, SLASH_DECKHAND1 = true,
     BINDING_HEADER_DECKHAND = true, BINDING_NAME_DECKHAND_TOGGLE = true, DeckhandFrame = true,
-    DeckhandToast = true, DeckhandMinimapButton = true, DeckhandArtTest = true }
+    DeckhandToast = true, DeckhandMinimapButton = true }
   local leaked = {}
   for k in pairs(_G) do
     if not globalsBefore[k] and not allowed[k] then leaked[#leaked + 1] = tostring(k) end

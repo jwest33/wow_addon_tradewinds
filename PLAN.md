@@ -232,6 +232,21 @@ Tests for both exploits.
 
 ### Phase 2: Board and card presentation (L)
 
+Status (v0.5.0, 2026-11-19): built, not yet seen in game. Item by item:
+
+- Done: 1 (800x600 window, 92x128 cards), 2 (card face on the generated
+  frame, with keywords and a short rules line), 4 (a double-size card beside
+  the tooltip, which stays for the full wording), 6, 8, 9, 10, 13 (filters,
+  three deck slots, cost chart; crafting is shift-click), 14.
+- Partly: 3 (card frame, card back, badges, board and stars are generated
+  art; buttons, panels and lane markers still use the client's), 5 (attackers
+  lunge; no shake or death fade yet), 7 (drag and drop, and a nudge when
+  Supply and a playable card are left; no keyboard shortcuts), 11 (damage and
+  unit counts on the end screen; rewards don't count up), 12 (open all, with
+  the new cards listed in chat; no flip animation or glow).
+- Not done: search by name in the binder.
+- The art test command is gone.
+
 1. **Bigger layout.** Window about 780x580, cards about 90x126. Text no
    smaller than 10 pt.
 2. **Card face redesign.** Art, name bar, a rules box with keyword icons and

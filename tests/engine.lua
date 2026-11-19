@@ -10,7 +10,7 @@ end
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
 local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
-  ["Data/Opponents.lua"] = true, ["Collection.lua"] = true }
+  ["Data/Opponents.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Deckhand.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
@@ -339,6 +339,14 @@ do
     if c.aura then check(type(c.aura.atk) == "number" and (not c.aura.tribe or Cards.TRIBES[c.aura.tribe]), c.id .. " aura") end
     check(Cards.SETS[c.set], c.id .. " set")
   end
+  for _, c in ipairs(Cards.list) do
+    if c.text then
+      check(type(c.short) == "string" and #c.short <= 38, c.id .. " has short text for its face (" .. tostring(c.short) .. ")")
+    else
+      check(c.short == nil, c.id .. " has no rules text, so no short text")
+    end
+  end
+  for id in pairs(Cards.SHORT) do check(Cards.byId[id], "short text for a card that exists: " .. id) end
   check(Cards.byId.wolf.tribe == "beast" and Cards.byId.onyxia.tribe == "dragonkin" and Cards.byId.kobold.tribe == nil,
     "core cards have their tribes")
   for _, o in ipairs(ns.Opponents) do
@@ -945,6 +953,32 @@ do
   check(v3.packs == p0 and v3.shards == s0, "migration 2 pays nothing")
   check(C.Unlocked(v3, "bluegill") and not C.Unlocked(v3, "sally") and C.Unlocked(v3, "grumbletusk") and C.Unlocked(v3, "fingers")
     and not C.Unlocked(v3, "graves"), "an opponent you had beaten stays open, and opens the one after")
+end
+
+-- 7b. deck slots
+do
+  local db = {}
+  C.Init(db)
+  check(db.deckSlot == 1 and db.decks[1] == db.deck, "a new character's deck is slot 1")
+  local first = db.deck
+  check(C.SelectDeck(db, 3) and db.deckSlot == 3 and db.deck ~= first and C.CheckDeck(db), "an unused slot starts as the starter deck")
+  C.SetDeck(db, {})
+  check(#db.deck == 0 and db.decks[3] == db.deck and #first == 20, "emptying a deck only touches that slot")
+  check(not C.SelectDeck(db, 0) and not C.SelectDeck(db, C.DECK_SLOTS + 1) and not C.SelectDeck(db, 1.5) and db.deckSlot == 3,
+    "only real slots")
+  C.SelectDeck(db, 1)
+  check(db.deck == first, "back to the first")
+  -- migration 3: the old single deck becomes slot 1
+  local old = {}
+  C.Init(old)
+  old.schema, old.decks, old.deckSlot = 2, nil, nil
+  old.deck = { "kobold", "wolf" }
+  local deck = old.deck
+  C.Init(old)
+  check(old.schema == C.SCHEMA and old.deckSlot == 1 and old.decks[1] == deck and old.deck == deck, "migration 3: your deck is slot 1")
+  old.decks[2] = { "kobold", "gone", "wolf" }
+  C.Init(old)
+  check(#old.decks[2] == 2, "cards that no longer exist leave every deck")
 end
 
 -- 8. the pace of the collection -------------------------------------------------------

@@ -97,9 +97,10 @@ def finish(img, w, h, name, canvas=None):
 
 
 # ---------------------------------------------------------------------------
-ART = [16, 16, 240, 180]      # transparent window the icon shows through
-NAME = [10, 172, 246, 206]
-TEXT = [16, 212, 240, 316]
+# Keep these in step with the layout numbers in UI/Widgets.lua.
+ART = [16, 16, 240, 166]      # transparent window the icon shows through
+NAME = [10, 158, 246, 214]    # two lines of name
+TEXT = [16, 220, 240, 320]    # keywords and rules text
 
 
 def card_base():
@@ -250,9 +251,10 @@ def mock(path, parts):
         c.alpha_composite(base, (12, 12))
         c.alpha_composite(tint(border, rar[rarity]), (12, 12))
         d = ImageDraw.Draw(c)
-        d.text((12 + CW // 2, 12 + 189), name, font=font(19), fill=(250, 240, 215), anchor="mm",
+        d.text((12 + CW // 2, 12 + (NAME[1] + NAME[3]) // 2), name, font=font(19), fill=(250, 240, 215), anchor="mm",
                stroke_width=2, stroke_fill=(20, 14, 8))
-        d.multiline_text((12 + CW // 2, 12 + 264), text, font=font(19, False), fill=(46, 34, 20), anchor="mm", align="center")
+        d.multiline_text((12 + CW // 2, 12 + (TEXT[1] + TEXT[3]) // 2), text, font=font(19, False), fill=(46, 34, 20),
+                         anchor="mm", align="center")
         for img, col, pos, val in ((gem, (60, 120, 255), (0, 0), cost), (hexa, (255, 150, 40), (0, CH - 40), atk),
                                    (shield, (225, 50, 50), (CW - 40, CH - 40), hp)):
             c.alpha_composite(tint(img, col), pos)

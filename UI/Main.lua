@@ -3,13 +3,14 @@
 local _, ns = ...
 local UI = ns.UI
 
-local W, H = 560, 452
+local W, H = 800, 600
 local main, content
 local tabs, pages = {}, {}
 local TABS = {
   { key = "play", label = "Play", module = "Game" },
   { key = "cards", label = "Cards", module = "Binder" },
   { key = "packs", label = "Packs", module = "Packs" },
+  { key = "options", label = "Options", module = "Options" },
 }
 
 -- The saved position is the window's top left corner in screen units, so it
@@ -34,16 +35,19 @@ end
 
 local function tabButton(def, i)
   local b = CreateFrame("Button", nil, main, UI.TEMPLATE)
-  b:SetSize(64, 20)
-  b:SetPoint("TOPLEFT", main, "TOPLEFT", 120 + (i - 1) * 68, -7)
+  b:SetSize(74, 22)
+  b:SetPoint("TOPLEFT", main, "TOPLEFT", 130 + (i - 1) * 78, -6)
   UI.Backdrop(b, { 0.12, 0.10, 0.08, 1 }, { 0.4, 0.33, 0.2 })
-  b.text = UI.Text(b, 11)
+  b.text = UI.Text(b, 12)
   b.text:SetPoint("CENTER")
   b.text:SetText(def.label)
   b.badge = UI.Text(b, 9, "OUTLINE")
   b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", 4, 6)
   b.badge:SetTextColor(1, 0.82, 0)
-  b:SetScript("OnClick", function() UI.SelectTab(def.key) end)
+  b:SetScript("OnClick", function()
+    UI.Sound("tab")
+    UI.SelectTab(def.key)
+  end)
   b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
   return b
 end
@@ -70,7 +74,7 @@ local function create()
   icon:SetSize(20, 20)
   icon:SetPoint("TOPLEFT", 10, -7)
   icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
-  local title = UI.Text(main, 15)
+  local title = UI.Text(main, 16)
   title:SetPoint("LEFT", icon, "RIGHT", 6, 0)
   title:SetText("Deckhand")
   title:SetTextColor(1, 0.82, 0)
