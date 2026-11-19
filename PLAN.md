@@ -158,8 +158,14 @@ below.
 - The second star pays the signature card. The third (a deck with no rares or
   better) pays 2 packs.
 - Starter packs are 2 until the tutorial exists (then 1 + 1).
-- Not built yet: cosmetics (they need the new card face from Phase 2), heroic
-  rematches (they need the Phase 4 AI), the achievements page.
+- v0.6.0 (asked for after playtesting): legendaries, signature ones
+  included, are in packs at 0.5%; epics went from 5% to 3% (pity 25 instead
+  of 15); holographic cards (1 pack in 100, cosmetic only: foil over the
+  art and a prismatic ring); the AI opens with a 1-cost unit and never plays
+  a card it rates worse than passing. One of each now takes about 135 packs
+  (legendaries aside).
+- Not built yet: other cosmetics (card backs, a gilded border, the shard
+  sink), heroic rematches (they need the Phase 4 AI), the achievements page.
 - The new cards are tested for what they do, not yet for balance, and their
   icons are unchecked in game.
 

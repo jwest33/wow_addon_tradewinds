@@ -33,6 +33,19 @@ function UI.Hex(r, g, b)
   return ("|cff%02x%02x%02x"):format(r * 255, g * 255, b * 255)
 end
 
+-- Each letter a step further round the colour wheel (holographic labels).
+function UI.Rainbow(s)
+  local out, n = {}, #s
+  for i = 1, n do
+    local h = ((i - 1) / math.max(1, n) * 0.85) * 6
+    local r = math.min(1, math.max(0, math.abs(h - 3) - 1))
+    local g = math.min(1, math.max(0, 2 - math.abs(h - 2)))
+    local b = math.min(1, math.max(0, 2 - math.abs(h - 4)))
+    out[i] = UI.Hex(0.45 + r * 0.55, 0.45 + g * 0.55, 0.45 + b * 0.55) .. s:sub(i, i)
+  end
+  return table.concat(out) .. "|r"
+end
+
 function UI.CardName(id)
   local c = Cards.byId[id]
   local col = UI.RARITY_COLOR[c.rarity]
@@ -281,6 +294,15 @@ function UI.CreateCard(parent)
   b.art:SetSize((ART_BOX[3] - ART_BOX[1]) * K, (ART_BOX[4] - ART_BOX[2]) * K)
   b.art:SetTexCoord(0.08, 0.92, 0.22, 0.78)
 
+  -- holographic foil over the art, and a prismatic ring over the border
+  -- (shown on holographic cards only; UI.HoloTick animates them)
+  b.foil = b:CreateTexture(nil, "BACKGROUND", nil, 1)
+  b.foil:SetAllPoints(b.art)
+  b.foil:SetTexture(UI.ART .. "Holo")
+  b.foil:SetBlendMode("ADD")
+  b.foil:SetAlpha(0.42)
+  b.foil:Hide()
+
   b.base = b:CreateTexture(nil, "BORDER")
   b.base:SetAllPoints()
   b.base:SetTexture(UI.ART .. "CardBase")
@@ -290,6 +312,13 @@ function UI.CreateCard(parent)
   b.frame:SetAllPoints()
   b.frame:SetTexture(UI.ART .. "CardBorder")
   b.frame:SetTexCoord(0, 1, 0, V)
+
+  b.ring = b:CreateTexture(nil, "ARTWORK", nil, 1)
+  b.ring:SetAllPoints()
+  b.ring:SetTexture(UI.ART .. "HoloRing")
+  b.ring:SetTexCoord(0, 1, 0, V)
+  b.ring:SetBlendMode("ADD")
+  b.ring:Hide()
 
   b.name = UI.Text(b, 8)
   b.name:SetPoint("CENTER", b, "TOP", 0, -(NAME_BOX[2] + NAME_BOX[4]) / 2 * K)
@@ -378,11 +407,12 @@ UI.FaceText = faceText
 local TACTIC_LABEL = { enemy = "Tactic: enemy lane", friend = "Tactic: your unit", none = "Tactic" }
 
 -- id: card; unit: a unit on the board (current stats) or nil; st: the game or
--- replay view the unit is in (for attack bonuses).
-function Card:SetCard(id, unit, st)
+-- replay view the unit is in (for attack bonuses); holo: draw it holographic.
+function Card:SetCard(id, unit, st, holo)
   local c = Cards.byId[id]
   self.cardId, self.unit, self.st = id, unit, st
   self.back:Hide()
+  self:SetHolo(holo)
   self.art:SetTexture(UI.CardIcon(id))
   self.art:SetVertexColor(1, 1, 1)
   self.art:SetDesaturated(false)
@@ -427,9 +457,49 @@ end
 
 function Card:SetBack(text)
   self.cardId, self.unit = nil, nil
+  self:SetHolo(false)
   self.back.text:SetText(text or "click")
   self.back:Show()
   self:Show()
+end
+
+-- Holographic cards: the foil slides across the art and the ring brightens
+-- and fades. One OnUpdate drives every holographic card on screen.
+local holoCards = {}
+local holoClock = 0
+
+function UI.HoloTick(elapsed)
+  holoClock = holoClock + (elapsed or 0)
+  local any = false
+  for b in pairs(holoCards) do
+    any = true
+    if b:IsVisible() then
+      local t = holoClock + b.holoPhase
+      local u = (t * 0.045) % 0.5
+      b.foil:SetTexCoord(u, u + 0.5, 0, 1)
+      b.ring:SetAlpha(0.72 + 0.28 * math.sin(t * 2.1))
+    end
+  end
+  return any
+end
+
+local holoDriver
+function Card:SetHolo(on)
+  on = on and true or false
+  self.holo = on
+  self.foil:SetShown(on)
+  self.ring:SetShown(on)
+  if on then
+    if not self.holoPhase then self.holoPhase = math.random() * 10 end
+    holoCards[self] = true
+    if not holoDriver then
+      holoDriver = CreateFrame("Frame")
+      holoDriver:SetScript("OnUpdate", function(_, elapsed) UI.HoloTick(elapsed) end)
+    end
+    UI.HoloTick(0)
+  else
+    holoCards[self] = nil
+  end
 end
 
 function Card:SetDim(on)
@@ -449,7 +519,7 @@ end
 
 function Card:ShowTooltip()
   if not self.cardId then return end
-  UI.CardTooltip(self, self.cardId, self.unit, self.st, self.tipExtra and self.tipExtra(self))
+  UI.CardTooltip(self, self.cardId, self.unit, self.st, self.tipExtra and self.tipExtra(self), self.holo)
 end
 
 -- ---------------------------------------------------------------------------
@@ -489,12 +559,13 @@ local TARGET_HINT = {
   friend = "Pick one of your units, or a lane you're playing a unit into this round.",
 }
 
-function UI.CardTooltip(owner, id, unit, st, extra)
+function UI.CardTooltip(owner, id, unit, st, extra, holo)
   local c = Cards.byId[id]
   local tip = GameTooltip
   tip:SetOwner(owner, "ANCHOR_RIGHT")
   local col = UI.RARITY_COLOR[c.rarity]
   tip:AddLine(c.name, col[1], col[2], col[3])
+  if holo then tip:AddLine(UI.Rainbow("Holographic")) end
   local rarity = c.collectible and (c.rarity:gsub("^%l", string.upper)) or "Token"
   local kind = c.type == "unit" and (c.tribe and (Cards.TRIBES[c.tribe] .. " unit") or "Unit") or "Tactic"
   tip:AddDoubleLine(kind .. ", " .. rarity, c.cost .. " Supply",
@@ -518,12 +589,16 @@ function UI.CardTooltip(owner, id, unit, st, extra)
     if (unit.tmpAtk or 0) > 0 then tip:AddLine(("+%d attack this round."):format(unit.tmpAtk), 0.3, 1, 0.3) end
   end
   if c.flavor then tip:AddLine("\"" .. c.flavor .. "\"", 0.55, 0.55, 0.55, true) end
-  if c.signature and not unit then
-    local o = ns.OpponentById[c.signature]
-    tip:AddLine(o and ("Signature card: not in packs. Earn %s's second star, or craft it."):format(o.short)
-      or "Not in packs. Earn every star on the circuit, or craft it.", 1, 0.82, 0, true)
-  elseif c.collectible and c.rarity == "legendary" and not unit then
-    tip:AddLine("Not in packs.", 1, 0.82, 0, true)
+  if c.collectible and not unit then
+    local o = c.signature and ns.OpponentById[c.signature]
+    local packs = c.rarity == "legendary" and "Very rarely found in packs." or "Not in packs."
+    if o then
+      tip:AddLine(("Signature card: earn %s's second star, or craft it. %s"):format(o.short, packs), 1, 0.82, 0, true)
+    elseif c.signature then
+      tip:AddLine("Earn every star on the circuit, or craft it. " .. packs, 1, 0.82, 0, true)
+    elseif c.rarity == "legendary" then
+      tip:AddLine(packs, 1, 0.82, 0, true)
+    end
   end
   if extra then
     for _, line in ipairs(extra) do tip:AddLine(line, 0.85, 0.85, 0.85, true) end

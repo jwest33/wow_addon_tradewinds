@@ -77,14 +77,23 @@ shows the curve as a checklist.
 
 You start with a 20-card starter deck and 2 packs.
 
-- **Packs** hold 3 cards: two commons and an uncommon, which is a rare 26% and
-  an epic 5% of the time (and always an epic if 14 packs in a row had none).
+- **Packs** hold 3 cards: two commons and an uncommon. The uncommon is
+  upgraded to a rare 25% of the time, an epic 3% and a **legendary 0.5%** (1
+  pack in 200). If 24 packs in a row had no epic or legendary, the next one
+  has an epic.
+- **Holographic cards**: about 1 pack in 100 has a holographic card, with a
+  shimmering foil over its art and a prismatic border. It plays exactly like
+  the normal card. Once you own a holographic copy, every copy of that card
+  you play or browse shows holographic. A holographic pull of a card you
+  already have every copy of makes yours holographic instead of turning into
+  shards.
 - **Shards** buy packs (30) or **craft** a card you choose: shift-click it in
   the Cards tab. Common 10, uncommon 25, rare 60, epic 150, legendary 400. A
   copy past the deck limit turns into shards (1 / 3 / 10 / 25).
-- **Legendaries and signature cards are not in packs.** Each opponent has a
-  signature card, won with their second star. Ragnaros is the reward for
-  every star on the circuit. All of them can also be crafted, for 400.
+- **Signature cards** are won from opponents: each opponent has one, won with
+  their second star, and Ragnaros is the reward for every star on the
+  circuit. All of them can also be crafted, for 400. The epic ones are never
+  in packs; the legendary ones turn up very rarely, like any legendary.
 
 Where packs and shards come from:
 
@@ -101,8 +110,9 @@ Where packs and shards come from:
 Ending a match early pays nothing.
 
 The numbers are set for a pace of about three quarters of the pack cards in
-three weeks of casual play and one of everything in two to three months. A
-test simulates that and fails if a change moves it.
+three weeks of casual play and one of everything in two to three months
+(legendaries aside: they're a jackpot). A test simulates that and fails if a
+change moves it.
 
 ### Opponents and stars
 
@@ -133,7 +143,10 @@ There is also one **daily task** (shown under the opponent list), such as
 The computer plays honestly: it builds random legal plans, plays each one out
 on a copy of the game where you do nothing new, scores the board and keeps the
 best. It never sees your hand or your plan. Harder opponents try more plans
-and also check each one against you blocking their best attacker.
+and also check each one against you blocking their best attacker. Every
+opponent opens round 1 with a 1-cost unit, and none of them plays a card it
+rates worse than doing nothing (a Healing Potion at full Morale, say), however
+loosely the easy ones play.
 
 ## The window
 

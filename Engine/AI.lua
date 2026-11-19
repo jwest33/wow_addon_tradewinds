@@ -135,9 +135,32 @@ local function simulate(st, p, plan, rnd, block)
   return AI.Evaluate(c, p)
 end
 
+-- Round 1's plans: one unit the AI can afford, in each free lane. Every deck
+-- has units costing 1 and round 1's draw is one of them (Rules.GUIDED_DRAWS),
+-- so there is nearly always one. Tactics are never played in round 1: Morale
+-- is full and the board is empty, so they would be wasted.
+local function openingPlans(st, p)
+  local P = st.players[p]
+  local out = {}
+  for h, id in ipairs(P.hand) do
+    local c = R.Card(id)
+    if c.type == "unit" and c.cost <= P.supply then
+      for l = 1, R.LANES do
+        if not P.board[l] then out[#out + 1] = { { h = h, id = id, lane = l } } end
+      end
+    end
+  end
+  return out
+end
+AI.OpeningPlans = openingPlans
+
 -- Returns plan, score. rnd(n) -> 1..n (defaults to math.random).
 -- opts.yield: called every few simulations (the UI uses it to spread the work
 -- over several frames).
+--
+-- Noise and pickTop make the easy level play loosely, but no level picks a
+-- plan it scores below doing nothing (a Healing Potion at full Morale, a
+-- Battle Shout with no units): the noise only chooses among the sensible ones.
 function AI.ChoosePlan(st, p, level, rnd, opts)
   rnd = rnd or math.random
   local L = AI.LEVELS[level] or AI.LEVELS.normal
@@ -146,15 +169,27 @@ function AI.ChoosePlan(st, p, level, rnd, opts)
     local key = planKey(plan)
     if seen[key] then return end
     seen[key] = true
-    local score = simulate(st, p, plan, rnd, false)
-    if L.block then score = (score + simulate(st, p, plan, rnd, true)) / 2 end
+    local base = simulate(st, p, plan, rnd, false)
+    if L.block then base = (base + simulate(st, p, plan, rnd, true)) / 2 end
+    local score = base
     if L.noise > 0 then score = score + (rnd(1000) / 1000 - 0.5) * L.noise end
-    cands[#cands + 1] = { plan = plan, score = score }
+    cands[#cands + 1] = { plan = plan, score = score, base = base }
     n = n + 1
     if opts and opts.yield and n % 10 == 0 then opts.yield() end
   end
-  consider({})
-  for _ = 1, L.samples do consider(AI.RandomPlan(st, p, rnd)) end
+  local opening = st.round == 1 and openingPlans(st, p) or {}
+  if #opening > 0 then
+    for _, plan in ipairs(opening) do consider(plan) end
+  else
+    consider({})
+    for _ = 1, L.samples do consider(AI.RandomPlan(st, p, rnd)) end
+    local pass = cands[1].base
+    local keep = {}
+    for i, cd in ipairs(cands) do
+      if i == 1 or cd.base >= pass then keep[#keep + 1] = cd end
+    end
+    cands = keep
+  end
   table.sort(cands, function(a, b) return a.score > b.score end)
   local pick = 1
   if L.pickTop > 0 then pick = rnd(math.max(1, math.floor(#cands * L.pickTop))) end

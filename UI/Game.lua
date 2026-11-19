@@ -351,10 +351,10 @@ local function renderSlot(p, l)
   local dies = planning and forecast and forecast.dies[p][l]
   local maybe = planning and forecast and forecast.maybe[p][l]
   if u then
-    card:SetCard(u.id, u, S)
+    card:SetCard(u.id, u, S, p == ME and C.IsHolo(ns.db, u.id))
     if dies then card:SetTag("dies", 1, 0.3, 0.3) elseif maybe then card:SetTag("may die", 1, 0.65, 0.2) end
   elseif p == ME and planning and plannedUnitAt(l) then
-    card:SetCard(plannedUnitAt(l).id)
+    card:SetCard(plannedUnitAt(l).id, nil, nil, C.IsHolo(ns.db, plannedUnitAt(l).id))
     card:SetAlpha(0.85)
     if dies then card:SetTag("dies", 1, 0.3, 0.3)
     elseif maybe then card:SetTag("may die", 1, 0.65, 0.2)
@@ -440,7 +440,7 @@ local function renderHand()
     local h = list[i]
     if h then
       b.h = h
-      b:SetCard(hand[h])
+      b:SetCard(hand[h], nil, nil, C.IsHolo(ns.db, hand[h]))
       b:ClearAllPoints()
       b:SetPoint("TOPLEFT", board, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 5), HAND_Y + ((planning and sel == h) and 10 or 0))
       b:SetSelected(planning and sel == h)
@@ -705,7 +705,7 @@ local SET_COLOR = {
 local bannerToken = 0
 local function showTactic(e)
   local b = ctl.banner
-  b.card:SetCard(e.id)
+  b.card:SetCard(e.id, nil, nil, e.p == ME and C.IsHolo(ns.db, e.id))
   b.who:SetText(e.p == ME and "You cast" or (who(OPP) .. " casts"))
   b.what:SetText(UI.CardName(e.id))
   local c = Cards.byId[e.id]

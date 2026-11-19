@@ -216,6 +216,58 @@ def board():
     return finish(img, n, n, "Board")
 
 
+def hues(h):
+    """Hue (0..1, any shape) to RGB floats 0..1, full saturation."""
+    h = (h % 1.0) * 6
+    r = np.clip(np.abs(h - 3) - 1, 0, 1)
+    g = np.clip(2 - np.abs(h - 2), 0, 1)
+    b = np.clip(2 - np.abs(h - 4), 0, 1)
+    return np.stack([r, g, b], -1)
+
+
+def holo_foil():
+    """Holographic foil for the art window, drawn with ADD blending: black is
+    no change. 512x256 and periodic every 256 pixels across, so the addon
+    shows a 256-wide window of it and slides that window to make it shimmer
+    (Holo: SetTexCoord(u, u + 0.5, 0, 1), u from 0 to 0.5 and round again)."""
+    w, h, period = 512, 256, 256
+    r = np.random.default_rng(11)
+    y, x = np.mgrid[0:h, 0:w].astype("float32")
+    # rainbow bands on a diagonal, wobbling a little like real foil
+    wob = 0.035 * np.sin(2 * np.pi * (y / h * 2 + x / period))
+    band = (x / period * 2 + y / h * 0.8 + wob)
+    rgb = hues(band) * 0.30 + 0.05
+    # a bright sweep across, once per period
+    d = ((x - y * 0.55) / period) % 1.0
+    sweep = np.exp(-((d - 0.5) / 0.07) ** 2) * 0.45
+    rgb = rgb + sweep[:, :, None] * (0.6 + 0.4 * hues(band + 0.33))
+    # sparkles: the same random points in each period
+    sp = np.zeros((h, period), "float32")
+    for _ in range(70):
+        cx, cy = r.uniform(0, period), r.uniform(0, h)
+        s = r.uniform(0.6, 1.6)
+        yy, xx = np.mgrid[0:h, 0:period].astype("float32")
+        dx = np.minimum(np.abs(xx - cx), period - np.abs(xx - cx))
+        sp += np.exp(-(dx ** 2 + (yy - cy) ** 2) / (2 * s * s)) * r.uniform(0.5, 1.0)
+    sp = np.tile(sp, (1, w // period))
+    rgb = rgb + np.clip(sp, 0, 1)[:, :, None] * 0.9
+    img = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype("uint8"), "RGB").convert("RGBA")
+    OUT.mkdir(exist_ok=True)
+    img.save(OUT / "Holo.tga")
+    return img
+
+
+def holo_ring():
+    """A prismatic ring over the card's border (same layout as CardBorder),
+    drawn with ADD blending on holographic cards."""
+    img = new(CW, CH)
+    ring = minus(rmask(CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 14.5), rmask(CW, CH, [8.5, 8.5, CW - 8.5, CH - 8.5], 8))
+    y, x = np.mgrid[0:CH * S, 0:CW * S].astype("float32") / S
+    rgb = hues((x + y) / 260.0) * 0.75 + 0.1
+    put(img, Image.fromarray((np.clip(rgb, 0, 1) * 255).astype("uint8"), "RGB"), ring)
+    return finish(img, CW, CH, "HoloRing", (256, 512))
+
+
 # ---------------------------------------------------------------------------
 def tint(img, col):
     r, g, b, a = img.split()
@@ -282,6 +334,8 @@ if __name__ == "__main__":
              badge("BadgeAttack", [(32, 3), (58, 17), (58, 47), (32, 61), (6, 47), (6, 17)]),
              badge("BadgeHealth", [(7, 7), (57, 7), (57, 36), (32, 60), (7, 36)]), board()]
     star()
+    holo_foil()
+    holo_ring()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
         mock(sys.argv[1], parts)

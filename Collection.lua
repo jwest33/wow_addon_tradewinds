@@ -18,8 +18,11 @@ C.CRAFT_COST = { common = 10, uncommon = 25, rare = 60, epic = 150, legendary = 
 C.SIGNATURE_CRAFT_COST = 400   -- signature cards, whatever their rarity
 C.PACK_COST = 30               -- shards
 C.PACK_SIZE = 3                -- two commons and one uncommon or better
-C.PACK_ODDS = { rare = 26, epic = 5 }   -- percent, for the third card
-C.PITY = 15                    -- at most this many packs in a row without an epic
+-- The third card, per 1000 packs: a legendary (any of them, signature cards
+-- included) 5, an epic 30, a rare 250, otherwise an uncommon.
+C.PACK_ODDS = { legendary = 5, epic = 30, rare = 250 }
+C.PITY = 25                    -- at most this many packs in a row without an epic or better
+C.HOLO_ODDS = 100              -- 1 pack in this many has a holographic card
 C.TRAVEL_PACK_SECONDS = 1200
 C.STARTER_PACKS = 2
 C.REWARD = {
@@ -165,9 +168,13 @@ function C.Init(db, rules)
     if db.settings[k] == nil then db.settings[k] = v end
   end
   db.displays = db.displays or {}
+  db.holo = db.holo or {}
   -- forget cards that no longer exist (renamed or removed in an update)
   for id in pairs(db.collection) do
     if not (Cards.byId[id] and Cards.byId[id].collectible) then db.collection[id] = nil end
+  end
+  for id in pairs(db.holo) do
+    if not db.collection[id] then db.holo[id] = nil end
   end
   for slot = 1, C.DECK_SLOTS do
     local deck = db.decks[slot]
@@ -190,10 +197,20 @@ function C.Owned(db, id)
   return db.collection[id] or 0
 end
 
--- Adds a card. Past the copy limit it turns into shards.
--- Returns "new" | "copy" | "shards", shards gained.
-function C.Add(db, id)
+-- Adds a card. Past the copy limit it turns into shards, except that a
+-- holographic copy of a card you have no holographic copy of turns one of
+-- yours holographic instead.
+-- Returns "new" | "copy" | "holo" | "shards", shards gained.
+function C.Add(db, id, holo)
   local n = db.collection[id] or 0
+  if holo then
+    db.holo = db.holo or {}
+    if n >= C.MaxCopies(id) and not db.holo[id] then
+      db.holo[id] = true
+      return "holo", 0
+    end
+    if n < C.MaxCopies(id) then db.holo[id] = true end
+  end
   if n >= C.MaxCopies(id) then
     local v = C.SHARD_VALUE[Cards.byId[id].rarity] or 1
     db.shards = db.shards + v
@@ -203,16 +220,23 @@ function C.Add(db, id)
   return n == 0 and "new" or "copy", 0
 end
 
+-- Holographic cards look different and play the same. Owning one holographic
+-- copy shows every copy of that card you play or browse as holographic.
+function C.IsHolo(db, id)
+  return (db and db.holo and db.holo[id] and (db.collection[id] or 0) > 0) and true or false
+end
+
 -- Packs ---------------------------------------------------------------------------
--- The cards packs can hold: everything collectible except legendaries and
--- signature cards (those are won from opponents, or crafted).
+-- The pools packs draw from. Signature cards are left out of the epic pool
+-- (they are won from opponents, or crafted), but every legendary can turn up
+-- in the very rare legendary slot, signature or not.
 local pool
 function C.PackPool(rarity)
   if not pool then
     pool = {}
     for _, r in ipairs(Cards.RARITIES) do pool[r] = {} end
     for _, c in ipairs(Cards.collectible) do
-      if c.rarity ~= "legendary" and not c.signature then table.insert(pool[c.rarity], c.id) end
+      if c.rarity == "legendary" or not c.signature then table.insert(pool[c.rarity], c.id) end
     end
   end
   return pool[rarity]
@@ -220,34 +244,42 @@ end
 
 function C.InPacks(id)
   local c = Cards.byId[id]
-  return (c.collectible and c.rarity ~= "legendary" and not c.signature) and true or false
+  return (c.collectible and (c.rarity == "legendary" or not c.signature)) and true or false
 end
 
--- Three cards: two commons and an uncommon, which is a rare 26% and an epic
--- 5% of the time. pity: packs opened since the last epic; the pack after
--- C.PITY - 1 dry ones always has one. Returns the cards and the new count.
+-- Three cards: two commons and an uncommon, which is sometimes better (see
+-- C.PACK_ODDS). pity: packs opened since the last epic or legendary; the pack
+-- after C.PITY - 1 dry ones always has an epic. 1 pack in C.HOLO_ODDS has one
+-- holographic card. Returns the cards, the new pity count, and the slot of the
+-- holographic card (or nil).
 function C.RollPack(rnd, pity)
   pity = pity or 0
   local function pick(r)
     local list = C.PackPool(r)
     return list[rnd(#list)]
   end
-  local x = rnd(100)
-  local third = (x <= C.PACK_ODDS.epic or pity >= C.PITY - 1) and "epic"
-    or x <= C.PACK_ODDS.epic + C.PACK_ODDS.rare and "rare" or "uncommon"
-  return { pick("common"), pick("common"), pick(third) }, third == "epic" and 0 or pity + 1
+  local odds = C.PACK_ODDS
+  local x = rnd(1000)
+  local third = x <= odds.legendary and "legendary"
+    or (x <= odds.legendary + odds.epic or pity >= C.PITY - 1) and "epic"
+    or x <= odds.legendary + odds.epic + odds.rare and "rare" or "uncommon"
+  local cards = { pick("common"), pick("common"), pick(third) }
+  local holo = rnd(C.HOLO_ODDS) == 1 and rnd(C.PACK_SIZE) or nil
+  local lucky = third == "epic" or third == "legendary"
+  return cards, lucky and 0 or pity + 1, holo
 end
 
--- Returns a list of { id, kind, shards } or nil when there's no pack to open.
+-- Returns a list of { id, kind, shards, holo } or nil when there's no pack to
+-- open.
 function C.OpenPack(db, rnd)
   if db.packs <= 0 then return nil end
   db.packs = db.packs - 1
-  local cards
-  cards, db.progress.pity = C.RollPack(rnd, db.progress.pity)
+  local cards, holo
+  cards, db.progress.pity, holo = C.RollPack(rnd, db.progress.pity)
   local results = {}
   for i, id in ipairs(cards) do
-    local kind, shards = C.Add(db, id)
-    results[i] = { id = id, kind = kind, shards = shards }
+    local kind, shards = C.Add(db, id, holo == i)
+    results[i] = { id = id, kind = kind, shards = shards, holo = holo == i or nil }
   end
   return results
 end

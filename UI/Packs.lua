@@ -22,23 +22,36 @@ local KIND_LABEL = {
   copy = "|cffb0b0b0copy|r",
 }
 
+local function label(r)
+  if r.kind == "shards" then
+    return ("|cff9fdfff+%d shard%s|r"):format(r.shards, r.shards == 1 and "" or "s")
+  elseif r.holo then
+    return r.kind == "holo" and UI.Rainbow("Now holographic!")
+      or (r.kind == "new" and (KIND_LABEL.new .. " ") or "") .. UI.Rainbow("Holographic!")
+  end
+  return KIND_LABEL[r.kind]
+end
+P.Label = label
+
 local function reveal(i)
   if not opened or opened.shown[i] then return end
   opened.shown[i] = true
   local r = opened.results[i]
   local slot = slots[i]
-  slot.card:SetCard(r.id)
+  slot.card:SetCard(r.id, nil, nil, r.holo)
   local c = Cards.byId[r.id]
   local col = UI.RARITY_COLOR[c.rarity]
   slot.card:Flash(col[1], col[2], col[3])
-  if c.rarity == "legendary" or c.rarity == "epic" then
+  if r.holo then
+    slot.card:Float("Holographic!", 0.7, 0.95, 1)
+    UI.Sound("rare")
+  elseif c.rarity == "legendary" or c.rarity == "epic" then
     slot.card:Float(c.rarity == "legendary" and "Legendary!" or "Epic!", col[1], col[2], col[3])
     UI.Sound("rare")
   else
     UI.Sound("reveal")
   end
-  slot.label:SetText(r.kind == "shards" and ("|cff9fdfff+%d shard%s|r"):format(r.shards, r.shards == 1 and "" or "s")
-    or KIND_LABEL[r.kind])
+  slot.label:SetText(label(r))
   P.Refresh()
 end
 
@@ -51,13 +64,15 @@ end
 -- pack is laid out as usual.
 local function openAll()
   revealAll()
-  local n, shards, last, names = 0, 0, nil, {}
+  local n, shards, last, names, special = 0, 0, nil, {}, {}
   while ns.db.packs > 0 do
     local results = C.OpenPack(ns.db, ns.Rand)
     if not results then break end
     n, last = n + 1, results
     for _, r in ipairs(results) do
       if r.kind == "new" then names[#names + 1] = UI.CardName(r.id) end
+      if r.holo then special[#special + 1] = UI.Rainbow("Holographic") .. " " .. UI.CardName(r.id) end
+      if Cards.byId[r.id].rarity == "legendary" then special[#special + 1] = "Legendary: " .. UI.CardName(r.id) end
       shards = shards + (r.shards or 0)
     end
   end
@@ -76,6 +91,8 @@ local function openAll()
   for i = 1, #names, 6 do
     ns.Print("New: %s", table.concat(names, ", ", i, math.min(#names, i + 5)))
   end
+  for _, s in ipairs(special) do ns.Print("%s", s) end
+  if #special > 0 then UI.Sound("rare") end
   UI.Refresh()
 end
 
@@ -209,8 +226,9 @@ function P.Build(parent)
     "- Stars: your first win against each opponent, and winning with a deck of commons and uncommons",
     ("- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"):format(C.PACK_COST),
     "|cffffd100What's in a pack|r",
-    "- Two commons and an uncommon, which is sometimes a rare or an epic",
-    "- Legendaries and signature cards aren't in packs: win them from opponents, or craft them",
+    "- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary",
+    "- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them",
+    "- About 1 pack in " .. C.HOLO_ODDS .. " has a " .. UI.Rainbow("holographic") .. " card. It plays the same; it just shines",
   }, "\n"))
 
   page:SetScript("OnShow", function() P.Refresh() end)

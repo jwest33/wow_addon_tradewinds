@@ -351,9 +351,11 @@ do
     "core cards have their tribes")
   for _, o in ipairs(ns.Opponents) do
     local c = Cards.byId[o.signature]
-    check(c and c.collectible and c.signature == o.id and not C.InPacks(c.id), o.name .. " has a signature card outside packs")
+    check(c and c.collectible and c.signature == o.id and C.InPacks(c.id) == (c.rarity == "legendary"),
+      o.name .. " has a signature card, in packs only if it's legendary")
   end
-  check(Cards.byId[ns.CHAMPION_CARD].signature == "champion" and not C.InPacks(ns.CHAMPION_CARD), "the champion's card isn't in packs")
+  check(Cards.byId[ns.CHAMPION_CARD].signature == "champion" and C.InPacks(ns.CHAMPION_CARD),
+    "the champion's card is a legendary, so very rarely in packs")
 
   -- Beasts
   local st = blank()
@@ -690,6 +692,33 @@ do
   end
 end
 
+-- The AI opens with a unit (never a tactic), and never plays something it
+-- rates worse than passing, at any level.
+do
+  local bad, total = 0, 0
+  for _, o in ipairs(ns.Opponents) do
+    for seed = 1, 30 do
+      local st = R.NewGame({ seed = seed * 31 + o.index, decks = { C.STARTER, o.deck } })
+      local plan = AI.ChoosePlan(st, 2, o.level, lcg(seed))
+      total = total + 1
+      if not (#plan == 1 and Cards.byId[plan[1].id].type == "unit" and Cards.byId[plan[1].id].cost == 1) then bad = bad + 1 end
+    end
+  end
+  check(bad == 0, ("every opponent opens round 1 with a 1-cost unit (%d of %d didn't)"):format(bad, total))
+  local wasted = 0
+  for seed = 1, 60 do
+    local st = R.NewGame({ seed = seed, decks = { C.STARTER, ns.OpponentById.dorn.deck } })
+    R.Resolve(st, { {}, {} })
+    st.players[2].hand = { "potion", "shout", "potion" }
+    for l = 1, R.LANES do st.players[2].board[l] = nil end
+    st.players[2].morale = R.MAX_MORALE
+    for _, level in ipairs({ "easy", "normal", "hard" }) do
+      if #AI.ChoosePlan(st, 2, level, lcg(seed)) > 0 then wasted = wasted + 1 end
+    end
+  end
+  check(wasted == 0, ("no Healing Potion at full Morale, no Battle Shout without units (%d wasted)"):format(wasted))
+end
+
 -- 5. AI speed ----------------------------------------------------------------------
 do
   local st = R.NewGame({ seed = 42, decks = { randomDeck(lcg(1)), randomDeck(lcg(2)) } })
@@ -711,19 +740,32 @@ do
   -- packs
   local rnd = lcg(77)
   local counts = { common = 0, uncommon = 0, rare = 0, epic = 0, legendary = 0 }
-  local N, outside = 20000, 0
+  local N, outside, holos, badSlot = 60000, 0, 0, 0
   for _ = 1, N do
-    for _, id in ipairs((C.RollPack(rnd))) do
+    local cards, _, holo = C.RollPack(rnd)
+    for _, id in ipairs(cards) do
       local c = Cards.byId[id]
       counts[c.rarity] = counts[c.rarity] + 1
       if not C.InPacks(id) then outside = outside + 1 end
     end
+    if holo then
+      holos = holos + 1
+      if not cards[holo] then badSlot = badSlot + 1 end
+    end
   end
-  print(("pack odds per pack: C %.2f U %.2f R %.3f E %.3f L %.3f"):format(counts.common / N, counts.uncommon / N,
-    counts.rare / N, counts.epic / N, counts.legendary / N))
-  check(counts.common == 2 * N and counts.legendary == 0 and outside == 0, "a pack: two commons, no legendary or signature cards")
-  check(math.abs(counts.epic / N - C.PACK_ODDS.epic / 100) < 0.006, "epic odds")
-  check(math.abs(counts.rare / N - C.PACK_ODDS.rare / 100) < 0.012, "rare odds")
+  print(("pack odds per pack: C %.2f U %.2f R %.3f E %.4f L %.4f, holographic %.4f"):format(counts.common / N,
+    counts.uncommon / N, counts.rare / N, counts.epic / N, counts.legendary / N, holos / N))
+  check(counts.common == 2 * N and outside == 0, "a pack: two commons, nothing from outside the pack pools")
+  check(math.abs(counts.legendary / N - C.PACK_ODDS.legendary / 1000) < 0.0015, "legendary odds (very rare)")
+  check(math.abs(counts.epic / N - C.PACK_ODDS.epic / 1000) < 0.004, "epic odds")
+  check(math.abs(counts.rare / N - C.PACK_ODDS.rare / 1000) < 0.01, "rare odds")
+  check(math.abs(holos / N - 1 / C.HOLO_ODDS) < 0.002 and badSlot == 0, "holographic odds")
+  local legends = {}
+  for _, id in ipairs(C.PackPool("legendary")) do legends[id] = true end
+  check(legends.onyxia and legends.ragnaros and legends.vancleef and legends.rivendare, "every legendary can come from a pack")
+  for _, id in ipairs(C.PackPool("epic")) do
+    check(not Cards.byId[id].signature, "signature epics stay out of packs: " .. id)
+  end
   local dry = function(n) return n end   -- the die always comes up highest: never a rare or an epic by luck
   local pity, sawEpic = 0, {}
   for i = 1, C.PITY * 2 do
@@ -735,6 +777,36 @@ do
 
   local res = C.OpenPack(db, rnd)
   check(res and #res == C.PACK_SIZE and db.packs == C.STARTER_PACKS - 1 and db.progress.pity == 1, "open pack")
+
+  -- holographic copies
+  local hdb = {}
+  C.Init(hdb)
+  check(not C.IsHolo(hdb, "kobold"), "starter cards aren't holographic")
+  check(C.Add(hdb, "raptor", true) == "new" and C.IsHolo(hdb, "raptor") and C.Owned(hdb, "raptor") == 1,
+    "a holographic pull of a new card")
+  check(C.Add(hdb, "raptor") == "copy" and C.IsHolo(hdb, "raptor") and C.Owned(hdb, "raptor") == 2,
+    "a plain copy later keeps it holographic")
+  hdb.collection.ogre = 2
+  local hk, hs = C.Add(hdb, "ogre", true)
+  check(hk == "holo" and hs == 0 and C.IsHolo(hdb, "ogre") and C.Owned(hdb, "ogre") == 2,
+    "at the copy limit, a holographic pull makes your copy holographic instead of shards")
+  local sh0 = hdb.shards
+  hk = C.Add(hdb, "ogre", true)
+  check(hk == "shards" and hdb.shards == sh0 + C.SHARD_VALUE.common, "a holographic pull of a card already holographic is shards")
+  hdb.holo.nothere = true
+  C.Init(hdb)
+  check(hdb.holo.nothere == nil and hdb.holo.ogre, "holographic marks for cards you don't have are dropped")
+  -- a pack whose holographic roll comes up: rnd answers 1 to the 1-in-HOLO_ODDS roll
+  hdb.packs = 1
+  local calls = 0
+  local hres = C.OpenPack(hdb, function(n)
+    calls = calls + 1
+    if n == C.HOLO_ODDS then return 1 end
+    if n == C.PACK_SIZE then return 2 end
+    return n
+  end)
+  check(hres and hres[2].holo and not hres[1].holo and not hres[3].holo and C.IsHolo(hdb, hres[2].id),
+    "a holographic card from a pack")
   db.collection.onyxia = 1
   local kind, sh = C.Add(db, "onyxia")
   check(kind == "shards" and sh == C.SHARD_VALUE.legendary, "extra legendary becomes shards")
@@ -986,10 +1058,12 @@ end
 -- duplicates) it takes to own the cards packs hold. At roughly 13 packs a week
 -- of casual play, the target is three quarters in two to three weeks and
 -- everything in two to three months; crafting shortens the tail further.
+-- Legendaries are left out: packs hold them only very rarely, as a jackpot.
 do
+  local function counted(c) return C.InPacks(c.id) and c.rarity ~= "legendary" end
   local total, playset = 0, 0
   for _, c in ipairs(Cards.collectible) do
-    if C.InPacks(c.id) then total = total + 1; playset = playset + C.MaxCopies(c.id) end
+    if counted(c) then total = total + 1; playset = playset + C.MaxCopies(c.id) end
   end
   local function run(seed)
     local rnd = lcg(seed)
@@ -1006,7 +1080,7 @@ do
         -- owned, craft the cheapest one still missing instead
         local have, missing = 0, {}
         for _, c in ipairs(Cards.collectible) do
-          if C.InPacks(c.id) then
+          if counted(c) then
             if C.Owned(db, c.id) > 0 then have = have + 1 else missing[#missing + 1] = c.id end
           end
         end
@@ -1021,7 +1095,7 @@ do
       end
       local have, copies = 0, 0
       for _, c in ipairs(Cards.collectible) do
-        if C.InPacks(c.id) and C.Owned(db, c.id) > 0 then have = have + 1; copies = copies + C.Owned(db, c.id) end
+        if counted(c) and C.Owned(db, c.id) > 0 then have = have + 1; copies = copies + C.Owned(db, c.id) end
       end
       if not marks.half and have >= total * 0.5 then marks.half = earned end
       if not marks.most and have >= total * 0.75 then marks.most = earned end

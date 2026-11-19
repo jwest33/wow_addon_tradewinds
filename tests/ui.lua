@@ -313,6 +313,31 @@ do
   check(db.packs == 0 and #MOCK.chat > chat and MOCK.chat[chat + 1]:find("Opened 4 packs"), "open all opens every pack and says what was in them")
 end
 
+-- holographic cards
+do
+  local plain = function(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+  local cf = UI.CreateCard(UIParent)
+  cf:SetCard("kobold", nil, nil, true)
+  check(cf.holo and cf.foil:IsShown() and cf.ring:IsShown(), "a holographic card shows its foil and ring")
+  check(UI.HoloTick(0.5), "the shimmer runs")
+  cf:ShowTooltip()
+  check(plain(GameTooltip.lines[2]) == "Holographic", "its tooltip says so")
+  cf:SetCard("kobold")
+  check(not cf.holo and not cf.foil:IsShown() and not cf.ring:IsShown(), "the same frame showing a plain card has no foil")
+  cf:SetCard("kobold", nil, nil, true)
+  cf:SetBack()
+  check(not cf.foil:IsShown(), "a card back has no foil")
+  check(plain(UI.Packs.Label({ kind = "new", holo = true })) == "NEW! Holographic!"
+    and plain(UI.Packs.Label({ kind = "holo", holo = true })) == "Now holographic!", "pack labels for holographic pulls")
+  check(not C.IsHolo(db, "ogre") and (db.collection.kobold or 0) > 0, "kobold owned, ogre not holographic")
+  db.holo.kobold = true
+  check(C.IsHolo(db, "kobold"), "owning a holographic kobold")
+  UI.SelectTab("cards")
+  UI.Refresh()
+  UI.SelectTab("play")
+  UI.Refresh()
+end
+
 -- options tab
 do
   UI.SelectTab("options")

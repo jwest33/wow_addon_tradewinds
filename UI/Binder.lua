@@ -180,7 +180,7 @@ function B.Refresh()
     local c = all[(pageNo - 1) * PER + i]
     if c then
       local owned, inDeck = C.Owned(ns.db, c.id), C.Count(ns.db.deck, c.id)
-      cell.card:SetCard(c.id)
+      cell.card:SetCard(c.id, nil, nil, C.IsHolo(ns.db, c.id))
       if owned == 0 then
         cell.card.art:SetDesaturated(true)
         cell.card:SetAlpha(0.45)
@@ -200,11 +200,13 @@ function B.Refresh()
   ctl.page:SetText(("%d / %d"):format(pageNo, pages))
   ctl.prev:SetEnabled(pageNo > 1)
   ctl.next:SetEnabled(pageNo < pages)
-  local have, total = 0, #Cards.collectible
+  local have, total, holo = 0, #Cards.collectible, 0
   for _, c in ipairs(Cards.collectible) do
     if C.Owned(ns.db, c.id) > 0 then have = have + 1 end
+    if C.IsHolo(ns.db, c.id) then holo = holo + 1 end
   end
-  ctl.progress:SetText(("Collected %d of %d cards    |cff9fdfff%d shards|r    Showing %d"):format(have, total, ns.db.shards, #all))
+  ctl.progress:SetText(("Collected %d of %d cards%s    |cff9fdfff%d shards|r    Showing %d"):format(have, total,
+    holo > 0 and ("  (" .. holo .. " " .. UI.Rainbow("holographic") .. ")") or "", ns.db.shards, #all))
   for _, f in ipairs(FILTERS) do
     ctl.filters[f.key]:SetText(f.label .. ": " .. f.choices[filter[f.key]][2])
   end
