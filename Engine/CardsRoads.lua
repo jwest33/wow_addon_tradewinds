@@ -207,7 +207,7 @@ add { id = "nightblade", name = "Defias Night Blade", cost = 3, type = "unit", r
 
 add { id = "taskmaster", name = "Defias Taskmaster", cost = 4, type = "unit", rarity = "uncommon", atk = 3, hp = 4, tribe = "defias",
   text = "Your other Defias have +1 attack.", flavor = "Motivation, Deadmines-style.",
-  icon = icons("INV_Misc_Bandana_02", "INV_Sword_05"), aura = { tribe = "defias", atk = 1 } }
+  icon = icons("INV_Sword_05", "INV_Misc_Bandana_03"), aura = { tribe = "defias", atk = 1 } }
 
 add { id = "smite", name = "Mr. Smite", cost = 5, type = "unit", rarity = "epic", atk = 5, hp = 5, tribe = "defias",
   text = "Arrive: freeze the enemy unit across and the ones next to it.", flavor = "Now you're making me angry!",
