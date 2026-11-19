@@ -64,7 +64,9 @@ local function arrived(what)
   ns.UI.Toast(nil)
   if ns.db.settings.hideOnLand and ns.UI.IsShown() then
     ns.UI.Hide()
-    if ns.db.match then ns.Print("%s. Your game is saved: /deckhand to pick it up again.", what) end
+    if ns.db.match or next(ns.db.games or {}) then
+      ns.Print("%s. Your games are saved: /deckhand to pick them up again.", what)
+    end
   end
   ns.UI.Refresh()
 end

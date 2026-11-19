@@ -79,7 +79,7 @@ end
 
 -- Plans every affordable card, by clicking, like tests/ui.lua does.
 local function autoPlan(c)
-  local G, st = c.G, c.db().match.st
+  local G, st = c.G, c.G.Match().st
   local hand = st.players[1].hand
   for h = 1, #hand do
     local card = c.ns.Cards.byId[hand[h]]
@@ -95,7 +95,8 @@ local function autoPlan(c)
   end
 end
 
-local function sum(c) return c.R.Checksum(c.db().match.st) end
+local function sum(c) return c.R.Checksum(c.G.Match().st) end
+local function noGames(c) return c.G.Match() == nil and next(c.db().games) == nil end
 local function lastChat(c) return c.MOCK.chat[#c.MOCK.chat] or "" end
 local function chatHas(c, text)
   for _, line in ipairs(c.MOCK.chat) do if line:find(text, 1, true) then return true end end
@@ -135,13 +136,14 @@ do
   check(not A.G.Challenge("alice") and A.MOCK.errors[#A.MOCK.errors]:find("yourself"), "you can't challenge yourself")
 end
 
--- busy, and a different version -------------------------------------------------------
+-- a match against the computer is no reason to say no; a different version is
 do
   B.G.Start("dorn")
   A.G.Challenge("Bob")
   pump()
-  check(A.ns.Net.Outgoing() == nil and chatHas(A, "Bob is busy") and chatHas(B, "you're in a match"),
-    "Bob is in a match: busy")
+  check(B.ns.Net.Incoming() == "Alice", "Bob, in a match against the computer, can still be challenged")
+  B.G.AnswerChallenge(false)
+  pump()
   B.G.EndMatch()
   B.G.Continue()
   local real = B.R.RULES_VERSION
@@ -159,7 +161,7 @@ local function startMatch(challenger, other)
   pump()
   check(other.G.AnswerChallenge(true), other.name .. " accepts")
   pump()
-  local ma, mb = challenger.db().match, other.db().match
+  local ma, mb = challenger.G.Match(), other.G.Match()
   check(ma and mb and ma.pvp and mb.pvp and ma.pvp.gid == mb.pvp.gid, "the match starts on both sides")
   check(ma.pvp.host and not mb.pvp.host, "the challenger hosts")
   check(sum(challenger) == sum(other), "both copies of the game are identical at the start")
@@ -179,9 +181,9 @@ do
   check(A.G.HeroicView() == false and A.ns.Net.Opponent(ma.pvp.name).short == "Bob", "the board shows Bob by name")
 
   local rounds, drifted = 0, 0
-  while A.db().match and B.db().match and rounds < 12 do
+  while A.G.Match() and B.G.Match() and rounds < 12 do
     rounds = rounds + 1
-    local r = A.db().match.st.round
+    local r = A.G.Match().st.round
     if r == 3 then
       -- Alice's plan is lost on the way; she sends it again
       local lost = false
@@ -190,23 +192,23 @@ do
     autoPlan(A)
     A.G.LockIn()
     drop = nil
-    check(A.db().match.pvp.mine[r] ~= nil, "round " .. r .. ": Alice locked in")
+    check(A.G.Match().pvp.mine[r] ~= nil, "round " .. r .. ": Alice locked in")
     if r == 2 then
-      check(A.ns.Net.Waiting(), "Alice waits for Bob")
+      check(A.ns.Net.Waiting(A.G.Match()), "Alice waits for Bob")
       A.G.LockIn()   -- nothing happens: already locked in
     end
     pump()
     if r == 3 then
-      check(B.db().match.pvp.theirs[r] == nil, "round 3: Alice's plan was lost")
+      check(B.G.Match().pvp.theirs[r] == nil, "round 3: Alice's plan was lost")
       advance(6)
-      check(B.db().match.pvp.theirs[r] ~= nil, "round 3: and arrived when she sent it again")
+      check(B.G.Match().pvp.theirs[r] ~= nil, "round 3: and arrived when she sent it again")
     end
-    if r ~= 3 then check(B.ns.Net.TheyLockedIn(), "round " .. r .. ": Bob sees that Alice has locked in") end
+    if r ~= 3 then check(B.ns.Net.TheyLockedIn(B.G.Match()), "round " .. r .. ": Bob sees that Alice has locked in") end
     autoPlan(B)
     B.G.LockIn()
     pump()
     advance(40)   -- both replays play out
-    if A.db().match and B.db().match then
+    if A.G.Match() and B.G.Match() then
       if sum(A) ~= sum(B) then drifted = drifted + 1 end
     end
     if r == 4 then
@@ -222,17 +224,17 @@ do
       pump()
       B = client("Bob", saved)
       advance(1)
-      check(B.db().match and B.db().match.st.round == 6, "Bob, back from the reload, has played round 5")
-      check(B.db().match.shown == false, "with the window closed, round 5 waits to be shown")
+      check(B.G.Match() and B.G.Match().st.round == 6, "Bob, back from the reload, has played round 5")
+      check(B.G.Match().shown == false, "with the window closed, round 5 waits to be shown")
       B.env.SlashCmdList.DECKHAND("")
       advance(40)
-      check(B.db().match == nil or B.db().match.shown == true, "and is shown when Bob opens the window")
+      check(B.G.Match() == nil or B.G.Match().shown == true, "and is shown when Bob opens the window")
       rounds = rounds + 1
-      if A.db().match and B.db().match and sum(A) ~= sum(B) then drifted = drifted + 1 end
+      if A.G.Match() and B.G.Match() and sum(A) ~= sum(B) then drifted = drifted + 1 end
     end
   end
   check(drifted == 0, "both copies stayed identical after every round")
-  check(A.db().match == nil and B.db().match == nil, "the match ended on both sides (" .. rounds .. " rounds)")
+  check(noGames(A) and noGames(B), "the match ended on both sides (" .. rounds .. " rounds)")
   local ra, rb = A.db().pvpRecord.Bob, B.db().pvpRecord.Alice
   check(ra and rb and ra.w == rb.l and ra.l == rb.w and ra.d == rb.d and ra.w + ra.l + ra.d == 1,
     "the result is recorded on both sides, and they agree")
@@ -248,6 +250,7 @@ end
 do
   local shardsA = A.db().shards
   startMatch(B, A)
+  local gid = A.G.Match().pvp.gid
   autoPlan(A)
   A.G.LockIn()
   autoPlan(B)
@@ -256,28 +259,28 @@ do
   advance(40)
   A.G.EndMatch()
   pump()
-  check(A.db().match == nil and B.db().match == nil, "Alice concedes: the match ends on both sides")
+  check(noGames(A) and noGames(B), "Alice concedes: the match ends on both sides")
   check(A.db().pvpRecord.Bob.l >= 1 and B.db().pvpRecord.Alice.w >= 1, "a loss for Alice, a win for Bob")
   check(A.db().shards == shardsA, "conceding pays nothing")
   check(B.MOCK.chat and chatHas(B, "Victory"), "Bob is told he won")
   A.G.Continue()
   B.G.Continue()
   -- a resend that arrives after the end gets the concession again
-  A.ns.Net.Receive("Bob-Realm", "PL;" .. A.db().pvpLast.gid .. ";2;-;?")
+  A.ns.Net.Receive("Bob-Realm", "PL;" .. gid .. ";2;-;?")
   check(A.MOCK.sent[#A.MOCK.sent].msg:find("^EN;.*;concede$"), "a late message about a conceded match is answered")
 end
 
 -- the copies drift apart ----------------------------------------------------------------
 do
   startMatch(A, B)
-  B.db().match.st.players[1].morale = B.db().match.st.players[1].morale - 1   -- Bob's copy goes wrong
+  B.G.Match().st.players[1].morale = B.G.Match().st.players[1].morale - 1   -- Bob's copy goes wrong
   autoPlan(A)
   A.G.LockIn()
   autoPlan(B)
   B.G.LockIn()
   pump()
   advance(40)
-  check(A.db().match == nil and B.db().match == nil, "a checksum mismatch ends the match on both sides")
+  check(noGames(A) and noGames(B), "a checksum mismatch ends the match on both sides")
   check(chatHas(A, "out of step") or chatHas(B, "out of step"), "and says why")
 end
 
@@ -295,7 +298,8 @@ do
   for _, fn in ipairs(A.MOCK.filters.CHAT_MSG_SYSTEM or {}) do
     hide = fn(nil, "CHAT_MSG_SYSTEM", A.env.ERR_CHAT_PLAYER_NOT_FOUND_S:format("Bob-Realm")) or hide
   end
-  check(hide and A.ns.Net.offline, "\"No player named Bob\" is hidden and noted")
+  check(hide and A.ns.Net.IsOffline(A.G.Match()), "\"No player named Bob\" is hidden and noted")
+  check(A.G.GameStatus(A.G.Match()) == "Bob seems to be offline", "and the games list says so")
   A.G.Refresh()
   advance(200)
   local resends = 0
@@ -304,7 +308,7 @@ do
   B.offline = false
   B.MOCK.now = A.MOCK.now
   advance(130)
-  check(B.db().match.pvp.theirs[1] ~= nil and not A.ns.Net.offline, "Bob gets it once he's back, and says so")
+  check(B.G.Match().pvp.theirs[1] ~= nil and not A.ns.Net.IsOffline(A.G.Match()), "Bob gets it once he's back, and says so")
   local after = #A.MOCK.sent
   advance(300)
   local more = 0
@@ -314,11 +318,105 @@ do
   B.G.LockIn()
   pump()
   advance(40)
-  check(A.db().match.st.round == 2 and B.db().match.st.round == 2 and sum(A) == sum(B), "and the round is played")
+  check(A.G.Match().st.round == 2 and B.G.Match().st.round == 2 and sum(A) == sum(B), "and the round is played")
   B.G.EndMatch()
   pump()
   A.G.Continue()
   B.G.Continue()
+end
+
+-- several games at once, beside a match against the computer ------------------------------
+do
+  local Cc = client("Carol")
+  startMatch(A, B)
+  local gB = A.G.Match().pvp.gid
+  startMatch(A, Cc)
+  local gC = A.G.Match().pvp.gid
+  check(#A.C.Games(A.db()) == 2 and gB ~= gC, "Alice has two games going")
+  check(A.G.Match().pvp.gid == gC, "the new game goes on the board")
+  check(not A.G.Challenge("Bob") and A.MOCK.errors[#A.MOCK.errors]:find("already have a game going with Bob"),
+    "one game per player")
+  local max = A.C.MAX_GAMES
+  A.C.MAX_GAMES = 2
+  check(not A.G.Challenge("Dave") and A.MOCK.errors[#A.MOCK.errors]:find("2 games going"), "and a limit on how many")
+  A.C.MAX_GAMES = max
+
+  -- Alice moves in the Carol game, then in the Bob game
+  autoPlan(A)
+  A.G.LockIn()
+  check(A.G.GameStatus(A.db().games[gC]) == "Waiting for Carol", "the Carol game waits for Carol")
+  check(A.G.Open(gB) and A.G.Match().pvp.gid == gB, "Alice opens the Bob game")
+  check(#A.G.Match().log >= 1, "with its own log")
+  autoPlan(A)
+  A.G.LockIn()
+  -- Carol locks in while Alice looks at the Bob game: that round plays off the board
+  autoPlan(Cc)
+  Cc.G.LockIn()
+  pump()
+  local mc = A.db().games[gC]
+  check(mc.st.round == 2 and mc.shown == false, "the game off the board played its round, to be shown later")
+  check(A.G.GameStatus(mc) == "A new round to watch" and A.G.Match().pvp.gid == gB, "and the board didn't move")
+  check(A.R.Checksum(mc.st) == sum(Cc), "Alice's Carol game matches Carol's")
+  autoPlan(B)
+  B.G.LockIn()
+  pump()
+  advance(40)
+  check(A.G.Match().st.round == 2 and A.G.Match().shown == true and sum(A) == sum(B), "the Bob game on the board played out")
+  check(A.G.YourMoves() == 2, "both games wait for Alice")
+
+  -- a match against the computer in between
+  A.G.Back()
+  check(A.G.Match() == nil and A.G.LobbyView() == "games", "All games: back to the list")
+  A.G.ShowGames(false)
+  A.G.Start("dorn")
+  check(A.G.Match() == A.db().match and A.db().match.opp == "dorn" and #A.C.Games(A.db()) == 2,
+    "a match against the computer starts beside them")
+  autoPlan(A)
+  A.G.LockIn()
+  advance(40)
+  check(A.db().match.st.round == 2, "and plays")
+  -- Carol locks in round 2 meanwhile
+  A.MOCK.chat = {}
+  autoPlan(Cc)
+  Cc.G.LockIn()
+  pump()
+  check(chatHas(A, "Carol has locked in. Your move"), "Alice is told Carol is waiting for her")
+  A.G.Back()
+  A.G.Start("sally")
+  check(A.G.Match() == nil and A.MOCK.errors[#A.MOCK.errors]:find("Finish or end your match against Dorn"),
+    "one match against the computer at a time")
+  A.G.Start("dorn")
+  check(A.G.Match() == A.db().match, "picking the same opponent carries on with it")
+
+  -- the Carol game: the round Alice missed is shown when she opens it
+  A.G.Open(gC)
+  advance(40)
+  check(mc.shown == true and mc.st.round == 2, "opening the Carol game shows the round she missed")
+  check(A.ns.Net.TheyLockedIn(mc), "and Carol has locked in")
+  autoPlan(A)
+  A.G.LockIn()
+  pump()
+  advance(40)
+  check(mc.st.round == 3 and A.R.Checksum(mc.st) == sum(Cc), "Carol game round 2 played")
+
+  -- Carol concedes while Alice looks at the Bob game
+  A.G.Open(gB)
+  Cc.G.EndMatch()
+  pump()
+  check(A.db().games[gC] == nil and A.G.Match().pvp.gid == gB and A.db().pvpRecord.Carol.w == 1,
+    "a concession off the board: recorded, the board stays")
+  check(chatHas(A, "Carol conceded your game"), "and Alice is told")
+  Cc.G.Continue()
+  -- tidy up
+  A.G.EndMatch()
+  pump()
+  A.G.Continue()
+  B.G.Continue()
+  A.G.Open("ai")
+  A.G.EndMatch()
+  A.G.Continue()
+  check(noGames(A) and A.db().match == nil, "all of Alice's games are over")
+  clients.Carol = nil
 end
 
 -- /deckhand challenge with a target -------------------------------------------------------

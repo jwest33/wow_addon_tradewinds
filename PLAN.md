@@ -426,6 +426,13 @@ Phase 5 (decision 5).
   board instead.
 - Rewards like a normal opponent once the game reaches round 4; a separate
   record per player.
+- v0.10.0: several games at once (asked for: a player waiting on a friend
+  should still be able to play). Games against players live in `db.games`
+  (one per opponent, at most 8) beside the computer match in `db.match`;
+  `db.active` says which is on the board (migration 6). Rounds of games that
+  aren't on the board play as soon as both plans are in and are shown when
+  the game is next opened. The Play tab has a Your games list with each
+  game's status, and the board an All games button.
 - Not done: spectating, rematch button, a last-round checksum (the final
   round's results aren't compared, since both sides end the match at once),
   trading.

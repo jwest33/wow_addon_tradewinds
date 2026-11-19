@@ -252,7 +252,7 @@ do
   check(db.match == nil and LayoverFrame == nil and DeckhandFrame:IsShown(), "no leftovers from the replay")
   G.Continue()
   SlashCmdList.DECKHAND("end")
-  check(MOCK.chat[#MOCK.chat]:find("not in a match"), "/deckhand end with no match")
+  check(MOCK.chat[#MOCK.chat]:find("Open the game you want to end first"), "/deckhand end with no match on the board")
   G.Start("dorn")
   SlashCmdList.DECKHAND("end")
   StaticPopupDialogs[MOCK.popup.name].OnAccept()

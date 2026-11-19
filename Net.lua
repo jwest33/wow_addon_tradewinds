@@ -8,6 +8,10 @@
 -- answered is sent again, less and less often, so a /reload or a short
 -- disconnect on either side doesn't lose it.
 --
+-- Several games can run at once (one per opponent, beside your match against
+-- the computer), each at its own pace: a round plays out whenever both plans
+-- have arrived, on screen or not.
+--
 -- This is for friends and guildmates: plans travel in the open (anti-cheat
 -- is not a goal), but the other side's plan is never shown before you have
 -- locked in yours.
@@ -15,7 +19,8 @@
 -- Messages are "TYPE;field;field...", well under the 255-byte limit:
 --   CH;nonce;proto;rules;cards;version   a challenge
 --   CX;nonce                             the challenger withdrew it
---   NO;nonce;reason;version              no: busy | declined | version | timeout | deck
+--   NO;nonce;reason;version              no: busy | declined | version | timeout |
+--                                        deck | already | full
 --   OK;nonce;deck                        yes, with the accepting side's deck
 --   GO;nonce;seed;deck                   the game starts (the challenger's deck)
 --   PL;game;round;plan;need              a locked-in plan; need is "?" if the
@@ -32,7 +37,7 @@ local N = {}
 ns.Net = N
 
 N.PREFIX = "Deckhand"
-N.PROTO = 1
+N.PROTO = 2
 N.ANSWER_SECONDS = 60         -- how long a challenge waits for an answer
 N.RESEND = { 5, 15, 45, 120 } -- seconds between resends of an unanswered plan
 N.KEEP_ROUNDS = 3             -- plans and checksums kept for resending
@@ -143,20 +148,34 @@ end
 -- ---------------------------------------------------------------------------
 -- State
 -- ---------------------------------------------------------------------------
+-- Games live in ns.db.games, by game id (one per opponent, at most
+-- Collection.MAX_GAMES); your match against the computer is separate.
 local out      -- the challenge you sent: { name, nonce, at }
 local inc      -- the one you got: { name, nonce, at, accepted, deck }
-local resend = { round = 0 }  -- the plan being resent: round, step, at, acked
-N.offline = false -- the opponent's whispers bounce ("No player named ...")
+local resends = {}  -- per game id: the plan being resent { round, step, at, acked }
+local offline = {}  -- per opponent (lower-case short name): their whispers bounce
 
--- The running player-against-player match, if any.
-local function match()
-  local m = ns.db and ns.db.match
-  return (m and m.pvp) and m or nil
+local function games() return (ns.db and ns.db.games) or {} end
+
+local function count()
+  local n = 0
+  for _ in pairs(games()) do n = n + 1 end
+  return n
 end
-N.Match = match
+
+-- Your game with that player, if any.
+function N.GameWith(name)
+  for _, m in pairs(games()) do
+    if same(m.pvp.name, name) then return m end
+  end
+end
 
 function N.Outgoing() return out and short(out.name) or nil end
 function N.Incoming() return inc and short(inc.name) or nil end
+
+function N.IsOffline(m)
+  return (m and offline[short(m.pvp.name):lower()]) and true or false
+end
 
 -- What the board shows for the other player.
 local opps = {}
@@ -171,6 +190,15 @@ function N.Opponent(name)
   return o
 end
 
+-- Can a game with `name` start? Returns false and why not.
+local function room(name)
+  if N.GameWith(name) then return false, "You already have a game going with " .. short(name) .. "." end
+  if count() >= ns.Collection.MAX_GAMES then
+    return false, ("You have %d games going against players. Finish one first."):format(ns.Collection.MAX_GAMES)
+  end
+  return true
+end
+
 -- ---------------------------------------------------------------------------
 -- Challenges
 -- ---------------------------------------------------------------------------
@@ -178,10 +206,11 @@ function N.Challenge(name)
   name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
   if name == "" then return false, "Type a player's name, or target them first." end
   if same(name, UnitName and UnitName("player")) then return false, "You can't challenge yourself." end
-  if ns.db.match then return false, "Finish or end the match you're in first." end
+  local ok, why = room(name)
+  if not ok then return false, why end
   if out then return false, "You're already waiting for " .. short(out.name) .. " to answer." end
   if inc then return false, "Answer " .. short(inc.name) .. "'s challenge first." end
-  local ok, why = ns.Collection.CheckDeck(ns.db)
+  ok, why = ns.Collection.CheckDeck(ns.db)
   if not ok then return false, why .. " Fix it in the Cards tab." end
   out = { name = name, nonce = tostring(math.random(100000000, 999999999)), at = now() }
   send(name, "CH", out.nonce, N.PROTO, ns.Rules.RULES_VERSION, N.CardSum(), ns.VERSION)
@@ -207,13 +236,13 @@ function N.Answer(accept)
     refresh()
     return true
   end
-  if ns.db.match then return false, "Finish or end the match you're in first." end
-  local ok, why = ns.Collection.CheckDeck(ns.db)
+  local ok, why = room(c.name)
+  if ok then ok, why = ns.Collection.CheckDeck(ns.db) end
   if not ok then
     send(c.name, "NO", c.nonce, "deck", ns.VERSION)
     inc = nil
     refresh()
-    return false, why .. " Fix it in the Cards tab."
+    return false, why
   end
   c.accepted, c.at, c.deck = true, now(), {}
   for i, id in ipairs(ns.db.deck) do c.deck[i] = id end
@@ -225,49 +254,50 @@ end
 local function begin(name, gid, seed, host, mine, theirs)
   local st = ns.Rules.NewGame({ seed = seed, decks = { mine, theirs }, seats = host and { 1, 2 } or { 2, 1 },
     names = { UnitName and UnitName("player") or "You", short(name) } })
-  resend = { round = 0 }
-  N.offline = false
+  resends[gid] = nil
+  offline[short(name):lower()] = nil
   game().StartPvP({ name = name, gid = gid, host = host, mine = {}, theirs = {}, sums = {}, theirSums = {} }, st)
 end
 
 -- ---------------------------------------------------------------------------
 -- Rounds
 -- ---------------------------------------------------------------------------
--- You locked in: send the plan, and play the round if theirs is here.
-function N.LockIn(plan)
-  local m = match()
-  if not m then return end
+local function need(m, r) return m.pvp.theirs[r] and "!" or "?" end
+
+-- You locked in your plan for game m: send it, and play the round if theirs
+-- is here.
+function N.LockIn(m, plan)
   local r = m.st.round
   local s = N.EncodePlan(plan)
   m.pvp.mine[r] = s
-  send(m.pvp.name, "PL", m.pvp.gid, r, s, m.pvp.theirs[r] and "!" or "?")
-  resend = { round = r, step = 1, at = now() + N.RESEND[1] }
-  N.TryPlay()
+  send(m.pvp.name, "PL", m.pvp.gid, r, s, need(m, r))
+  resends[m.pvp.gid] = { round = r, step = 1, at = now() + N.RESEND[1] }
+  N.TryPlay(m)
 end
 
-function N.Waiting()
-  local m = match()
-  return (m and not m.st.winner and m.pvp.mine[m.st.round] and not m.pvp.theirs[m.st.round]) and true or false
+-- You've locked in and wait for them.
+function N.Waiting(m)
+  return (m and m.pvp and not m.st.winner and m.pvp.mine[m.st.round] and not m.pvp.theirs[m.st.round]) and true or false
 end
 
-function N.TheyLockedIn()
-  local m = match()
-  return (m and m.pvp.theirs[m.st.round] and not m.pvp.mine[m.st.round]) and true or false
+-- They've locked in and wait for you.
+function N.TheyLockedIn(m)
+  return (m and m.pvp and not m.st.winner and m.pvp.theirs[m.st.round] and not m.pvp.mine[m.st.round]) and true or false
 end
 
--- Both plans in and the board free: play the round.
-function N.TryPlay()
-  local m = match()
-  if not m or m.st.winner then return end
+-- Both plans in (and the board free, if the game is on it): play the round.
+function N.TryPlay(m)
+  if not m or not m.pvp or m.st.winner or ns.db.games[m.pvp.gid] ~= m then return end
   local r = m.st.round
   local a, b = m.pvp.mine[r], m.pvp.theirs[r]
-  if not (a and b) or not game().PvPReady() then return end
+  if not (a and b) or not game().PvPReady(m) then return end
   local mine, theirs = N.DecodePlan(m.st, 1, a), N.DecodePlan(m.st, 2, b)
   if not (mine and theirs) then
-    N.Abort("Your games went out of step (a plan didn't fit the hand), so the match was ended without a result.")
+    N.Abort(m, "Your game with " .. short(m.pvp.name) .. " went out of step (a plan didn't fit the hand), " ..
+      "so it was ended without a result.")
     return
   end
-  game().PlayPvPRound(mine, theirs)
+  game().PlayPvPRound(m, mine, theirs)
 end
 
 local function prune(t, r)
@@ -279,12 +309,12 @@ end
 local function compare(m, r)
   local a, b = m.pvp.sums[r], m.pvp.theirSums[r]
   if a and b and a ~= b then
-    N.Abort("Your games went out of step after round " .. r .. ", so the match was ended without a result. " ..
-      "Please report it.")
+    N.Abort(m, ("Your game with %s went out of step after round %d, so it was ended without a result. " ..
+      "Please report it."):format(short(m.pvp.name), r))
   end
 end
 
--- After a round has been played (the game has moved on to the next one).
+-- After a round of game m has been played (it has moved on to the next one).
 function N.AfterRound(m, r)
   local sum = ns.Rules.Checksum(m.st)
   m.pvp.sums[r] = sum
@@ -293,23 +323,31 @@ function N.AfterRound(m, r)
   compare(m, r)
 end
 
--- You ended the match: it's theirs.
+-- You ended game m: it's theirs.
 function N.Concede(m)
   send(m.pvp.name, "EN", m.pvp.gid, "concede")
 end
 
--- Something is wrong with the match: end it on both sides, with no result.
-function N.Abort(why)
-  local m = match()
-  if not m then return end
+-- Something is wrong with game m: end it on both sides, with no result.
+function N.Abort(m, why)
+  if not (m and ns.db.games[m.pvp.gid] == m) then return end
   send(m.pvp.name, "EN", m.pvp.gid, "gone")
-  game().PvPAbort(why)
+  game().PvPAbort(m, why)
 end
 
--- A finished match is remembered until the next one, so that a late resend
--- from the other side still gets its answer.
+-- Finished games are remembered for a while (the last 10), so that a late
+-- resend from the other side still gets its answer.
+N.KEEP_FINISHED = 10
 function N.Finished(m, conceded)
-  ns.db.pvpLast = { gid = m.pvp.gid, name = m.pvp.name, mine = m.pvp.mine, conceded = conceded or nil }
+  local done = ns.db.pvpDone or {}
+  ns.db.pvpDone = done
+  done[m.pvp.gid] = { name = m.pvp.name, mine = m.pvp.mine, conceded = conceded or nil, at = time and time() or 0 }
+  local ids = {}
+  for gid in pairs(done) do ids[#ids + 1] = gid end
+  if #ids > N.KEEP_FINISHED then
+    table.sort(ids, function(a, b) return (done[a].at or 0) < (done[b].at or 0) end)
+    for i = 1, #ids - N.KEEP_FINISHED do done[ids[i]] = nil end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -318,11 +356,13 @@ end
 local H = {}
 
 local REASONS = {
-  busy = "%s is busy: in a match, or answering another challenge.",
+  busy = "%s is busy answering another challenge. Try again in a minute.",
   declined = "%s declined your challenge.",
   version = "%s has a different version of Deckhand (%s). You both need the same one.",
   timeout = "%s didn't answer your challenge.",
-  deck = "%s's deck isn't ready, so the game can't start.",
+  deck = "%s can't start a game right now (their deck isn't ready, or they have too many games going).",
+  already = "You already have a game going with %s.",
+  full = "%s has too many games going. They need to finish one first.",
 }
 
 function H.CH(sender, nonce, proto, rules, cards, version)
@@ -332,11 +372,15 @@ function H.CH(sender, nonce, proto, rules, cards, version)
       short(sender), tostring(version), ns.VERSION)
     return
   end
-  if ns.db.match or out or (inc and not same(inc.name, sender)) or (inc and inc.accepted) then
+  if N.GameWith(sender) then send(sender, "NO", nonce, "already", ns.VERSION) return end
+  if count() >= ns.Collection.MAX_GAMES then
+    send(sender, "NO", nonce, "full", ns.VERSION)
+    ns.Print("%s challenged you to Deckhand, but you have %d games going against players. Finish one first.",
+      short(sender), ns.Collection.MAX_GAMES)
+    return
+  end
+  if out or (inc and not same(inc.name, sender)) or (inc and inc.accepted) then
     send(sender, "NO", nonce, "busy", ns.VERSION)
-    if ns.db.match and not out and not inc then
-      ns.Print("%s challenged you to Deckhand, but you're in a match. End it (/deckhand end) and ask them again.", short(sender))
-    end
     return
   end
   inc = { name = sender, nonce = nonce, at = now() }
@@ -362,7 +406,7 @@ function H.OK(sender, nonce, deck)
   if not (out and same(out.name, sender) and out.nonce == nonce) then return end
   out = nil
   local theirs = N.DecodeDeck(deck)
-  if not theirs or ns.db.match or not ns.Collection.CheckDeck(ns.db) then
+  if not theirs or not room(sender) or not ns.Collection.CheckDeck(ns.db) then
     send(sender, "NO", nonce, theirs and "busy" or "version", ns.VERSION)
     refresh()
     return
@@ -379,7 +423,7 @@ function H.GO(sender, nonce, seed, deck)
   local mine = inc.deck
   inc = nil
   local theirs, s = N.DecodeDeck(deck), tonumber(seed)
-  if not (theirs and s) or ns.db.match then
+  if not (theirs and s) or not room(sender) then
     send(sender, "EN", nonce, "gone")
     refresh()
     return
@@ -387,11 +431,11 @@ function H.GO(sender, nonce, seed, deck)
   begin(sender, nonce, s, false, mine, theirs)
 end
 
--- A message about a game we don't have: answer from the last finished one,
--- or say it's gone.
+-- A message about a game we don't have: answer from a finished one, or say
+-- it's gone.
 local function noGame(sender, gid, r)
-  local last = ns.db.pvpLast
-  if last and last.gid == gid and same(last.name, sender) then
+  local last = ns.db.pvpDone and ns.db.pvpDone[gid]
+  if last and same(last.name, sender) then
     if last.conceded then send(sender, "EN", gid, "concede") return end
     local s = r and last.mine and last.mine[r]
     if s then send(sender, "PL", gid, r, s, "!") end
@@ -401,15 +445,15 @@ local function noGame(sender, gid, r)
 end
 
 local function ours(sender, gid)
-  local m = match()
-  return (m and m.pvp.gid == gid and same(m.pvp.name, sender)) and m or nil
+  local m = games()[gid]
+  return (m and same(m.pvp.name, sender)) and m or nil
 end
 
-function H.PL(sender, gid, round, plan, need)
+function H.PL(sender, gid, round, plan, needs)
   local r = tonumber(round)
   local m = ours(sender, gid)
   if not m then
-    if need == "?" then noGame(sender, gid, r) end
+    if needs == "?" then noGame(sender, gid, r) end
     return
   end
   if not r then return end
@@ -417,19 +461,33 @@ function H.PL(sender, gid, round, plan, need)
   if r < st.round then
     -- they're behind: our plan for that round never reached them
     local s = m.pvp.mine[r]
-    if s and need == "?" then send(sender, "PL", gid, r, s, "!") end
+    if s and needs == "?" then send(sender, "PL", gid, r, s, "!") end
     return
   end
   if r > st.round + 1 then return end
   local new = not m.pvp.theirs[r]
   if new then m.pvp.theirs[r] = plan end
   if not m.pvp.mine[r] then send(sender, "AK", gid, r) end
-  N.TryPlay()
+  N.TryPlay(m)
   refresh()
-  -- they're waiting for you and the window is closed: say so
-  if new and r == m.st.round and not m.pvp.mine[r] and ns.UI.IsShown and not ns.UI.IsShown() then
-    ns.UI.Toast("pvp", short(sender) .. " has locked in. Your move.")
+  -- they're waiting for you, and this game isn't in front of you: say so
+  if new and r == m.st.round and not m.pvp.mine[r] then
+    local shown = ns.UI.IsShown and ns.UI.IsShown() and game().Match() == m
+    if not shown then
+      if ns.UI.IsShown and not ns.UI.IsShown() then
+        ns.UI.Toast("pvp", short(sender) .. " has locked in. Your move.")
+      else
+        ns.Print("%s has locked in. Your move (the Your games list).", short(sender))
+      end
+    end
   end
+end
+
+function H.AK(sender, gid, round)
+  local m = ours(sender, gid)
+  local rs = resends[gid]
+  if m and rs and tonumber(round) == rs.round then rs.acked = true end
+  refresh()
 end
 
 function H.SU(sender, gid, round, sum)
@@ -445,21 +503,16 @@ function H.HI(sender, gid, round)
   local m = ours(sender, gid)
   if not m then noGame(sender, gid, r) return end
   local s = r and m.pvp.mine[r]
-  if s then send(sender, "PL", gid, r, s, m.pvp.theirs[r] and "!" or "?") end
-end
-
-function H.AK(sender, gid, round)
-  local m = ours(sender, gid)
-  if m and tonumber(round) == resend.round then resend.acked = true end
-  refresh()
+  if s then send(sender, "PL", gid, r, s, need(m, r)) end
 end
 
 function H.EN(sender, gid, reason)
-  if not ours(sender, gid) then return end
+  local m = ours(sender, gid)
+  if not m then return end
   if reason == "concede" then
-    game().PvPConceded()
+    game().PvPConceded(m)
   else
-    game().PvPAbort(short(sender) .. "'s side of the match is gone, so it was ended without a result.")
+    game().PvPAbort(m, ("%s's side of your game is gone, so it was ended without a result."):format(short(sender)))
   end
 end
 
@@ -469,12 +522,12 @@ function N.Receive(sender, text)
   for part in (text .. ";"):gmatch("([^;]*);") do f[#f + 1] = part end
   local h = H[f[1]]
   if not h or same(sender, UnitName and UnitName("player")) then return end
-  N.offline = false
+  offline[short(sender):lower()] = nil
   h(sender, unpack(f, 2))
 end
 
 -- ---------------------------------------------------------------------------
--- Every second: timeouts and resends
+-- Every second: timeouts, resends, rounds ready to play
 -- ---------------------------------------------------------------------------
 function N.Tick()
   local t = now()
@@ -492,40 +545,49 @@ function N.Tick()
     inc = nil
     refresh()
   end
-  local m = match()
-  if m and not m.st.winner then
-    local r = m.st.round
-    if m.pvp.mine[r] and not m.pvp.theirs[r] then
-      if resend.round ~= r then resend = { round = r, step = 1, at = t + N.RESEND[1] } end
-      if t >= resend.at and not resend.acked then
-        send(m.pvp.name, "PL", m.pvp.gid, r, m.pvp.mine[r], "?")
-        resend.step = math.min(resend.step + 1, #N.RESEND)
-        resend.at = t + N.RESEND[resend.step]
+  for gid, m in pairs(games()) do
+    if not m.st.winner then
+      local r = m.st.round
+      if m.pvp.mine[r] and not m.pvp.theirs[r] then
+        local rs = resends[gid]
+        if not rs or rs.round ~= r then
+          rs = { round = r, step = 1, at = t + N.RESEND[1] }
+          resends[gid] = rs
+        end
+        if t >= rs.at and not rs.acked then
+          send(m.pvp.name, "PL", gid, r, m.pvp.mine[r], "?")
+          rs.step = math.min(rs.step + 1, #N.RESEND)
+          rs.at = t + N.RESEND[rs.step]
+        end
       end
     end
-    N.TryPlay()
   end
+  for _, m in ipairs(ns.Collection.Games(ns.db)) do N.TryPlay(m) end
 end
 
--- "No player named X is currently playing." after whispering the opponent:
--- shown once as a note on the board instead of every resend.
+-- "No player named X is currently playing." after whispering an opponent:
+-- noted on their game instead of shown on every resend.
 local function filter(_, _, msg)
-  local m = match()
-  local target = (m and m.pvp.name) or (out and out.name)
   local fmt = ERR_CHAT_PLAYER_NOT_FOUND_S
-  if not (target and fmt and type(msg) == "string") then return false end
-  if msg ~= fmt:format(target) and msg ~= fmt:format(short(target)) then return false end
-  if out and not m then
+  if not (fmt and type(msg) == "string") then return false end
+  local function bounced(name) return msg == fmt:format(name) or msg == fmt:format(short(name)) end
+  if out and bounced(out.name) then
     ns.Print("%s isn't online.", short(out.name))
     out = nil
     refresh()
     return true
   end
-  if not N.offline then
-    N.offline = true
-    refresh()
+  for _, m in pairs(games()) do
+    if bounced(m.pvp.name) then
+      local key = short(m.pvp.name):lower()
+      if not offline[key] then
+        offline[key] = true
+        refresh()
+      end
+      return true
+    end
   end
-  return true
+  return false
 end
 
 function N.Init()
@@ -536,11 +598,12 @@ function N.Init()
   end)
   if ChatFrame_AddMessageEventFilter then ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", filter) end
   if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(1, N.Tick) end
-  -- back from a reload or a logout in the middle of a match
-  local m = match()
-  if m and not m.st.winner then
-    local r = m.st.round
-    send(m.pvp.name, "HI", m.pvp.gid, r)
-    if m.pvp.mine[r] then send(m.pvp.name, "PL", m.pvp.gid, r, m.pvp.mine[r], m.pvp.theirs[r] and "!" or "?") end
+  -- back from a reload or a logout: ask each opponent for what we missed
+  for gid, m in pairs(games()) do
+    if not m.st.winner then
+      local r = m.st.round
+      send(m.pvp.name, "HI", gid, r)
+      if m.pvp.mine[r] then send(m.pvp.name, "PL", gid, r, m.pvp.mine[r], need(m, r)) end
+    end
   end
 end

@@ -1238,6 +1238,38 @@ do
   local t2 = C.FinishTutorial(fresh5)
   check(#t1 == 1 and t1[1].packs == C.TUTORIAL_PACKS and #t2 == 0 and fresh5.packs == 1 + C.TUTORIAL_PACKS,
     "finishing the tutorial pays once")
+
+  -- migration 6: a game against a player moves out of the computer's slot
+  local function pvpGame(gid)
+    return { opp = "pvp", rules = R.RULES_VERSION, st = R.NewGame({ seed = 9, decks = { C.STARTER, C.STARTER } }),
+      pvp = { name = "Bob-Realm", gid = gid, host = true, mine = {}, theirs = {}, sums = {}, theirSums = {} } }
+  end
+  local v6 = {}
+  C.Init(v6)
+  v6.schema, v6.games, v6.active = 5, nil, nil
+  v6.match = pvpGame("123")
+  C.Init(v6, R.RULES_VERSION)
+  check(v6.match == nil and v6.games["123"] and v6.games["123"].pvp.name == "Bob-Realm" and v6.active == "123",
+    "migration 6: a game against a player moves to the games list, still on the board")
+  local v6b = {}
+  C.Init(v6b)
+  v6b.schema = 5
+  v6b.match = { opp = "dorn", rules = R.RULES_VERSION, st = R.NewGame({ seed = 4, decks = { C.STARTER, C.STARTER } }) }
+  C.Init(v6b, R.RULES_VERSION)
+  check(v6b.match and v6b.active == "ai" and next(v6b.games) == nil, "migration 6: a computer match stays on the board")
+  -- the games list is checked like the match
+  v6.games["456"] = pvpGame("456")
+  v6.games["456"].rules = R.RULES_VERSION - 1
+  v6.games["789"] = pvpGame("789")
+  v6.games["789"].pvp.mine = nil
+  v6.games["999"] = pvpGame("111")
+  local _, ended = C.Init(v6, R.RULES_VERSION)
+  check(ended == 3 and v6.games["123"] and not v6.games["456"] and not v6.games["789"] and not v6.games["999"],
+    "games from other rules, damaged ones and mislabelled ones are ended")
+  v6.active = "gone"
+  C.Init(v6, R.RULES_VERSION)
+  check(v6.active == nil, "the board forgets a game that isn't there")
+  check(#C.Games(v6) == 1, "C.Games lists them")
 end
 
 -- 8. the pace of the collection -------------------------------------------------------

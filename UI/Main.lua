@@ -201,6 +201,11 @@ local function makeToast()
   toast:Hide()
 end
 
+-- Any match going: against the computer or a player.
+function UI.AnyGame()
+  return (ns.db and (ns.db.match or next(ns.db.games or {}))) and true or false
+end
+
 -- kind: "flight" | "boat" | "pvp" | "pack" | nil (hide); n: how many packs;
 -- why: the reason for a pack, or the text for "pvp"
 function UI.Toast(kind, why, n)
@@ -218,9 +223,9 @@ function UI.Toast(kind, why, n)
   elseif kind == "flight" or kind == "boat" then
     toast.title:SetText("Deckhand")
     if kind == "flight" then
-      toast.text:SetText(ns.db.match and "Your game is waiting. Play while you fly?" or "Deal a hand while you fly?")
+      toast.text:SetText(UI.AnyGame() and "Your game is waiting. Play while you fly?" or "Deal a hand while you fly?")
     else
-      toast.text:SetText(ns.db.match and "Your game is waiting. Play on the crossing?" or "Deal a hand for the crossing?")
+      toast.text:SetText(UI.AnyGame() and "Your game is waiting. Play on the crossing?" or "Deal a hand for the crossing?")
     end
     toast.go:SetText("Play")
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
@@ -285,7 +290,10 @@ local function makeMinimap()
   mm:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Deckhand")
-    if ns.db.match then GameTooltip:AddLine("A game is in progress.", 0.4, 1, 0.4) end
+    if UI.AnyGame() then
+      local moves = UI.Game.YourMoves()
+      GameTooltip:AddLine(moves > 0 and (moves .. " of your games wait for your move.") or "Games in progress.", 0.4, 1, 0.4)
+    end
     if ns.db.packs > 0 then GameTooltip:AddLine(("%d unopened pack%s"):format(ns.db.packs, ns.db.packs == 1 and "" or "s"), 1, 0.82, 0) end
     GameTooltip:AddLine("Click: play.  Right-click: packs.  Drag: move.", 0.7, 0.7, 0.7)
     GameTooltip:Show()

@@ -5,8 +5,10 @@
 -- tips and the opponent's lines.
 --
 -- You are always player 1 and your opponent player 2, against another player
--- too (each side runs the game as its own player 1). The running game lives
--- in DeckhandCharDB.match, so it survives /reload and logging out.
+-- too (each side runs the game as its own player 1). Your match against the
+-- computer lives in DeckhandCharDB.match and your games against players in
+-- DeckhandCharDB.games, so they survive /reload and logging out; the board
+-- shows one of them at a time (DeckhandCharDB.active, see M below).
 local _, ns = ...
 local R, Cards, AI, C = ns.Rules, ns.Cards, ns.AI, ns.Collection
 local UI = ns.UI
@@ -40,6 +42,7 @@ local plan, sel = {}, nil
 local busy, thinking = false, false
 local view          -- the board as it was, replayed event by event
 local finished      -- the game that just ended, until "Continue"
+local lobbyView     -- the opponent list shows "circuit" | "heroic" | "games" (nil: not chosen yet)
 local forecast      -- what the planned round does if the opponent adds nothing
 local markers = {}  -- per lane, between the rows: what the lane does in combat
 local replayMarks = {}
@@ -47,17 +50,31 @@ local token = 0     -- invalidates stale replay timers
 local startReplay   -- defined with the replay code below
 local renderTips    -- defined with the keyword tips below
 
-local function current() return ns.db.match and ns.db.match.st end
+-- The match on the board: your match against the computer ("ai"), one of
+-- your games against players (by game id), or none (the opponent list).
+local function M()
+  local db = ns.db
+  local a = db and db.active
+  if a == "ai" then return db.match end
+  if a then return db.games[a] end
+  return nil
+end
+G.Match = M
+
+local function current()
+  local m = M()
+  return m and m.st
+end
 local function shown() return current() or (finished and finished.st) end
 
--- The match, if it's against another player.
+-- The match on the board, if it's against another player.
 local function pvpMatch()
-  local m = ns.db.match
+  local m = M()
   return (m and m.pvp) and m or nil
 end
 
 local function opponent()
-  local m = ns.db.match
+  local m = M()
   local pv = (m and m.pvp) or (not m and finished and finished.pvp)
   if pv then return ns.Net.Opponent(pv.name) end
   local id = (m and m.opp) or (finished and finished.opp)
@@ -74,7 +91,7 @@ local function whose(p) return p == ME and "your" or ((opponent() and opponent()
 
 -- The match, if it's the tutorial.
 local function tutorialMatch()
-  local m = ns.db.match
+  local m = M()
   return (m and m.tutorial) and m or nil
 end
 
@@ -98,7 +115,7 @@ local LOG_KEEP = 80
 function G.Log(fmt, ...)
   local msg = select("#", ...) > 0 and fmt:format(...) or fmt
   if logFrame then logFrame.msgs:AddMessage(msg, 0.9, 0.9, 0.9) end
-  local m = ns.db and ns.db.match
+  local m = ns.db and M()
   if m then
     m.log = m.log or {}
     m.log[#m.log + 1] = msg
@@ -123,10 +140,18 @@ local function buildLog(parent)
     if d > 0 then self:ScrollUp() else self:ScrollDown() end
   end)
   logFrame.msgs = msgs
-  local m = ns.db.match
+  local m = M()
   if m and m.log then
     for _, line in ipairs(m.log) do msgs:AddMessage(line, 0.9, 0.9, 0.9) end
   end
+end
+
+-- The log of the match now on the board.
+local function loadLog()
+  if not logFrame then return end
+  logFrame.msgs:Clear()
+  local m = M()
+  for _, line in ipairs((m and m.log) or {}) do logFrame.msgs:AddMessage(line, 0.9, 0.9, 0.9) end
 end
 
 -- ---------------------------------------------------------------------------
@@ -450,7 +475,7 @@ local function renderPanels()
       pn.counts:SetText(("Hand %d   Deck %d"):format(#st.players[p].hand, #st.players[p].deck))
     end
     if p == OPP and o then
-      local heroic = (ns.db.match and ns.db.match.heroic) or (not ns.db.match and finished and finished.heroic)
+      local heroic = (M() and M().heroic) or (not M() and finished and finished.heroic)
       pn.name:SetText(heroic and (o.name .. " |cffc080ff(Heroic)|r") or o.name)
       pn.icon:SetTexture(UI.Icon(o.icon))
     else
@@ -494,7 +519,7 @@ end
 local function hintText(st)
   if thinking then return (opponent().short or "They") .. " is choosing..." end
   if lockedIn() and not view then
-    if ns.Net.offline then
+    if ns.Net.IsOffline(pvpMatch()) then
       return opponent().short .. " seems to be offline. Your plan is sent again now and then, and the game is saved."
     end
     return "Locked in. Waiting for " .. opponent().short .. " to lock in..."
@@ -536,8 +561,10 @@ local function renderControls()
   ctl.lock:SetEnabled(planning and true or false)
   ctl.lock:SetText(thinking and "Thinking..." or view and "Playing..." or lockedIn() and "Waiting..." or "Lock In")
   ctl.clear:SetEnabled(planning and #plan > 0)
-  ctl.replay:SetEnabled((planning and ns.db.match.last) and true or false)
+  ctl.replay:SetEnabled((planning and M().last) and true or false)
   ctl.endMatch:SetShown(current() ~= nil)
+  ctl.back:SetShown(current() ~= nil)
+  ctl.back:SetEnabled(not thinking)
   ctl.endMatch:SetText(tutorialMatch() and "Leave tutorial" or "End match")
   -- untargeted tactics in the plan
   local n = 0
@@ -558,7 +585,7 @@ local function renderControls()
   for i = n + 1, #ctl.free do ctl.free[i]:Hide() end
   ctl.freeLabel:SetShown(n > 0)
   local hint = hintText(st)
-  if planning and pvpMatch() and ns.Net.TheyLockedIn() then
+  if planning and pvpMatch() and ns.Net.TheyLockedIn(pvpMatch()) then
     hint = "|cff40ff40" .. opponent().short .. " has locked in.|r " .. hint
   end
   ctl.hint:SetText(hint)
@@ -731,7 +758,7 @@ end
 
 function G.Refresh()
   if not page then return end
-  local m = ns.db.match
+  local m = M()
   if m and m.last and m.shown == false and not busy and not view then
     startReplay(m.last)
     return
@@ -868,14 +895,15 @@ end
 -- ---------------------------------------------------------------------------
 -- The round as it stood when both plans were locked in: the boards, and what
 -- the panels and your hand showed (your hand without the cards you played).
--- theirPlayed: how many cards the opponent played.
-local function makeView(st, theirPlayed)
+-- mine: your plan; theirPlayed: how many cards the opponent played.
+local function makeView(st, mine, theirPlayed)
   local v = { round = st.round, init = st.init, players = {}, supply = st.players[ME].supply, hand = {} }
   for p = 1, 2 do
     v.players[p] = { board = R.DeepCopy(st.players[p].board), morale = st.players[p].morale,
       handCount = #st.players[p].hand, deckCount = #st.players[p].deck }
   end
-  local used = plannedHand()
+  local used = {}
+  for _, a in ipairs(mine) do used[a.h] = true end
   for h, id in ipairs(st.players[ME].hand) do
     if not used[h] then v.hand[#v.hand + 1] = id end
   end
@@ -1016,7 +1044,7 @@ local function finishReplay()
   view = nil
   busy = false
   skipping = false
-  local m = ns.db.match
+  local m = M()
   local first = m and m.shown == false
   if m then m.shown = true end
   ctl.banner:Hide()
@@ -1024,8 +1052,8 @@ local function finishReplay()
   local st = current()
   if st and st.winner then G.EndGame() end
   G.Refresh()
-  if first then chatterAfterRound(ns.db.match) end
-  if pvpMatch() then ns.Net.TryPlay() end
+  if first then chatterAfterRound(M()) end
+  if pvpMatch() then ns.Net.TryPlay(pvpMatch()) end
 end
 
 local function pump(mine)
@@ -1055,7 +1083,7 @@ end
 
 -- The Replay button: the last round again.
 function G.Replay()
-  local m = ns.db.match
+  local m = M()
   if not (m and m.last) or view or busy then return end
   G.Log("|cff909090(the last round again)|r")
   startReplay(m.last)
@@ -1107,29 +1135,35 @@ local function chooseAIPlan(st, level, done)
   step()
 end
 
--- Plays the round on a copy, which replaces the saved game only if it went
--- through (if a card errors, the match stays as it was), then shows it.
-local function playRound(st, mine, theirs)
+-- Plays a round of match m on a copy, which replaces the saved game only if
+-- it went through (if a card errors, the match stays as it was), then shows
+-- it if m is on the board. A game against a player that isn't on the board
+-- (their plan arrived while you were elsewhere) shows the round when you
+-- next open it.
+local function playRound(m, mine, theirs)
+  local st = m.st
+  local onBoard = M() == m
   local nxt = R.Clone(st)
   nxt.events = {}
   local ok, err = pcall(R.Resolve, nxt, { mine, theirs })
   if not ok then
-    busy = false
-    G.Refresh()
+    if onBoard then
+      busy = false
+      G.Refresh()
+    end
     UI.Error("Deckhand hit an error playing that round. Your match is unchanged.")
     ns.Print("Error playing the round (please report it): %s", tostring(err))
-    if pvpMatch() then ns.Net.Abort("Deckhand hit an error playing that round, so the match was ended without a result.") end
+    if m.pvp then ns.Net.Abort(m, "Deckhand hit an error playing that round, so the game was ended without a result.") end
     return
   end
   local events = nxt.events
   nxt.events = nil
-  local m = ns.db.match
   -- saved with the match, so the round can be shown again (the Replay
   -- button, or after a /reload that cut the replay short)
-  m.last = { view = makeView(st, #theirs), events = events }
+  m.last = { view = makeView(st, mine, #theirs), events = events }
   m.shown = false
   m.st = nxt
-  plan = {}
+  if onBoard then plan = {} end
   local n = m.stats or { dealt = 0, taken = 0, kills = 0, lost = 0 }
   m.stats = n
   for _, e in ipairs(events) do
@@ -1144,12 +1178,11 @@ local function playRound(st, mine, theirs)
     if task then ns.Announce({ task }) end
   end
   if m.pvp then ns.Net.AfterRound(m, st.round) end
-  if ns.db.match ~= m then return end
+  if not onBoard or M() ~= m then return end
   if page and not (m.pvp and not page:IsVisible()) then
     startReplay(m.last)
   else
-    -- against a player the round can be played with the window closed (their
-    -- plan arrived later): it's shown when the board next opens
+    -- the window is closed: the round is shown when the board next opens
     busy = false
   end
 end
@@ -1163,7 +1196,7 @@ function G.LockIn()
     -- against a player: send the plan; the round plays once theirs is in
     sel = nil
     UI.Sound("lock")
-    ns.Net.LockIn(plan)
+    ns.Net.LockIn(pvpMatch(), plan)
     G.Refresh()
     return
   end
@@ -1187,11 +1220,11 @@ function G.LockIn()
       end)
     end
   end
-  local m0 = ns.db.match
+  local m0 = M()
   local level = tm and ns.Tutorial.LEVEL or (m0.heroic and "heroic") or opponent().level
   choose(st, level, function(aiPlan)
     if current() ~= st then busy = false; G.Refresh(); return end
-    playRound(st, plan, aiPlan)
+    playRound(M(), plan, aiPlan)
   end)
 end
 
@@ -1210,6 +1243,17 @@ function G.Start(oppId, heroic)
     UI.Error(("Heroic rematches open once you've beaten %s."):format(ns.Opponents[#ns.Opponents].short))
     return
   end
+  local cur = ns.db.match
+  if cur then
+    -- one match against the computer at a time: carry on with it
+    if cur.opp == oppId and not cur.tutorial and (cur.heroic and true or false) == (heroic and true or false) then
+      G.Open("ai")
+    else
+      UI.Error(("Finish or end your match against %s first (Your games)."):format(cur.tutorial and "Dorn (the tutorial)"
+        or ns.OpponentById[cur.opp].short))
+    end
+    return
+  end
   if not C.Unlocked(ns.db, oppId) then
     UI.Error(("Beat %s first."):format(ns.Opponents[o.index - 1].short))
     return
@@ -1223,6 +1267,7 @@ function G.Start(oppId, heroic)
   })
   ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION,
     plain = C.PlainDeck(mine), heroic = heroic and true or nil }
+  ns.db.active = "ai"
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
   local hello = heroic and "rematch" or "hello"
@@ -1236,8 +1281,10 @@ end
 -- use your deck and doesn't count on the circuit; finishing it the first
 -- time pays a pack.
 function G.StartTutorial()
-  if current() then
-    UI.Error("Finish or end the match you're in first.")
+  local cur = ns.db.match
+  if cur then
+    if cur.tutorial then G.Open("ai") return end
+    UI.Error(("Finish or end your match against %s first (Your games)."):format(ns.OpponentById[cur.opp].short))
     return
   end
   local T = ns.Tutorial
@@ -1245,6 +1292,7 @@ function G.StartTutorial()
   local st = T.NewGame({ UnitName and UnitName("player") or "You", o.name })
   ns.db.match = { opp = o.id, st = st, tutorial = true, tut = { ack = 0 }, started = time and time() or 0,
     version = ns.VERSION, rules = R.RULES_VERSION }
+  ns.db.active = "ai"
   ns.db.settings.seenWelcome = true
   ns.db.settings.seenLaneTip = true   -- the coach covers lanes
   plan, sel, finished, view = {}, nil, nil, nil
@@ -1255,7 +1303,7 @@ function G.StartTutorial()
 end
 
 function G.EndGame(conceded)
-  local m = ns.db.match
+  local m = M()
   if not m then return end
   local st = m.st
   local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
@@ -1281,7 +1329,8 @@ function G.EndGame(conceded)
   finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded, stats = m.stats,
     tutorial = m.tutorial, heroic = m.heroic, pvp = m.pvp }
   UI.Sound(result == "win" and "win" or "lose")
-  ns.db.match = nil
+  if m.pvp then ns.db.games[m.pvp.gid] = nil else ns.db.match = nil end
+  ns.db.active = nil
   plan, sel = {}, nil
   local o = opponent()
   ns.Print("%s%s against %s (Morale %d to %d).", m.tutorial and "Tutorial: " or m.heroic and "Heroic: " or "",
@@ -1340,7 +1389,7 @@ function G.EndMatch()
   if not st.winner then -- a game that had just ended keeps its real result
     st.winner = OPP
     conceded = true
-    if pvpMatch() then ns.Net.Concede(ns.db.match) end
+    if pvpMatch() then ns.Net.Concede(pvpMatch()) end
   end
   G.EndGame(conceded)
   G.Refresh()
@@ -1358,53 +1407,110 @@ local function stopReplay()
   end
 end
 
-function G.StartPvP(pv, st)
-  ns.db.match = { opp = "pvp", pvp = pv, st = st, started = time and time() or 0, version = ns.VERSION,
-    rules = R.RULES_VERSION }
+-- Puts a match on the board: "ai" (your match against the computer) or a
+-- game id. A round that was playing out is shown again next time.
+function G.Open(key)
+  if thinking then
+    UI.Error((opponent() and opponent().short or "Your opponent") .. " is still choosing. One moment.")
+    return false
+  end
+  if key == "ai" and not ns.db.match then return false end
+  if key ~= "ai" and key ~= nil and not ns.db.games[key] then return false end
   stopReplay()
   plan, sel, finished = {}, nil, nil
-  if logFrame then logFrame.msgs:Clear() end
-  G.Log("Your match against %s begins. Good luck!", ns.Net.Short(pv.name))
-  G.Log("|cffffd100Round 1|r")
-  ns.Print("Your match against %s begins.", ns.Net.Short(pv.name))
-  UI.Sound("challenge")
-  if UI.Show then UI.Show("play") else G.Refresh() end
+  ns.db.active = key
+  loadLog()
+  if UI.tab ~= "play" and UI.Show then UI.Show("play") end
   G.Refresh()
+  return true
 end
 
--- Free to play a round now (not in the middle of showing one)?
-function G.PvPReady()
+-- Back to the opponent list; the match stays as it is.
+function G.Back()
+  if finished and not M() then
+    G.Continue()
+    return
+  end
+  lobbyView = "games"
+  G.Open(nil)
+end
+
+function G.StartPvP(pv, st)
+  local m = { opp = "pvp", pvp = pv, st = st, started = time and time() or 0, version = ns.VERSION,
+    rules = R.RULES_VERSION }
+  local who = ns.Net.Short(pv.name)
+  m.log = { ("Your match against %s begins. Good luck!"):format(who), "|cffffd100Round 1|r" }
+  ns.db.games[pv.gid] = m
+  ns.Print("Your match against %s begins.", who)
+  UI.Sound("challenge")
+  -- you both just agreed to play, so it goes on the board (unless the
+  -- computer is in the middle of choosing in another match)
+  if not (thinking and M()) then
+    if UI.Show then UI.Show("play") end
+    G.Open(pv.gid)
+  else
+    G.Refresh()
+  end
+end
+
+-- Can a round of game m be played now? Always, unless m is on the board and
+-- busy showing a round.
+function G.PvPReady(m)
+  if M() ~= m then return true end
   return not view and not busy
 end
 
-function G.PlayPvPRound(mine, theirs)
-  local st = current()
-  if not st then return end
-  busy, sel = true, nil
-  plan = mine
-  playRound(st, mine, theirs)
+function G.PlayPvPRound(m, mine, theirs)
+  if M() == m then
+    busy, sel = true, nil
+    plan = mine
+  end
+  playRound(m, mine, theirs)
+  if M() ~= m then G.Refresh() end
 end
 
--- They ended the match: it's yours.
-function G.PvPConceded()
-  local m = pvpMatch()
+-- The result of game m when it isn't on the board: recorded, and said in
+-- chat.
+local function endOffBoard(m, conceded)
+  local st = m.st
+  local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
+  local who = ns.Net.Short(m.pvp.name)
+  local rewards = C.RecordPvP(ns.db, who, result, ns.Today(), {
+    conceded = conceded, theyConceded = m.pvp.theyConceded, round = st.round,
+    morale = math.max(0, st.players[ME].morale),
+  })
+  ns.Net.Finished(m, conceded)
+  ns.db.games[m.pvp.gid] = nil
+  ns.Print("%s %s", m.pvp.theyConceded and (who .. " conceded your game.") or ("Your game against " .. who .. " is over."),
+    result == "win" and "|cff40ff40Victory!|r" or result == "loss" and "|cffff4040Defeat.|r" or "A draw.")
+  ns.Announce(rewards)
+end
+
+-- They ended game m: it's yours.
+function G.PvPConceded(m)
   if not m then return end
-  stopReplay()
   m.pvp.theyConceded = true
   if not m.st.winner then m.st.winner = ME end
-  G.EndGame(false)
+  if M() == m then
+    stopReplay()
+    G.EndGame(false)
+  else
+    endOffBoard(m, false)
+  end
   G.Refresh()
 end
 
--- The match can't go on (the copies drifted apart, or the other side lost
--- it): it ends without a result.
-function G.PvPAbort(why)
-  local m = pvpMatch()
-  if not m then return end
-  stopReplay()
+-- Game m can't go on (the copies drifted apart, or the other side lost it):
+-- it ends without a result.
+function G.PvPAbort(m, why)
+  if not (m and ns.db.games[m.pvp.gid] == m) then return end
+  if M() == m then
+    stopReplay()
+    plan, sel, finished = {}, nil, nil
+    ns.db.active = nil
+  end
   ns.Net.Finished(m)
-  ns.db.match = nil
-  plan, sel, finished = {}, nil, nil
+  ns.db.games[m.pvp.gid] = nil
   UI.Error(why)
   ns.Print(why)
   G.Refresh()
@@ -1503,6 +1609,7 @@ if StaticPopupDialogs then
 end
 
 function G.Continue()
+  if finished and finished.pvp then lobbyView = "games" end
   finished = nil
   G.Refresh()
 end
@@ -1521,12 +1628,81 @@ local rows = {}
 local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
 local CREST_ON = { 0.75, 0.5, 1 }
 
--- The lobby shows the circuit, or the heroic rematches once they're open.
+-- The lobby shows the circuit, the heroic rematches once they're open, or
+-- your games (the match against the computer and those against players).
 local heroicView = false
+local gameRows = {}
+
 function G.HeroicView() return heroicView end
 function G.SetHeroicView(on)
   heroicView = (on and C.HeroicUnlocked(ns.db)) and true or false
+  lobbyView = "circuit"
   G.RefreshLobby()
+end
+
+function G.LobbyView() return lobbyView end
+function G.ShowGames(on)
+  lobbyView = on and "games" or "circuit"
+  if page then G.Refresh() end
+end
+
+-- Every game you have going: the computer match first, then those against
+-- players, oldest first.
+local function allGames()
+  local list = {}
+  if ns.db.match then list[1] = ns.db.match end
+  for _, m in ipairs(C.Games(ns.db)) do list[#list + 1] = m end
+  return list
+end
+
+-- What a game in the list says, and whether it's waiting for you.
+function G.GameStatus(m)
+  local st = m.st
+  if st.winner then return "Over: open it to see how it ended", true end
+  if m.last and m.shown == false then return "A new round to watch", true end
+  if not m.pvp then return m.tutorial and "The tutorial" or "Your move", true end
+  local r = st.round
+  local who = ns.Net.Short(m.pvp.name)
+  local mine, theirs = m.pvp.mine[r], m.pvp.theirs[r]
+  if mine and not theirs then
+    return ns.Net.IsOffline(m) and (who .. " seems to be offline") or ("Waiting for " .. who), false
+  end
+  if theirs and not mine then return who .. " has locked in: your move", true end
+  if mine and theirs then return "Playing the round...", false end
+  return "Your move", true
+end
+
+-- How many of your games are waiting for you.
+function G.YourMoves()
+  local n = 0
+  for _, m in ipairs(allGames()) do
+    local _, mine = G.GameStatus(m)
+    if mine then n = n + 1 end
+  end
+  return n
+end
+
+local function refreshGameRows()
+  local list = allGames()
+  for i, r in ipairs(gameRows) do
+    local m = list[i]
+    r:SetShown(m ~= nil)
+    if m then
+      r.m = m
+      local o
+      if m.pvp then o = ns.Net.Opponent(m.pvp.name) else o = ns.OpponentById[m.opp] end
+      r.icon:SetTexture(UI.Icon(o.icon))
+      r.name:SetText(m.pvp and o.name or (o.name .. (m.heroic and " |cffc080ff(Heroic)|r" or m.tutorial and " (tutorial)" or "")))
+      r.kind:SetText(m.pvp and "|cff9fdfffPlayer|r" or "|cffb0b0b0Computer|r")
+      local text, yours = G.GameStatus(m)
+      r.status:SetText(text)
+      if yours then r.status:SetTextColor(0.4, 1, 0.4) else r.status:SetTextColor(0.75, 0.75, 0.75) end
+      local st = m.st
+      r.score:SetText(("Round %d of %d    Morale %d - %d"):format(st.round, R.MAX_ROUNDS,
+        math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale)))
+    end
+  end
+  lobby.noGames:SetShown(#list == 0)
 end
 
 function G.RefreshLobby()
@@ -1538,12 +1714,37 @@ function G.RefreshLobby()
   end
   local heroicOpen = C.HeroicUnlocked(ns.db)
   if not heroicOpen then heroicView = false end
-  lobby.heroicBtn:SetShown(heroicOpen)
+  local moves = G.YourMoves()
+  if not lobbyView then lobbyView = moves > 0 and #C.Games(ns.db) > 0 and "games" or "circuit" end
+  local games = lobbyView == "games"
+  lobby.heroicBtn:SetShown(heroicOpen and not games)
   lobby.heroicBtn:SetText(heroicView and "Back to the circuit" or "Heroic rematches")
-  lobby.title:SetText(heroicView and "The Tavern Circuit: |cffc080ffHeroic|r" or "The Tavern Circuit")
-  lobby.sub:SetText(heroicView
-    and "Their best decks, their sharpest play."
-    or "Pick an opponent. Games are saved, so you can stop any time.")
+  local n = #allGames()
+  if games then
+    lobby.gamesBtn:SetText("Back to the circuit")
+  elseif moves > 0 then
+    lobby.gamesBtn:SetText(("|cff40ff40Your games: %d your move|r"):format(moves))
+  else
+    lobby.gamesBtn:SetText(("Your games (%d)"):format(n))
+  end
+  if games then
+    lobby.title:SetText("Your games")
+    lobby.sub:SetText("Games against players go at their own pace: a round plays once you've both locked in.")
+  else
+    lobby.title:SetText(heroicView and "The Tavern Circuit: |cffc080ffHeroic|r" or "The Tavern Circuit")
+    lobby.sub:SetText(heroicView
+      and "Their best decks, their sharpest play."
+      or "Pick an opponent. Games are saved, so you can stop any time.")
+  end
+  for _, r in ipairs(rows) do r:SetShown(not games) end
+  for _, r in ipairs(gameRows) do r:SetShown(false) end
+  lobby.noGames:SetShown(false)
+  lobby.invite:SetShown(games and ns.Net.Incoming() ~= nil)
+  if games then
+    refreshGameRows()
+    if ns.Net.Incoming() then lobby.invite.text:SetText(ns.Net.Incoming() .. " challenges you to a game.") end
+  end
+  local cur = ns.db.match
   for _, r in ipairs(rows) do
     local o = r.opp
     local open = C.Unlocked(ns.db, o.id)
@@ -1573,8 +1774,9 @@ function G.RefreshLobby()
     else
       r.record:SetText("Not played yet")
     end
-    r.play:SetText(open and "Play" or "Locked")
-    r.play:SetEnabled((ok and open) and true or false)
+    local resume = cur and cur.opp == o.id and not cur.tutorial and (cur.heroic and true or false) == heroicView
+    r.play:SetText(resume and "Resume" or open and "Play" or "Locked")
+    r.play:SetEnabled((resume or (ok and open)) and true or false)
     r:SetAlpha(open and 1 or 0.55)
   end
   local s = ns.db.stats
@@ -1685,11 +1887,60 @@ local function buildLobby()
     rows[i] = r
   end
 
+  -- your games
+  for i = 1, 1 + C.MAX_GAMES do
+    local r = CreateFrame("Button", nil, lobby, UI.TEMPLATE)
+    r:SetSize(PAGE_W - 8, 40)
+    r:SetPoint("TOPLEFT", 4, -42 - (i - 1) * 43)
+    UI.Backdrop(r, { 0.09, 0.08, 0.06, 0.9 }, { 0.3, 0.26, 0.18 })
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(30, 30)
+    r.icon:SetPoint("LEFT", 6, 0)
+    r.name = UI.Text(r, 13)
+    r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 0)
+    r.name:SetTextColor(1, 0.82, 0)
+    r.kind = UI.Text(r, 10)
+    r.kind:SetPoint("LEFT", r.name, "RIGHT", 8, 0)
+    r.status = UI.Text(r, 11)
+    r.status:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -3)
+    r.score = UI.Text(r, 10)
+    r.score:SetPoint("RIGHT", r, "RIGHT", -106, 0)
+    r.score:SetTextColor(0.75, 0.75, 0.75)
+    r.open = UI.Button(r, "Open", 90, 24, function() G.Open(r.m.pvp and r.m.pvp.gid or "ai") end)
+    r.open:SetPoint("RIGHT", -8, 0)
+    r:SetScript("OnClick", function() G.Open(r.m.pvp and r.m.pvp.gid or "ai") end)
+    r:Hide()
+    gameRows[i] = r
+  end
+  lobby.noGames = UI.Text(lobby, 12)
+  lobby.noGames:SetPoint("TOP", 0, -90)
+  lobby.noGames:SetText("No games going. Pick an opponent on the circuit, or challenge a player.")
+  lobby.noGames:SetTextColor(0.75, 0.75, 0.75)
+  lobby.noGames:Hide()
+  -- a challenge waiting for an answer (the popup can be closed by accident)
+  local inv = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
+  inv:SetSize(PAGE_W - 8, 34)
+  inv:SetPoint("BOTTOMLEFT", 4, 48)
+  UI.Backdrop(inv, { 0.12, 0.1, 0.04, 0.95 }, { 1, 0.82, 0 })
+  inv.text = UI.Text(inv, 12)
+  inv.text:SetPoint("LEFT", 10, 0)
+  inv.text:SetTextColor(1, 0.82, 0)
+  local decline = UI.Button(inv, "Decline", 80, 22, function() G.AnswerChallenge(false) end)
+  decline:SetPoint("RIGHT", -6, 0)
+  local accept = UI.Button(inv, "Accept", 80, 22, function() G.AnswerChallenge(true) end)
+  accept:SetPoint("RIGHT", decline, "LEFT", -6, 0)
+  inv:Hide()
+  lobby.invite = inv
+
   lobby.challenge = UI.Button(lobby, "Challenge a player", 150, 22, function() G.AskChallenge() end)
   lobby.challenge:SetPoint("BOTTOMRIGHT", -4, 4)
   UI.SimpleTooltip(lobby.challenge, "Challenge a player",
     "Play a friend or guildmate who has Deckhand (the same version). Target them first, or type their name.",
     "Wins count for the daily task and the first win of the day once the game reaches round 4.")
+  lobby.gamesBtn = UI.Button(lobby, "Your games", 190, 22, function() G.ShowGames(lobbyView ~= "games") end)
+  lobby.gamesBtn:SetPoint("RIGHT", lobby.challenge, "LEFT", -6, 0)
+  UI.SimpleTooltip(lobby.gamesBtn, "Your games", "Your match against the computer and your games against players.",
+    "Games against players go at their own pace. Open one to play your move.")
   lobby.pvpStatus = UI.Text(lobby, 10)
   lobby.pvpStatus:SetPoint("BOTTOMRIGHT", lobby.challenge, "TOPRIGHT", 0, 6)
   lobby.pvpStatus:SetTextColor(0.85, 0.85, 0.85)
@@ -2006,8 +2257,11 @@ local function buildBoard()
   ctl.replay:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, -102)
   UI.SimpleTooltip(ctl.replay, "Replay", "Shows the last round again.")
 
-  ctl.endMatch = UI.Button(board, "End match", RIGHT_W, 22, function() G.AskEndMatch() end)
-  ctl.endMatch:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, ROW_Y[ME] - SH + 24)
+  ctl.back = UI.Button(board, "All games", RIGHT_W / 2 - 3, 22, function() G.Back() end)
+  ctl.back:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, ROW_Y[ME] - SH + 24)
+  UI.SimpleTooltip(ctl.back, "All games", "Back to the opponent list and your other games. This one stays as it is.")
+  ctl.endMatch = UI.Button(board, "End match", RIGHT_W / 2 - 3, 22, function() G.AskEndMatch() end)
+  ctl.endMatch:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, ROW_Y[ME] - SH + 24)
   UI.SimpleTooltip(ctl.endMatch, "End match",
     "Ends this match now. It counts as a loss and earns nothing.",
     "You don't need to end a match to stop playing: it's saved after every round, so you can just close the window.")

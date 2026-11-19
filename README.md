@@ -166,12 +166,22 @@ the opponent list (target them first and their name is filled in), or
 need the same version of Deckhand.
 
 - You each play your own deck, and rounds work as usual: plan, lock in, and
-  the round plays out once both of you have locked in. "Bob has locked in"
+  the round plays out once both of you have locked in. There's no time limit:
+  lock in, close the window, and come back whenever. "Bob has locked in"
   shows when they're waiting for you; while you wait for them, your plan
-  stays on the board. If your window is closed when they lock in, a prompt
-  says so.
-- The match is saved like any other. If either of you reloads or logs out,
-  it carries on when you're both back: an unanswered plan is sent again after
+  stays on the board. If you're elsewhere when they lock in, a prompt says
+  so.
+- **Several games at once.** You can have a game going with up to 8 players
+  (one each), beside your match against the computer. **Your games** on the
+  Play tab lists them all with where each stands ("Your move", "Waiting for
+  Bob", "A new round to watch"), and **All games** on the board takes you
+  back to it without ending anything. A round plays out as soon as both
+  plans are in, even if that game isn't on screen; you watch it when you
+  next open the game.
+- Plans travel as whispers, so they only arrive while you're both online
+  (not necessarily at the same time as you play: a plan waits on your side
+  until it gets through). Games are saved like any other. If either of you
+  reloads or logs out, they carry on when you're both back: an unanswered plan is sent again after
   5, 15 and 45 seconds, then every 2 minutes, until the other side has it. A
   round that played out while your window was closed is shown when you open
   it.

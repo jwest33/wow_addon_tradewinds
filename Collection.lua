@@ -121,8 +121,23 @@ C.MIGRATIONS = {
       db.settings.seenWelcome = true
     end
   end,
+  -- 6 (v0.10.0): games against players get their own list (db.games, by game
+  -- id), so several can run beside your match against the computer
+  -- (db.match). db.active says which one is on the board.
+  function(db)
+    db.games = type(db.games) == "table" and db.games or {}
+    local m = db.match
+    if type(m) == "table" and type(m.pvp) == "table" and type(m.pvp.gid) == "string" then
+      db.games[m.pvp.gid] = m
+      db.match = nil
+      db.active = m.pvp.gid
+    elseif type(m) == "table" then
+      db.active = "ai"
+    end
+  end,
 }
 C.SCHEMA = #C.MIGRATIONS
+C.MAX_GAMES = 8   -- games against players at once (one per player)
 
 -- Is this saved match something the game can carry on with?
 local function playable(m)
@@ -160,7 +175,8 @@ end
 
 -- rules: the rules version (Rules.RULES_VERSION). A saved match from another
 -- one, or one that's damaged, is ended without counting. Returns the opponent
--- id of a match it ended, if any.
+-- id of a computer match it ended (if any), and how many games against
+-- players it ended.
 function C.Init(db, rules)
   if not db.collection then db.schema = C.SCHEMA end
   for i = (tonumber(db.schema) or 0) + 1, C.SCHEMA do
@@ -212,11 +228,38 @@ function C.Init(db, rules)
       db.decks[slot] = nil
     end
   end
-  if db.match and (not playable(db.match) or (rules and db.match.rules ~= rules)) then
+  db.games = type(db.games) == "table" and db.games or {}
+  local endedGames = 0
+  for gid, m in pairs(db.games) do
+    if not (type(m) == "table" and m.pvp and m.pvp.gid == gid and playable(m)) or (rules and m.rules ~= rules) then
+      db.games[gid] = nil
+      endedGames = endedGames + 1
+    end
+  end
+  local ended
+  if db.match and (type(db.match) ~= "table" or db.match.pvp or not playable(db.match)
+      or (rules and db.match.rules ~= rules)) then
     local opp = type(db.match) == "table" and db.match.opp or nil
     db.match = nil
-    return ns.OpponentById[opp] and opp or nil
+    ended = ns.OpponentById[opp] and opp or nil
   end
+  if db.active == "ai" then
+    if not db.match then db.active = nil end
+  elseif db.active ~= nil and not db.games[db.active] then
+    db.active = nil
+  end
+  return ended, endedGames
+end
+
+-- Your games against players, oldest first.
+function C.Games(db)
+  local list = {}
+  for _, m in pairs(db.games or {}) do list[#list + 1] = m end
+  table.sort(list, function(a, b)
+    if (a.started or 0) ~= (b.started or 0) then return (a.started or 0) < (b.started or 0) end
+    return a.pvp.gid < b.pvp.gid
+  end)
+  return list
 end
 
 function C.Owned(db, id)

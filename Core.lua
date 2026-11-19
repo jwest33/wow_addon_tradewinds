@@ -56,7 +56,7 @@ ns.On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
   DeckhandCharDB = DeckhandCharDB or {}
   ns.db = DeckhandCharDB
-  ns.endedByUpdate = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
+  ns.endedByUpdate, ns.gamesEndedByUpdate = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
 end)
 
 ns.On("PLAYER_LOGIN", function()
@@ -69,12 +69,23 @@ ns.On("PLAYER_LOGIN", function()
     ns.Print("This update changed Deckhand's rules, so your match against %s was ended. It doesn't count as a win or a loss.",
       o and o.name or "the computer")
   end
+  if (ns.gamesEndedByUpdate or 0) > 0 then
+    ns.Print("This update changed Deckhand's rules, so %d game%s against other players ended without a result.",
+      ns.gamesEndedByUpdate, ns.gamesEndedByUpdate == 1 and "" or "s")
+  end
   local m = ns.db.match
   local s = ns.db.stats
+  local games = #ns.Collection.Games(ns.db)
+  if games > 0 then
+    local moves = ns.UI.Game.YourMoves()
+    ns.Print("You have %d game%s going against other players%s. Type /deckhand to see them.", games,
+      games == 1 and "" or "s", moves > 0 and (", and " .. moves .. " of your games wait for your move") or "")
+  end
   if m then
     ns.Print("Your %s is waiting. Type /deckhand to continue.",
-      m.tutorial and "tutorial" or m.pvp and ("game against " .. ns.Net.Short(m.pvp.name))
-      or ("game against " .. ns.OpponentById[m.opp].name))
+      m.tutorial and "tutorial" or ("game against " .. ns.OpponentById[m.opp].name))
+  elseif games > 0 then
+    return
   elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
     ns.Print("New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack.")
   elseif ns.db.packs > 0 then
@@ -172,7 +183,11 @@ SlashCmdList.DECKHAND = function(msg)
       ns.Print("Type /deckhand challenge Name, or target the player first.")
     end
   elseif cmd == "end" or cmd == "concede" then
-    if ns.db.match then ns.UI.Game.AskEndMatch() else ns.Print("You're not in a match.") end
+    if ns.UI.Game.Match() then
+      ns.UI.Game.AskEndMatch()
+    else
+      ns.Print("Open the game you want to end first (Your games, on the Play tab).")
+    end
   elseif cmd == "speed" then
     local n = tonumber(rest)
     if n and n >= 1 and n <= 3 then S.speed = n end
