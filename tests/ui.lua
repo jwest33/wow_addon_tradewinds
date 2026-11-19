@@ -581,6 +581,44 @@ do
   ice.frozen = nil
   G.Refresh()
   check(not s1.frost:IsShown(), "and the ice goes when it thaws")
+  -- a fresh round counts down first; the Replay button doesn't
+  check((FX.counts.countdown or 0) - (before.countdown or 0) == 1, "a new round counts down: 3, 2, 1, Reveal!")
+  local cd0 = FX.counts.countdown
+  G.Replay()
+  MOCK.Advance(60)
+  check(FX.counts.countdown == cd0, "the Replay button doesn't count down again")
+  -- the lanes: lights flow the way the damage goes
+  st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  st.players[1].hand, st.players[2].hand = {}, {}
+  put(1, 1, "grunt")                 -- hits their Morale
+  put(2, 2, "grunt")                 -- hits yours
+  put(1, 3, "grunt"); put(2, 3, "grunt")   -- a fight
+  G.Refresh()
+  local function shownPips(l, up)
+    local n = 0
+    for _, pip in ipairs(G.api.marker(l).pips) do
+      if pip:IsShown() and pip.up == up then n = n + 1 end
+    end
+    return n
+  end
+  local m1, m2, m3, m4 = G.api.marker(1), G.api.marker(2), G.api.marker(3), G.api.marker(4)
+  check(m1.state == "out" and shownPips(1, true) == 4 and shownPips(1, false) == 0 and not m1.clash:IsShown(),
+    "lane 1 (you hit their Morale): lights flow up")
+  check(m2.state == "in" and shownPips(2, false) == 4 and shownPips(2, true) == 0, "lane 2 (they hit you): lights flow down")
+  check(m3.state == "fight" and shownPips(3, true) == 4 and shownPips(3, false) == 4 and m3.clash:IsShown(),
+    "lane 3 (a fight): in from both sides to a clash")
+  check(shownPips(4, true) + shownPips(4, false) == 0 and not m4.clash:IsShown(), "lane 4 (empty): still")
+  MOCK.Advance(0.5)                  -- the lights move without errors
+  check(G.api.marker(1).state == "out", "and keep flowing")
+  -- rounds left
+  st.round = R.MAX_ROUNDS - 1
+  G.Refresh()
+  check(G.api.roundText():find("1 left"), "the round counter says how many are left")
+  st.round = R.MAX_ROUNDS
+  G.Refresh()
+  check(G.api.roundText() == "Final round", "and calls the last one")
+  st.round = 2
   -- skipping
   st.players[2].board = {}
   put(2, 1, "grunt"); put(2, 3, "grunt")

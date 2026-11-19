@@ -314,6 +314,12 @@ so you couldn't see who hit whom. Now:
   before it was declared, so skipping never stopped the lunges.
 - Textures (Spark, Ring, Slash, Skull, Shield, Frost) come from
   `tools/gen_art.py`. None of it has been seen in game yet.
+- v0.12.0 (asked for): a "3, 2, 1, Reveal!" countdown before a round you
+  haven't seen (not on Replay); rounds left on the round counter and the
+  round banner, "Final round" for the last; lights flowing along each lane
+  between the rows in the direction of its damage (from the forecast while
+  planning, from the strikes during the replay), bobbing arrows and
+  breathing swords on the markers.
 
 ### Phase 3: Onboarding (M)
 

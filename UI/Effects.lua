@@ -18,6 +18,7 @@ local driver       -- runs the tweens while any are running
 local tweens = {}  -- { t, dur, step(p), done() }
 local pool = { tex = {}, text = {}, ghost = {} }
 local banner
+local center = {}  -- where banners and the countdown sit: { frame, x, y }
 
 -- colours: yours, theirs, and kinds of effect
 FX.MINE = { 1, 0.82, 0.3 }
@@ -383,9 +384,43 @@ function FX.Banner(text, sub, col)
   end, function() b:Hide() end)
 end
 
+-- "3", "2", "1", "Reveal!" in the middle of the board, a beat each, before
+-- a round plays out. Returns how long it takes (at speed 1).
+FX.COUNT_STEP = 0.32
+function FX.Countdown()
+  if not layer then return 0 end
+  count("countdown")
+  local steps = { "3", "2", "1", "Reveal!" }
+  for i, text in ipairs(steps) do
+    local last = i == #steps
+    local f
+    local started = false
+    run(last and 0.55 or FX.COUNT_STEP, function(p)
+      if not started then
+        started = true
+        f = label(last and 40 or 64)
+        f.plate:Hide()
+        f.fs:SetText(text)
+        local col = last and FX.GOLD or (i == 3 and { 1, 0.55, 0.25 } or FX.WHITE)
+        f.fs:SetTextColor(col[1], col[2], col[3])
+        f:SetPoint("CENTER", center[1], "TOPLEFT", center[2], center[3])
+        UI.Sound(last and "countGo" or "countTick")
+      end
+      local pop = p < 0.3 and (2 - smooth(p / 0.3)) or 1
+      f:SetScale(pop)
+      f:SetPoint("CENTER", center[1], "TOPLEFT", center[2] / pop, center[3] / pop)
+      f:SetAlpha(p < 0.6 and 1 or (1 - (p - 0.6) / 0.4))
+    end, function()
+      if f then releaseLabel(f) end
+    end, (i - 1) * FX.COUNT_STEP)
+  end
+  return FX.COUNT_STEP * 3 + 0.3
+end
+
 -- Sets up the effect layer over `parent` (the board), at `level`; banners
 -- are centred on x, y from its top left.
 function FX.Build(parent, level, x, y)
+  center = { parent, x, y }
   layer = CreateFrame("Frame", nil, parent)
   layer:SetAllPoints()
   layer:SetFrameLevel(level)

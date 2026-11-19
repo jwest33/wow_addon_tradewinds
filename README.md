@@ -39,19 +39,24 @@ there by then, including a unit your opponent just played. Guessing where
 they'll play is half the game.
 
 Each lane is drawn as a column joining the enemy slot and yours. While you
-plan, a **marker** between the rows shows what each lane will do in combat:
+plan, a **marker** between the rows shows what each lane will do in combat,
+and small lights flow along the lane the way the damage goes (green up into
+their empty slot, red down into yours, gold in from both sides to a clash
+when two units fight):
 
 - a green up arrow with a number: your unit hits their Morale
 - a red down arrow: their unit hits yours, so block it
 - crossed swords: the two units fight (or a Guard or Ranged unit gets involved)
 
-When the round plays out, you see each strike in turn: a glowing bolt flies
+When both sides have locked in, a quick **3, 2, 1, Reveal!** counts down,
+then the round plays out and you see each strike in turn: a glowing bolt flies
 from the attacker to what it hits (gold for yours, red for theirs), the
 target shakes and the damage pops up over it, and keywords call themselves
 out as they work ("Guard" when a unit steps in, "Pierce" when damage goes
 through, "Venom", "Drain", "Sturdy!"). Strikes in a step still all happen at
 once, which is why units only fall after the whole volley. Click the board
-to skip to the end of a round.
+to skip to the end of a round. The round counter shows how many rounds are
+left, and the last one is announced as the final round.
 
 Hover a marker for the details in words. The Morale panels show the predicted
 change beside the number, and units that would die are marked "dies". All of

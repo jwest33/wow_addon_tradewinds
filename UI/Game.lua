@@ -46,6 +46,7 @@ local finished      -- the game that just ended, until "Continue"
 local lobbyView     -- the opponent list shows "circuit" | "heroic" | "games" (nil: not chosen yet)
 local forecast      -- what the planned round does if the opponent adds nothing
 local markers = {}  -- per lane, between the rows: what the lane does in combat
+local laneFlow      -- the frame the lane flow's lights are drawn on
 local replayMarks = {}
 local token = 0     -- invalidates stale replay timers
 local startReplay   -- defined with the replay code below
@@ -384,6 +385,79 @@ local function paintMarker(l, state, amt, lines)
   end
 end
 
+-- Lane flow: little lights running along each lane between the rows, the way
+-- its damage goes (see MARK for the colours): up from your unit through their
+-- empty slot when you hit their Morale, down through yours when they hit
+-- you, and in from both sides to a pulsing clash when units fight.
+local FLOW_PIPS = 4
+local FLOW_RATE = 0.55    -- trips a second
+local flowT = 0
+
+local function hasUnit(p, l)
+  local S = view or current()
+  if S and S.players[p].board[l] then return true end
+  return p == ME and not view and plannedUnitAt(l) ~= nil
+end
+
+local function setFlow(l)
+  local m = markers[l]
+  local s = m.state
+  m.up, m.down, m.full = false, false, false
+  if s == "out" then
+    m.up, m.full = true, true
+  elseif s == "in" then
+    m.down, m.full = true, true
+  elseif s == "fight" or s == "guard" or s == "ranged" then
+    m.up, m.down = hasUnit(ME, l), hasUnit(OPP, l)
+  end
+  local def = s and MARK[s]
+  for _, pip in ipairs(m.pips) do
+    if def then pip:SetVertexColor(def.r, def.g, def.b) end
+    pip:SetShown(def ~= nil and ((pip.up and m.up) or (not pip.up and m.down)))
+  end
+  m.clash:SetShown((m.up or m.down) and not m.full)
+  if def then m.clash:SetVertexColor(def.r, def.g, def.b) end
+end
+
+-- Board y (from its top) of the lane's landmarks.
+local TOP_EDGE, BOT_EDGE = ROW_Y[OPP] - SH, ROW_Y[ME]
+local THEIR_MID, MY_MID = ROW_Y[OPP] - SH / 2, ROW_Y[ME] - SH / 2
+
+local function flowTick(_, elapsed)
+  flowT = flowT + elapsed * FLOW_RATE * ((ns.db and ns.db.settings.speed) or 1)
+  local bob = math.sin(flowT * math.pi * 2)
+  for l = 1, R.LANES do
+    local m = markers[l]
+    local x = laneX(l) + SW / 2
+    for i, pip in ipairs(m.pips) do
+      if pip:IsShown() then
+        local ph = (flowT + (i % FLOW_PIPS) / FLOW_PIPS) % 1
+        local y0, y1
+        if pip.up then
+          y0, y1 = BOT_EDGE, m.full and THEIR_MID or MID_Y
+        else
+          y0, y1 = TOP_EDGE, m.full and MY_MID or MID_Y
+        end
+        pip:SetPoint("CENTER", board, "TOPLEFT", x, y0 + (y1 - y0) * ph)
+        pip:SetAlpha(0.8 * math.sin(math.pi * ph))
+      end
+    end
+    if m.clash:IsShown() then
+      local c = (flowT * FLOW_PIPS) % 1
+      local k = 1 - c
+      m.clash:SetAlpha(0.25 + 0.6 * k * k)
+      m.clash:SetSize(16 + 14 * k, 16 + 14 * k)
+    end
+    -- the arrow nudges the way it points; crossed swords breathe
+    if m.state == "out" then
+      m.arrow:SetPoint("CENTER", m, "CENTER", -11, 5 + 3 * bob)
+    elseif m.state == "in" then
+      m.arrow:SetPoint("CENTER", m, "CENTER", -11, 5 - 3 * bob)
+    end
+    if m.swords:IsShown() then m.swords:SetAlpha(0.8 + 0.2 * bob) end
+  end
+end
+
 local function renderMarkers()
   local st = current()
   for l = 1, R.LANES do
@@ -395,6 +469,7 @@ local function renderMarkers()
     else
       paintMarker(l, nil)
     end
+    setFlow(l)
   end
 end
 
@@ -551,7 +626,14 @@ end
 local function renderControls()
   local st = shown()
   local S = view or st
-  ctl.round:SetText(("Round %d of %d"):format(S.round, R.MAX_ROUNDS))
+  local left = R.MAX_ROUNDS - S.round
+  if left == 0 then
+    ctl.round:SetText("Final round")
+    ctl.round:SetTextColor(1, 0.5, 0.2)
+  else
+    ctl.round:SetText(("Round %d of %d (%d left)"):format(S.round, R.MAX_ROUNDS, left))
+    if left <= 2 then ctl.round:SetTextColor(1, 0.65, 0.25) else ctl.round:SetTextColor(1, 0.82, 0) end
+  end
   ctl.init:SetText(S.init == ME and "You have initiative" or (who(OPP) .. " has initiative"))
   local planning = isPlanning()
   if planning then
@@ -761,7 +843,7 @@ function G.Refresh()
   if not page then return end
   local m = M()
   if m and m.last and m.shown == false and not busy and not view then
-    startReplay(m.last)
+    startReplay(m.last, true)
     return
   end
   -- a game that ended with no replay to show
@@ -967,7 +1049,10 @@ local function apply(e)
   local t = e.t
   local FX = UI.FX
   local fx = not skipping
-  if t == "phase" then
+  if t == "countdown" then
+    if not fx then return 0 end
+    return FX.Countdown()
+  elseif t == "phase" then
     ctl.phase:SetText(e.name == "combat" and "Combat!" or "Reveal!")
     if e.name == "reveal" then
       replayMarks = {}
@@ -1076,6 +1161,7 @@ local function apply(e)
     end
     replayMarks[e.lane] = rm
     paintMarker(e.lane, rm.state, rm.amt, nil)
+    setFlow(e.lane)
     local def = MARK[rm.state]
     markers[e.lane]:Flash(def.r, def.g, def.b)
     if not fx then return 0 end
@@ -1133,8 +1219,15 @@ local function apply(e)
     renderControls()
     G.Log("|cffffd100Round %d|r", e.n)
     if fx then
-      FX.Banner("Round " .. e.n, ("Supply %d. %s initiative."):format(math.min(e.n, R.SUPPLY_CAP),
-        e.init == ME and "You have" or (who(OPP) .. " has")), FX.GOLD)
+      local left = R.MAX_ROUNDS - e.n
+      local init = e.init == ME and "You have" or (who(OPP) .. " has")
+      if left == 0 then
+        FX.Banner("Final round", ("Highest Morale after this one wins. %s initiative."):format(init), { 1, 0.5, 0.2 })
+      else
+        FX.Banner("Round " .. e.n, ("%s. Supply %d. %s initiative."):format(
+          left == 1 and "One round left after this" or (left .. " rounds left after this"),
+          math.min(e.n, R.SUPPLY_CAP), init), left <= 2 and { 1, 0.65, 0.25 } or FX.GOLD)
+      end
     end
     return 0
   elseif t == "burn" then
@@ -1180,11 +1273,15 @@ local function pump(mine)
 end
 
 -- Plays a saved round: { view = the board before it, events = what happened }.
-startReplay = function(last)
+-- countdown: "3, 2, 1, Reveal!" first (a round you haven't seen yet).
+startReplay = function(last, countdown)
   busy, sel = true, nil
   view = R.DeepCopy(last.view)
   replayMarks = {}
-  queue, qi, skipping = last.events, 1, false
+  local q = {}
+  if countdown then q[1] = { t = "countdown" } end
+  for _, e in ipairs(last.events) do q[#q + 1] = e end
+  queue, qi, skipping = q, 1, false
   token = token + 1
   G.Refresh()
   pump(token)
@@ -1290,7 +1387,7 @@ local function playRound(m, mine, theirs)
   if m.pvp then ns.Net.AfterRound(m, st.round) end
   if not onBoard or M() ~= m then return end
   if page and not (m.pvp and not page:IsVisible()) then
-    startReplay(m.last)
+    startReplay(m.last, true)
   else
     -- the window is closed: the round is shown when the board next opens
     busy = false
@@ -2217,7 +2314,12 @@ local function buildBoard()
   wood:SetVertexColor(0.72, 0.72, 0.72)
 
   -- each lane is a column joining the enemy slot and yours, with a marker
-  -- between them showing what the lane does in combat
+  -- between them showing what the lane does in combat, and lights flowing
+  -- the way the damage goes (flowTick)
+  laneFlow = CreateFrame("Frame", nil, board)
+  laneFlow:SetAllPoints()
+  laneFlow:SetFrameLevel(board:GetFrameLevel() + 12)
+  laneFlow:SetScript("OnUpdate", flowTick)
   for l = 1, R.LANES do
     local col = CreateFrame("Frame", nil, board, UI.TEMPLATE)
     col:SetPoint("TOPLEFT", board, "TOPLEFT", laneX(l) - 2, ROW_Y[OPP] + 2)
@@ -2244,6 +2346,23 @@ local function buildBoard()
     m.num:SetPoint("LEFT", m.arrow, "RIGHT", 1, 0)
     m.label = UI.Text(m, 9)
     m.label:SetPoint("BOTTOM", m, "BOTTOM", 0, 0)
+    -- the lane flow's lights (over the slots and cards, under the effects)
+    m.pips = {}
+    for i = 1, FLOW_PIPS * 2 do
+      local pip = laneFlow:CreateTexture(nil, "OVERLAY")
+      pip:SetTexture(UI.ART .. "Spark")
+      pip:SetBlendMode("ADD")
+      pip:SetSize(11, 11)
+      pip.up = i <= FLOW_PIPS
+      pip:Hide()
+      m.pips[i] = pip
+    end
+    m.clash = laneFlow:CreateTexture(nil, "OVERLAY")
+    m.clash:SetTexture(UI.ART .. "Spark")
+    m.clash:SetBlendMode("ADD")
+    m.clash:SetSize(20, 20)
+    m.clash:SetPoint("CENTER", board, "TOPLEFT", laneX(l) + SW / 2, MID_Y)
+    m.clash:Hide()
     UI.AttachFlash(m)
     m:EnableMouse(true)
     m:SetScript("OnEnter", function(self)
@@ -2474,6 +2593,8 @@ G.api = {
     end
   end,
   slot = function(p, l) return slots[p][l] end,
+  marker = function(l) return markers[l] end,
+  roundText = function() return ctl.round:GetText() end,
   lock = function() return ctl.lock end,
 }
 
