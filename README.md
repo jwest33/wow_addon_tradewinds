@@ -61,38 +61,74 @@ lane as the strikes land. `/deckhand forecast off` hides the predictions.
 | Rally | Your neighbouring units get +1 attack |
 | Stealth | Enemy tactics can't target it until it has struck |
 
-### Cards and packs
+### Cards
 
-48 cards in the core set (20 common, 12 uncommon, 9 rare, 4 epic, 3
-legendary), from Kobold Vermin and Murloc Foragers up to Hogger, Princess,
-Onyxia, Ragnaros and Edwin VanCleef.
+97 cards in two sets. The core set has 48. **Roads of Azeroth** adds 49, built
+around five tribes: Beasts, Murlocs, Undead, Defias and Dragonkin. Tribe cards
+reward being played together ("Your other Beasts have +1 attack", "+1 attack
+for each other Murloc you have"). A card's tribe is in its tooltip.
 
 A deck is exactly 20 cards, with up to 2 copies of a card (1 of a legendary),
 and it needs a **curve**: at least 2 units costing 1, 4 cards costing 2 and
 3 cards costing 3, which is what the guided draws pick from. The Cards tab
 shows the curve as a checklist.
 
-A pack has 3 commons, an uncommon (15% chance of a rare instead) and a rare
-slot that is epic 12.5% and legendary 3.5% of the time. Copies past the deck
-limit turn into **shards**; 20 shards buy a pack.
+### Getting cards
 
-You start with a 20-card starter deck and 3 packs. More packs come from:
+You start with a 20-card starter deck and 2 packs.
 
-- every 10 minutes on a flight path
-- discovering a new flight path, and every level you gain
-- your first win of the day, and your first win against each opponent
+- **Packs** hold 3 cards: two commons and an uncommon, which is a rare 26% and
+  an epic 5% of the time (and always an epic if 14 packs in a row had none).
+- **Shards** buy packs (30) or **craft** a card you choose: shift-click it in
+  the Cards tab. Common 10, uncommon 25, rare 60, epic 150, legendary 400. A
+  copy past the deck limit turns into shards (1 / 3 / 10 / 25).
+- **Legendaries and signature cards are not in packs.** Each opponent has a
+  signature card, won with their second star. Ragnaros is the reward for
+  every star on the circuit. All of them can also be crafted, for 400.
 
-Wins give 3 shards, losses and draws 1. Ending a match early gives nothing.
+Where packs and shards come from:
 
-### Opponents
+| | |
+|---|---|
+| First win of the day | 1 pack |
+| Every 20 minutes on a flight path | 1 pack |
+| Every tenth level | 1 pack |
+| A win | 2, 4 or 6 shards by the opponent's level. The first 3 wins a day against each opponent pay in full, later ones 1 |
+| A loss or draw that reached round 4 | 1 shard |
+| The daily task | 10 shards |
+| A level, a new flight path | 5 shards each |
 
-| | Level | Deck |
-|---|---|---|
-| Flightmaster Dorn | easy | beasts |
-| Sally Mudwhistle | normal | Booty Bay crew, removal |
-| Innkeeper Grumbletusk | normal | Horde tavern, Rally, Hogger |
-| Archmage Pellwick | hard | spells and ranged |
-| Lady Katrana Prestor | hard | the boss: guards, venom, Onyxia |
+Ending a match early pays nothing.
+
+The numbers are set for a pace of about three quarters of the pack cards in
+three weeks of casual play and one of everything in two to three months. A
+test simulates that and fails if a change moves it.
+
+### Opponents and stars
+
+The circuit is a ladder: beating an opponent opens the next one.
+
+| | Level | Deck | Signature card |
+|---|---|---|---|
+| Flightmaster Dorn | easy | beasts | King Bangalash |
+| Old Bluegill | easy | murlocs | Old Murk-Eye |
+| Sally Mudwhistle | normal | Booty Bay crew, removal | Fleet Master Seahorn |
+| Innkeeper Grumbletusk | normal | Horde tavern, Rally | Hogger |
+| Lil Fingers | normal | Defias, stealth and tricks | Edwin VanCleef |
+| Sexton Graves | hard | undead that come back | Baron Rivendare |
+| Archmage Pellwick | hard | spells and ranged | Azuregos |
+| Lady Katrana Prestor | hard | the boss: guards, venom | Onyxia |
+
+Each opponent has three stars:
+
+1. **Victory**: win. Pays a pack and opens the next opponent.
+2. **Decisive**: win with at least 6 more Morale than them. Pays their
+   signature card.
+3. **Rank and file**: win with a deck that has no rare, epic or legendary
+   cards. Pays 2 packs.
+
+There is also one **daily task** (shown under the opponent list), such as
+"Destroy 10 enemy units" or "Play 6 Beasts".
 
 The computer plays honestly: it builds random legal plans, plays each one out
 on a copy of the game where you do nothing new, scores the board and keeps the
@@ -120,9 +156,12 @@ and also check each one against you blocking their best attacker.
   random number generator, so the same seed and plans always give the same
   game. That's what lets the computer simulate, and what player-vs-player will
   use later (both clients run the same game and only send plans).
-- `Engine/Cards.lua`: the card set. `Engine/AI.lua`: the computer opponent.
-- `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs
-  and rewards (saved per character in `DeckhandCharDB`).
+- `Engine/Cards.lua`, `Engine/CardsRoads.lua`: the two card sets.
+  `Engine/AI.lua`: the computer opponent.
+- `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs,
+  crafting, stars, daily tasks and rewards (saved per character in
+  `DeckhandCharDB`, with numbered migrations).
+- `Art/`: textures, generated by `tools/gen_art.py`.
 - `UI/`: the window (`Main`), board (`Game`), binder and deck (`Binder`),
   pack opening (`Packs`), shared widgets and tooltips (`Widgets`), creature
   portraits (`Portraits`).
@@ -140,15 +179,13 @@ python tests/run_tests.py
 ```
 
 `tests/engine.lua` checks every keyword and card effect, determinism, the copy
-limits, pack odds and rewards, and plays a few hundred AI-vs-AI games (to
-check for errors, game length and balance). `tests/ui.lua` loads the whole
+limits, pack odds, rewards, stars, crafting, save migrations and the pace of
+the collection, and plays a few hundred AI-vs-AI games (to check for errors,
+game length and balance). `tests/ui.lua` loads the whole
 addon against a strict WoW API mock, where an unknown widget method is an
 error. It plays games through the same functions the buttons call, then
 opens packs, edits the deck and takes a mock flight.
 
 ## Next
 
-- Player vs player over addon messages (friends and guild): challenge,
-  exchange seeds, send plans, compare a checksum each round.
-- Trading cards between players.
-- A class "banner" for decks, more sets, a daily puzzle.
+See `PLAN.md`.

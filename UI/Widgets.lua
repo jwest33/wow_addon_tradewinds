@@ -9,6 +9,7 @@ ns.UI = UI
 UI.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 UI.CARD_W, UI.CARD_H = 66, 92
 UI.TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
+UI.ART = "Interface\\AddOns\\" .. ns.ADDON_FOLDER .. "\\Art\\"   -- textures made by tools/gen_art.py
 
 UI.RARITY_COLOR = {
   common = { 0.80, 0.80, 0.80 },
@@ -406,7 +407,8 @@ function UI.CardTooltip(owner, id, unit, st, extra)
   local col = UI.RARITY_COLOR[c.rarity]
   tip:AddLine(c.name, col[1], col[2], col[3])
   local rarity = c.collectible and (c.rarity:gsub("^%l", string.upper)) or "Token"
-  tip:AddDoubleLine((c.type == "unit" and "Unit" or "Tactic") .. ", " .. rarity, c.cost .. " Supply",
+  local kind = c.type == "unit" and (c.tribe and (Cards.TRIBES[c.tribe] .. " unit") or "Unit") or "Tactic"
+  tip:AddDoubleLine(kind .. ", " .. rarity, c.cost .. " Supply",
     0.65, 0.65, 0.65, 0.45, 0.65, 1)
   local kw = c.kw
   if c.type == "unit" then
@@ -427,6 +429,13 @@ function UI.CardTooltip(owner, id, unit, st, extra)
     if (unit.tmpAtk or 0) > 0 then tip:AddLine(("+%d attack this round."):format(unit.tmpAtk), 0.3, 1, 0.3) end
   end
   if c.flavor then tip:AddLine("\"" .. c.flavor .. "\"", 0.55, 0.55, 0.55, true) end
+  if c.signature and not unit then
+    local o = ns.OpponentById[c.signature]
+    tip:AddLine(o and ("Signature card: not in packs. Earn %s's second star, or craft it."):format(o.short)
+      or "Not in packs. Earn every star on the circuit, or craft it.", 1, 0.82, 0, true)
+  elseif c.collectible and c.rarity == "legendary" and not unit then
+    tip:AddLine("Not in packs.", 1, 0.82, 0, true)
+  end
   if extra then
     for _, line in ipairs(extra) do tip:AddLine(line, 0.85, 0.85, 0.85, true) end
   end

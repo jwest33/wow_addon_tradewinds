@@ -9,7 +9,7 @@ end
 
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
-local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/AI.lua"] = true,
+local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Deckhand.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
@@ -317,6 +317,265 @@ do -- guided draws: round 1 a 1-cost unit, round 2 cost <= 2, round 3 cost <= 3
   check(bad[2] == 0 and bad[3] == 0, ("round 2/3 draws within supply (%d, %d over)"):format(bad[2], bad[3]))
 end
 
+-- 2b. the second set: tribes, auras and its cards -----------------------------------
+do
+  local function arrive(st, p, lane, id)
+    local u = R.Summon(st, p, lane, id)
+    Cards.byId[id].arrive(st, u)
+    R.Cleanup(st)
+    return u
+  end
+  local function cast(st, p, id, lane)
+    Cards.byId[id].play(st, p, lane)
+    R.Cleanup(st)
+  end
+  local function kill(st, u)
+    R.Damage(st, u, 99)
+    R.Cleanup(st)
+  end
+
+  for _, c in ipairs(Cards.list) do
+    if c.tribe then check(Cards.TRIBES[c.tribe], c.id .. " tribe " .. tostring(c.tribe)) end
+    if c.aura then check(type(c.aura.atk) == "number" and (not c.aura.tribe or Cards.TRIBES[c.aura.tribe]), c.id .. " aura") end
+    check(Cards.SETS[c.set], c.id .. " set")
+  end
+  check(Cards.byId.wolf.tribe == "beast" and Cards.byId.onyxia.tribe == "dragonkin" and Cards.byId.kobold.tribe == nil,
+    "core cards have their tribes")
+  for _, o in ipairs(ns.Opponents) do
+    local c = Cards.byId[o.signature]
+    check(c and c.collectible and c.signature == o.id and not C.InPacks(c.id), o.name .. " has a signature card outside packs")
+  end
+  check(Cards.byId[ns.CHAMPION_CARD].signature == "champion" and not C.InPacks(ns.CHAMPION_CARD), "the champion's card isn't in packs")
+
+  -- Beasts
+  local st = blank()
+  put(st, 1, 1, "wolf")
+  check(arrive(st, 1, 2, "cub").atk == 2, "cub: +1 attack with another Beast")
+  check(arrive(blank(), 1, 2, "cub").atk == 1, "cub: nothing alone")
+
+  st = blank()
+  local pl = put(st, 1, 1, "packleader")
+  local w, k = put(st, 1, 3, "wolf"), put(st, 1, 2, "kobold")
+  local ew = put(st, 2, 1, "wolf")
+  check(R.Attack(st, w) == 2 and R.Attack(st, k) == 1 and R.Attack(st, pl) == 2 and R.Attack(st, ew) == 1,
+    "packleader: +1 attack for your other Beasts only")
+  local view = { players = { { board = R.DeepCopy(st.players[1].board) }, { board = {} } } }
+  check(R.Attack(view, view.players[1].board[3]) == 2, "auras work on a replay view")
+
+  st = blank()
+  arrive(st, 1, 2, "tamer")
+  check(st.players[1].board[1] and st.players[1].board[1].id == "hound" and not st.players[1].board[3], "tamer: one hound beside it")
+  st = blank()
+  put(st, 1, 1, "kobold")
+  arrive(st, 1, 2, "tamer")
+  check(st.players[1].board[3] and st.players[1].board[3].id == "hound", "tamer: the other side when the first is taken")
+  st = blank()
+  put(st, 1, 1, "kobold"); put(st, 1, 3, "kobold")
+  arrive(st, 1, 2, "tamer")
+  check(#R.Units(st, 1) == 3, "tamer: no room, no hound")
+
+  st = blank()
+  put(st, 1, 1, "wolf"); put(st, 1, 2, "boar"); put(st, 1, 4, "kobold")
+  local g = arrive(st, 1, 3, "gorilla")
+  check(g.atk == 6 and g.hp == 7 and g.maxHp == 7, "gorilla: +1/+1 per other Beast")
+
+  st = blank()
+  local b = put(st, 1, 1, "bangalash")
+  kill(st, put(st, 1, 2, "wolf"))
+  check(b.atk == 5 and b.hp == 4, "bangalash grows when your Beast dies")
+  kill(st, put(st, 1, 2, "kobold"))
+  kill(st, put(st, 2, 2, "wolf"))
+  check(b.atk == 5, "bangalash: not for other units or enemy Beasts")
+
+  st = blank()
+  w, k = put(st, 1, 1, "wolf"), put(st, 1, 2, "kobold")
+  cast(st, 1, "callwild")
+  check(w.atk == 2 and w.hp == 2 and k.atk == 1 and k.hp == 2, "call of the wild buffs Beasts only")
+
+  -- Murlocs
+  st = blank()
+  local cr = put(st, 1, 1, "coastrunner")
+  check(R.Attack(st, cr) == 1, "coastrunner alone")
+  put(st, 1, 2, "murloc"); put(st, 1, 3, "scout"); put(st, 1, 4, "kobold"); put(st, 2, 1, "murloc")
+  check(R.Attack(st, cr) == 3, "coastrunner: +1 per other Murloc of yours")
+  st = blank()
+  local me = put(st, 1, 1, "murkeye")
+  put(st, 1, 2, "warrior")
+  check(R.Attack(st, me) == 4, "murk-eye: +1 for the other Murloc, +1 from the warrior's aura")
+
+  st = blank()
+  arrive(st, 1, 4, "tidehunter")
+  check(st.players[1].board[3] and st.players[1].board[3].id == "scout", "tidehunter brings a scout")
+
+  st = blank()
+  put(st, 2, 1, "grunt")
+  st.players[1].hand = { "netter" }
+  R.Resolve(st, { { { h = 1, lane = 1 } }, {} }, { noAdvance = true })
+  check(st.players[1].board[1].hp == 3 and st.players[2].board[1].hp == 3, "netter: the unit across doesn't strike that round")
+
+  st = blank()
+  local m1, k1 = put(st, 1, 1, "murloc"), put(st, 1, 3, "kobold")
+  local o = arrive(st, 1, 2, "oracle")
+  check(m1.atk == 3 and m1.hp == 2 and k1.atk == 1 and o.atk == 2, "oracle: +1/+1 for your other Murlocs")
+
+  st = blank()
+  put(st, 1, 2, "kobold")
+  cast(st, 1, "shoal")
+  local sb = st.players[1].board
+  check(sb[1].id == "scout" and sb[2].id == "kobold" and sb[3].id == "scout" and sb[4].id == "scout", "shoal fills your empty lanes")
+
+  -- Undead
+  st = blank()
+  local c1 = put(st, 2, 1, "croc")
+  kill(st, put(st, 1, 1, "skeleton"))
+  check(c1.hp == 4, "skeleton: 1 damage across when it falls")
+
+  st = blank()
+  kill(st, put(st, 1, 2, "corpse"))
+  check(st.players[1].board[2] and st.players[1].board[2].id == "bones", "corpse leaves a skeleton in its lane")
+
+  st = blank()
+  put(st, 1, 2, "necro")
+  R.StartRound(st)
+  check(st.players[1].board[1] and st.players[1].board[1].id == "bones", "necromancer raises a skeleton each round")
+  R.StartRound(st)
+  check(st.players[1].board[3] and st.players[1].board[3].id == "bones", "and another, on the other side")
+
+  st = blank()
+  local gr = put(st, 2, 1, "grunt")
+  kill(st, put(st, 1, 1, "banshee"))
+  check(gr.atk == 1 and R.Attack(st, gr) == 1, "banshee: -2 attack across when she falls")
+  kill(st, put(st, 1, 1, "banshee"))
+  check(R.Attack(st, gr) == 0, "attack never goes below 0")
+
+  st = blank()
+  local co, ko = put(st, 1, 1, "corpse"), put(st, 1, 3, "kobold")
+  arrive(st, 1, 2, "rivendare")
+  check(co.atk == 3 and co.hp == 3 and co.kw.sturdy and ko.atk == 1 and not ko.kw.sturdy, "rivendare: your other Undead get +1/+1 and Sturdy")
+
+  st = blank()
+  st.players[1].morale = 5
+  local t1 = put(st, 2, 2, "thug")
+  cast(st, 1, "deathcoil", 2)
+  check(t1.hp == 1 and st.players[1].morale == 7, "death coil: 2 damage and 2 Morale")
+
+  st = blank()
+  st.players[1].grave = { "grunt", "fireball", "potion" }
+  cast(st, 1, "raise")
+  local raised = R.Units(st, 1)
+  check(#raised == 1 and raised[1].id == "grunt" and raised[1].hp == 4, "raise dead brings back the last unit that died")
+  st = blank()
+  st.players[1].grave = { "fireball" }
+  cast(st, 1, "raise")
+  check(#R.Units(st, 1) == 0, "raise dead with no dead unit does nothing")
+
+  -- Defias
+  st = blank()
+  local fp = put(st, 2, 1, "footpad")
+  cast(st, 1, "fireball", 1)
+  check(fp.hp == 2 and st.players[2].morale == M, "footpad: Stealth, tactics can't target it")
+
+  st = blank()
+  arrive(st, 1, 1, "pillager")
+  check(st.players[2].morale == M - 1, "pillager: the enemy loses 1 Morale")
+
+  st = blank()
+  local hand = #st.players[1].hand
+  arrive(st, 1, 1, "smuggler")
+  check(#st.players[1].hand == hand, "smuggler alone draws nothing")
+  put(st, 1, 2, "thug")
+  arrive(st, 1, 3, "smuggler")
+  check(#st.players[1].hand == hand + 1, "smuggler with another Defias draws a card")
+
+  st = blank()
+  local th = put(st, 1, 1, "thug")
+  put(st, 1, 2, "taskmaster")
+  check(R.Attack(st, th) == 3 and R.Attack(st, put(st, 1, 3, "kobold")) == 1, "taskmaster: +1 attack for your other Defias")
+
+  st = blank()
+  put(st, 2, 1, "grunt"); put(st, 2, 2, "grunt"); put(st, 2, 3, "grunt")
+  local far = put(st, 2, 4, "grunt")
+  far.lane = 4
+  st.players[1].hand = { "smite" }
+  R.Resolve(st, { { { h = 1, lane = 2 } }, {} }, { noAdvance = true })
+  check(st.players[1].board[2].hp == 5 and st.players[1].morale == M - 3, "mr. smite freezes the three units in front; the fourth still strikes")
+
+  st = blank()
+  local old = put(st, 2, 2, "grunt")
+  st.players[1].hand = { "ambush", "ambush" }
+  st.players[2].hand = { "grunt" }
+  R.Resolve(st, { { { h = 1, lane = 1 }, { h = 2, lane = 2 } }, { { h = 1, lane = 1 } } }, { noAdvance = true })
+  check(st.players[2].board[1] == nil and old.hp == 4, "ambush: 4 damage to a unit that arrived this round, nothing to an older one")
+
+  st = blank()
+  local vk = put(st, 1, 1, "kobold")
+  Cards.byId.vanish.play(st, 1, 1)
+  check(vk.kw.stealth and R.Attack(st, vk) == 3, "vanish: Stealth and +2 attack")
+  R.EndRound(st)
+  check(vk.kw.stealth and R.Attack(st, vk) == 1, "the attack is for this round only")
+
+  -- Dragonkin
+  st = blank()
+  local e1, e2 = put(st, 2, 1, "kobold"), put(st, 2, 3, "croc")
+  arrive(st, 1, 2, "drake")
+  check(e1.hp == 1 and e2.hp == 4, "drake: 1 damage to every enemy unit")
+
+  st = blank()
+  local wh = put(st, 1, 1, "whelp")
+  put(st, 1, 2, "technician")
+  check(R.Attack(st, wh) == 3 and R.Attack(st, put(st, 1, 3, "kobold")) == 1, "technician: +1 attack for your Dragonkin")
+
+  st = blank()
+  wh = put(st, 1, 1, "whelp")
+  arrive(st, 1, 2, "drakkisath")
+  check(wh.hp == 3 and wh.maxHp == 3 and R.Attack(st, wh) == 3, "drakkisath: +2 health for your other Dragonkin, and Rally")
+
+  st = blank()
+  local f1, f2, f3, f4 = put(st, 2, 1, "croc"), put(st, 2, 2, "croc"), put(st, 2, 3, "croc"), put(st, 2, 4, "croc")
+  cast(st, 1, "flamebreath", 2)
+  check(f1.hp == 3 and f2.hp == 1 and f3.hp == 3 and f4.hp == 5, "flame breath: 4 in the lane, 2 beside it")
+
+  -- Neutral
+  st = blank()
+  arrive(st, 1, 1, "peon")
+  check(st.players[1].morale == M - 1, "peon costs you 1 Morale")
+
+  st = blank()
+  st.players[1].morale = 6
+  put(st, 1, 1, "chaplain")
+  R.StartRound(st)
+  check(st.players[1].morale == 7, "chaplain restores 1 Morale each round")
+
+  st = blank()
+  local s1, s2, s4 = put(st, 2, 1, "croc"), put(st, 2, 2, "croc"), put(st, 2, 4, "croc")
+  kill(st, put(st, 1, 2, "sapper"))
+  check(s1.hp == 4 and s2.hp == 4 and s4.hp == 5, "sapper: 1 damage across and beside when it falls")
+
+  st = blank()
+  hand = #st.players[1].hand
+  arrive(st, 1, 1, "seahorn")
+  check(#st.players[1].hand == hand + 2, "seahorn draws 2 cards")
+
+  st = blank()
+  put(st, 2, 1, "grunt"); put(st, 2, 2, "grunt"); put(st, 2, 3, "grunt")
+  cast(st, 1, "warstomp", 2)
+  combatOnly(st)
+  check(st.players[1].morale == M, "war stomp: none of the three strike")
+
+  st = blank()
+  k = put(st, 1, 1, "kobold")
+  cast(st, 1, "might", 1)
+  R.EndRound(st)
+  check(k.atk == 3, "blessing of might: +2 attack that stays")
+
+  st = blank()
+  local hurt, fresh, tough = put(st, 2, 1, "croc"), put(st, 2, 2, "croc"), put(st, 2, 3, "ghoul")
+  hurt.hp, tough.hp = 4, 1
+  cast(st, 1, "execute", 1); cast(st, 1, "execute", 2); cast(st, 1, "execute", 3)
+  check(st.players[2].board[1] == nil and fresh.hp == 5, "execute destroys a damaged unit only")
+  check(st.players[2].board[3] == tough and tough.hp == 1 and not tough.kw.sturdy, "Sturdy survives an execute, once")
+end
+
 -- 3. determinism ------------------------------------------------------------------
 local function serialize(v, out)
   out = out or {}
@@ -440,28 +699,56 @@ do
   C.Init(db)
   check(#db.deck == 20 and C.CheckDeck(db), "new character gets a legal starter deck")
   check(db.packs == C.STARTER_PACKS, "starter packs")
+
+  -- packs
   local rnd = lcg(77)
   local counts = { common = 0, uncommon = 0, rare = 0, epic = 0, legendary = 0 }
-  local N = 20000
+  local N, outside = 20000, 0
   for _ = 1, N do
-    for _, id in ipairs(C.RollPack(rnd)) do
-      local r = Cards.byId[id].rarity
-      counts[r] = counts[r] + 1
+    for _, id in ipairs((C.RollPack(rnd))) do
+      local c = Cards.byId[id]
+      counts[c.rarity] = counts[c.rarity] + 1
+      if not C.InPacks(id) then outside = outside + 1 end
     end
   end
   print(("pack odds per pack: C %.2f U %.2f R %.3f E %.3f L %.3f"):format(counts.common / N, counts.uncommon / N,
     counts.rare / N, counts.epic / N, counts.legendary / N))
-  check(math.abs(counts.legendary / N - 0.035) < 0.006, "legendary odds")
-  check(math.abs(counts.epic / N - 0.125) < 0.012, "epic odds")
+  check(counts.common == 2 * N and counts.legendary == 0 and outside == 0, "a pack: two commons, no legendary or signature cards")
+  check(math.abs(counts.epic / N - C.PACK_ODDS.epic / 100) < 0.006, "epic odds")
+  check(math.abs(counts.rare / N - C.PACK_ODDS.rare / 100) < 0.012, "rare odds")
+  local dry = function(n) return n end   -- the die always comes up highest: never a rare or an epic by luck
+  local pity, sawEpic = 0, {}
+  for i = 1, C.PITY * 2 do
+    local cards
+    cards, pity = C.RollPack(dry, pity)
+    if Cards.byId[cards[3]].rarity == "epic" then sawEpic[#sawEpic + 1] = i end
+  end
+  check(#sawEpic == 2 and sawEpic[1] == C.PITY and sawEpic[2] == C.PITY * 2, "an epic at least every " .. C.PITY .. " packs")
 
   local res = C.OpenPack(db, rnd)
-  check(res and #res == 5 and db.packs == C.STARTER_PACKS - 1, "open pack")
+  check(res and #res == C.PACK_SIZE and db.packs == C.STARTER_PACKS - 1 and db.progress.pity == 1, "open pack")
   db.collection.onyxia = 1
   local kind, sh = C.Add(db, "onyxia")
-  check(kind == "shards" and sh == 25, "extra legendary becomes shards")
-  db.shards = 25
-  check(C.BuyPack(db) and db.shards == 5, "buy a pack with shards")
+  check(kind == "shards" and sh == C.SHARD_VALUE.legendary, "extra legendary becomes shards")
+  db.shards = C.PACK_COST + 5
+  check(C.BuyPack(db) and db.shards == 5 and not C.BuyPack(db), "buy a pack with shards")
 
+  -- crafting
+  db.collection.bruiser = nil
+  db.shards = C.CRAFT_COST.rare - 1
+  check(not C.CanCraft(db, "bruiser") and not C.Craft(db, "bruiser") and db.collection.bruiser == nil, "can't craft without the shards")
+  db.shards = C.CRAFT_COST.rare
+  check(C.Craft(db, "bruiser") and db.collection.bruiser == 1 and db.shards == 0, "craft a rare")
+  db.shards = 5000
+  check(C.CraftCost("hogger") == C.SIGNATURE_CRAFT_COST and C.CraftCost("ragnaros") == C.CRAFT_COST.legendary
+    and C.CraftCost("kazzak") == C.CRAFT_COST.epic, "craft costs: signature cards cost the most")
+  db.collection.kobold = 2
+  check(not C.CanCraft(db, "kobold") and not C.CanCraft(db, "runt"), "no crafting past the copy limit, no tokens")
+  db.collection.rivendare = nil
+  check(C.Craft(db, "rivendare") and not C.CanCraft(db, "rivendare"), "one legendary")
+  db.shards = 0
+
+  -- decks
   check(not C.CanAdd(db, "kobold"), "deck full")
   C.DeckRemove(db, "kobold")
   check(C.CanAdd(db, "kobold"), "room for a kobold again")
@@ -480,23 +767,126 @@ do
   db.collection.kobold, db.collection.murloc = 2, 2
   check(C.CheckDeck(db), "two 1-cost units make it legal")
   db.deck = saved
-  local r = C.RecordResult(db, "dorn", "win", "2026-11-19")
-  local packs = 0
-  for _, x in ipairs(r) do packs = packs + (x.packs or 0) end
-  check(packs == 2, "first win ever and of the day: 2 packs")
-  r = C.RecordResult(db, "dorn", "win", "2026-11-19")
-  packs = 0
-  for _, x in ipairs(r) do packs = packs + (x.packs or 0) end
-  check(packs == 0, "second win the same day: no pack")
-  local before = db.packs
-  check(C.AddTravel(db, 1250) == 2 and db.packs == before + 2 and db.progress.travel == 50, "travel packs")
+  check(C.PlainDeck(C.STARTER) and not C.PlainDeck({ "kobold", "bruiser" }) and C.PlainDeck({ "kobold", "tinker" }),
+    "a plain deck has nothing rarer than uncommon")
 
-  -- ending a match early: a loss with no reward
-  local shards, losses = db.shards, db.stats.losses
-  r = C.RecordResult(db, "dorn", "loss", "2026-11-19", true)
-  check(#r == 0 and db.shards == shards and db.stats.losses == losses + 1, "a conceded match pays nothing")
-  r = C.RecordResult(db, "dorn", "loss", "2026-11-19")
-  check(#r == 1 and db.shards == shards + 1, "a played-out loss still pays a shard")
+  -- rewards, stars and the ladder
+  local function tally(list)
+    local t = { packs = 0, shards = 0, stars = 0, cards = {}, unlocked = {} }
+    for _, r in ipairs(list) do
+      t.packs = t.packs + (r.packs or 0)
+      t.shards = t.shards + (r.shards or 0)
+      if r.star then t.stars = t.stars + 1 end
+      if r.card then t.cards[#t.cards + 1] = r end
+      if r.unlocked then t.unlocked[#t.unlocked + 1] = r.unlocked end
+    end
+    return t
+  end
+  local day, nextDay = "2026-11-19", "2026-11-20"
+  local function quiet(d) db.daily = { date = d, id = "rounds", n = 0, done = false } end   -- a task wins don't touch
+  quiet(day)
+  check(C.Unlocked(db, "dorn") and not C.Unlocked(db, "bluegill") and not C.Unlocked(db, "prestor"), "only the first opponent is open")
+  local packs, shards = db.packs, db.shards
+  local t = tally(C.RecordResult(db, "dorn", "win", day))
+  check(t.packs == 2 and t.stars == 1 and t.shards == C.REWARD.win.easy, "first win: a star, its pack, the day's pack, shards")
+  check(db.packs == packs + 2 and db.shards == shards + C.REWARD.win.easy, "and they're paid once")
+  check(t.unlocked[1] == "bluegill" and C.Unlocked(db, "bluegill") and not C.Unlocked(db, "sally"), "the next opponent opens")
+  db.collection.bangalash = nil
+  t = tally(C.RecordResult(db, "dorn", "win", day, { margin = C.REWARD.decisive, plain = true }))
+  check(t.stars == 2 and t.packs == 2 and #t.cards == 1 and t.cards[1].card == "bangalash" and t.cards[1].kind == "new"
+    and db.collection.bangalash == 1, "second and third star: the signature card and two packs")
+  local _, n = C.Stars(db, "dorn")
+  check(n == 3, "three stars")
+  t = tally(C.RecordResult(db, "dorn", "win", day, { margin = 9, plain = true }))
+  check(t.stars == 0 and t.packs == 0 and #t.cards == 0 and t.shards == C.REWARD.win.easy, "stars pay once; third win of the day still pays in full")
+  t = tally(C.RecordResult(db, "dorn", "win", day))
+  check(t.shards == C.REWARD.reducedWin, "the fourth win against the same opponent that day pays less")
+  quiet(nextDay)
+  t = tally(C.RecordResult(db, "dorn", "win", nextDay))
+  check(t.shards == C.REWARD.win.easy and t.packs == 1, "next day: full pay again, and the first-win pack")
+  t = tally(C.RecordResult(db, "prestor", "win", nextDay, { margin = 1 }))
+  check(t.shards == C.REWARD.win.hard and t.stars == 1, "harder opponents pay more")
+
+  shards = db.shards
+  check(#C.RecordResult(db, "dorn", "loss", nextDay, { round = C.REWARD.lossRound - 1 }) == 0, "a loss before round 4 pays nothing")
+  check(tally(C.RecordResult(db, "dorn", "loss", nextDay, { round = C.REWARD.lossRound })).shards == C.REWARD.loss, "a later loss pays a shard")
+  check(tally(C.RecordResult(db, "dorn", "draw", nextDay, { round = 8 })).shards == C.REWARD.loss, "so does a draw")
+  local losses = db.stats.losses
+  check(#C.RecordResult(db, "dorn", "loss", nextDay, { round = 8, conceded = true }) == 0 and db.stats.losses == losses + 1,
+    "a conceded match counts and pays nothing")
+  check(db.shards == shards + 2 * C.REWARD.loss, "losses paid once")
+
+  db.collection.hogger = 2
+  shards = db.shards
+  t = tally(C.RecordResult(db, "grumbletusk", "win", nextDay, { margin = 7 }))
+  check(#t.cards == 1 and t.cards[1].kind == "shards" and t.cards[1].dupe == C.SHARD_VALUE.epic
+    and db.shards == shards + C.REWARD.win.normal + C.SHARD_VALUE.epic, "a signature card you can't use more of becomes shards")
+
+  for _, o in ipairs(ns.Opponents) do db.stars[o.id] = { true, true, true } end
+  db.stars.prestor[3] = nil
+  db.collection.ragnaros = nil
+  check(not C.AllStars(db), "not every star yet")
+  t = tally(C.RecordResult(db, "prestor", "win", nextDay, { plain = true }))
+  check(C.AllStars(db) and #t.cards == 1 and t.cards[1].card == ns.CHAMPION_CARD and db.collection.ragnaros == 1,
+    "every star on the circuit: the champion's card")
+  t = tally(C.RecordResult(db, "prestor", "win", nextDay, { plain = true }))
+  check(#t.cards == 0, "once")
+
+  -- levels, flight paths, flight time
+  packs, shards = db.packs, db.shards
+  t = tally(C.LevelUp(db, 23))
+  check(t.shards == C.REWARD.level and t.packs == 0, "a level gives shards")
+  t = tally(C.LevelUp(db, 30))
+  check(t.shards == C.REWARD.level and t.packs == 1, "every tenth level also gives a pack")
+  t = tally(C.FlightPath(db))
+  check(t.shards == C.REWARD.flightPath and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath and db.packs == packs + 1,
+    "a new flight path gives shards")
+  local before = db.packs
+  db.progress.travel = 0
+  check(C.AddTravel(db, 2 * C.TRAVEL_PACK_SECONDS + 50) == 2 and db.packs == before + 2 and db.progress.travel == 50, "travel packs")
+
+  -- the daily task
+  local f = {}
+  C.Init(f)
+  local d1 = C.Daily(f, day)
+  check(C.TaskById[d1.id] and d1.n == 0 and C.Daily(f, day) == d1, "one task a day")
+  local prev, repeats, seen = d1.id, 0, {}
+  for i = 1, 60 do
+    local d = C.Daily(f, ("2027-%02d-%02d"):format(1 + math.floor((i - 1) / 28), 1 + (i - 1) % 28))
+    if d.id == prev then repeats = repeats + 1 end
+    prev = d.id
+    seen[d.id] = true
+  end
+  local kinds = 0
+  for _ in pairs(seen) do kinds = kinds + 1 end
+  check(repeats == 0 and kinds >= #C.TASKS - 1, "never the same task two days running, and they all come up (" .. kinds .. ")")
+
+  local events = {
+    { t = "die", p = 2 }, { t = "die", p = 1 }, { t = "morale", p = 2, delta = -3 }, { t = "morale", p = 1, delta = -2 },
+    { t = "morale", p = 2, delta = 2 }, { t = "tactic", p = 1 }, { t = "tactic", p = 2 },
+    { t = "place", p = 1, unit = { id = "wolf" } }, { t = "place", p = 1, unit = { id = "kobold" } },
+    { t = "place", p = 1, unit = { id = "runt" }, summon = true }, { t = "place", p = 2, unit = { id = "wolf" } },
+  }
+  for id, want in pairs({ kills = 1, morale = 3, tactics = 1, units = 2, beasts = 1, rounds = 1 }) do
+    f.daily = { date = day, id = id, n = 0, done = false }
+    check(C.TaskEvents(f, day, events, 1) == nil and f.daily.n == want, "task progress from a round: " .. id .. " (" .. f.daily.n .. ")")
+  end
+  f.daily = { date = day, id = "kills", n = C.TaskById.kills.goal - 1, done = false }
+  shards = f.shards
+  local r = C.TaskEvents(f, day, events, 1)
+  check(r and r.shards == C.REWARD.daily and f.daily.done and f.shards == shards + C.REWARD.daily, "finishing the task pays shards")
+  check(C.TaskEvents(f, day, events, 1) == nil and f.shards == shards + C.REWARD.daily, "once")
+
+  f.daily = { date = day, id = "wins", n = 1, done = false }
+  shards = f.shards
+  t = tally(C.RecordResult(f, "dorn", "win", day))
+  check(f.daily.done and f.shards == shards + C.REWARD.win.easy + C.REWARD.daily and t.shards == C.REWARD.win.easy + C.REWARD.daily,
+    "the win task finishes on a win, paid once")
+  f.daily = { date = day, id = "healthy", n = 0, done = false }
+  C.RecordResult(f, "dorn", "win", day, { morale = 7 })
+  check(not f.daily.done, "7 Morale left isn't 8")
+  C.RecordResult(f, "dorn", "win", day, { morale = 8 })
+  check(f.daily.done, "8 is")
 end
 
 -- 7. saved data: schema and migrations -----------------------------------------------
@@ -543,7 +933,84 @@ do
   damaged("unknown card in a deck", function(m) m.st.players[1].deck[1] = "gone" end)
   damaged("unknown unit on the board", function(m) m.st.players[1].board[2] = { id = "gone", kw = {} } end)
   damaged("not a table", function(m) m.st = 7 end)
+
+  -- migration 2: stars for opponents already beaten, nothing paid again
+  local v3 = {}
+  C.Init(v3)
+  v3.schema, v3.stars = 1, nil
+  v3.record = { dorn = { w = 2, l = 1, d = 0 }, sally = { w = 0, l = 3, d = 0 }, grumbletusk = { w = 1, l = 0, d = 0 } }
+  local p0, s0 = v3.packs, v3.shards
+  C.Init(v3, R.RULES_VERSION)
+  check(v3.schema == C.SCHEMA and v3.stars.dorn[1] and not v3.stars.dorn[2] and v3.stars.sally == nil, "migration 2: a star for each opponent already beaten")
+  check(v3.packs == p0 and v3.shards == s0, "migration 2 pays nothing")
+  check(C.Unlocked(v3, "bluegill") and not C.Unlocked(v3, "sally") and C.Unlocked(v3, "grumbletusk") and C.Unlocked(v3, "fingers")
+    and not C.Unlocked(v3, "graves"), "an opponent you had beaten stays open, and opens the one after")
 end
+
+-- 8. the pace of the collection -------------------------------------------------------
+-- How many packs (earned, not counting the ones bought with shards from
+-- duplicates) it takes to own the cards packs hold. At roughly 13 packs a week
+-- of casual play, the target is three quarters in two to three weeks and
+-- everything in two to three months; crafting shortens the tail further.
+do
+  local total, playset = 0, 0
+  for _, c in ipairs(Cards.collectible) do
+    if C.InPacks(c.id) then total = total + 1; playset = playset + C.MaxCopies(c.id) end
+  end
+  local function run(seed)
+    local rnd = lcg(seed)
+    local db = {}
+    C.Init(db)
+    db.packs = 0
+    local marks, earned = {}, 0
+    while not marks.all and earned < 2000 do
+      earned = earned + 1
+      db.packs = db.packs + 1
+      while db.packs > 0 do
+        C.OpenPack(db, rnd)
+        -- shards from duplicates: more packs early on; once most cards are
+        -- owned, craft the cheapest one still missing instead
+        local have, missing = 0, {}
+        for _, c in ipairs(Cards.collectible) do
+          if C.InPacks(c.id) then
+            if C.Owned(db, c.id) > 0 then have = have + 1 else missing[#missing + 1] = c.id end
+          end
+        end
+        if have >= total * 0.75 then
+          table.sort(missing, function(x, y) return C.CraftCost(x) < C.CraftCost(y) end)
+          for _, id in ipairs(missing) do
+            if not C.Craft(db, id) then break end
+          end
+        else
+          while C.BuyPack(db) do end
+        end
+      end
+      local have, copies = 0, 0
+      for _, c in ipairs(Cards.collectible) do
+        if C.InPacks(c.id) and C.Owned(db, c.id) > 0 then have = have + 1; copies = copies + C.Owned(db, c.id) end
+      end
+      if not marks.half and have >= total * 0.5 then marks.half = earned end
+      if not marks.most and have >= total * 0.75 then marks.most = earned end
+      if not marks.one and have == total then marks.one = earned end
+      if copies == playset then marks.all = earned end
+    end
+    return marks
+  end
+  local runs = {}
+  for seed = 1, 120 do runs[seed] = run(seed * 7919) end
+  local function median(key)
+    local v = {}
+    for i, r in ipairs(runs) do v[i] = r[key] or 2000 end
+    table.sort(v)
+    return v[math.floor(#v / 2) + 1]
+  end
+  local half, most, one, all = median("half"), median("most"), median("one"), median("all")
+  print(("collection pace: %d cards in packs; median packs to own 50%%: %d, 75%%: %d, one of each: %d, full playset: %d"):format(
+    total, half, most, one, all))
+  check(most >= 28 and most <= 48, "75% of the pack cards takes about three weeks of packs (" .. most .. ")")
+  check(one >= 90 and one <= 170, "one of every pack card takes two to three months of packs (" .. one .. ")")
+end
+
 
 print(("%d passed, %d failed"):format(passed, failed))
 RESULT = failed > 0

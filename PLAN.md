@@ -145,6 +145,24 @@ match playable.
 
 ### Phase 1: Rewards and progression (L)
 
+Status (v0.4.0, 2026-11-19): built, with these differences from the text
+below.
+
+- The set was doubled instead of waiting for Phase 4: "Roads of Azeroth", 49
+  cards around five tribes, and three new opponents (8 in all). Regional
+  packs are still to do.
+- Pack odds are rare 26% and epic 5%, tuned on the larger set. Measured pace:
+  half the pack cards at 19 packs, three quarters at 44, one of each at about
+  120. With the packs from stars that is roughly three weeks for three
+  quarters.
+- The second star pays the signature card. The third (a deck with no rares or
+  better) pays 2 packs.
+- Starter packs are 2 until the tutorial exists (then 1 + 1).
+- Not built yet: cosmetics (they need the new card face from Phase 2), heroic
+  rematches (they need the Phase 4 AI), the achievements page.
+- The new cards are tested for what they do, not yet for balance, and their
+  icons are unchecked in game.
+
 Target pace (change this if you want it faster or slower): a new card most
 sessions for the first two weeks, about 75% of the set in two to three weeks
 of casual play, the full playset in two to three months, and legendaries

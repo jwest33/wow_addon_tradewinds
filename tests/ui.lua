@@ -29,7 +29,7 @@ MOCK.Fire("PLAYER_LOGIN")
 MOCK.Fire("PLAYER_ENTERING_WORLD")
 MOCK.Advance(3)
 local db = DeckhandCharDB
-check(db and #db.deck == 20 and db.packs == 3, "fresh character set up")
+check(db and #db.deck == 20 and db.packs == C.STARTER_PACKS and db.schema == C.SCHEMA, "fresh character set up")
 check(DeckhandMinimapButton ~= nil and DeckhandMinimapButton:IsShown(), "minimap button")
 
 -- open the window
@@ -86,6 +86,26 @@ local function playGame(opp, concedeAt)
   end
   check(db.match == nil, "game vs " .. opp .. " finished (" .. rounds .. " rounds)")
   G.Continue()
+end
+
+-- the ladder: only the first opponent is open
+do
+  G.Refresh()
+  G.Start("sally")
+  check(db.match == nil and MOCK.errors[#MOCK.errors]:find("Beat Bluegill first"), "a locked opponent can't be started")
+  -- the lobby row's tooltip lists the stars
+  local probe = CreateFrame("Button", nil, UIParent)
+  UI.CardTooltip(probe, "bangalash")
+  local found = false
+  for _, line in ipairs(GameTooltip.lines) do
+    if tostring(line):find("Signature card") then found = true end
+  end
+  check(found, "a signature card says where it comes from")
+end
+-- the rest of this file plays everyone, so open the whole ladder
+for _, o in ipairs(ns.Opponents) do
+  db.stars[o.id] = db.stars[o.id] or {}
+  db.stars[o.id][1] = true
 end
 
 local packsBefore = db.packs
@@ -278,15 +298,62 @@ do
   UI.Packs.Open()
   check(db.packs == math.max(before, 2) - 1, "opening a pack uses it up")
   UI.Packs.RevealAll()
-  db.shards = 25
+  db.shards = C.PACK_COST + 5
   UI.Refresh()
   check(C.BuyPack(db) and db.shards == 5, "buy a pack")
   UI.Packs.Open(); UI.Packs.Open()
 end
 
+-- stars, rewards and the daily task through a real match
+do
+  db.daily = { date = ns.Today(), id = "rounds", n = C.TaskById.rounds.goal - 1, done = false }
+  db.stars.dorn = { true }
+  db.collection.bangalash = nil
+  db.progress.wins = nil
+  G.Start("dorn")
+  check(db.match.plain == true, "the starter deck is a plain deck")
+  local st = db.match.st
+  st.players[2].morale = 1
+  st.players[2].board = {}
+  st.players[1].board = {}
+  st.players[1].hand = { "grunt" }
+  st.players[2].hand = {}
+  st.players[1].supply = 3
+  local shards, chat = db.shards, #MOCK.chat
+  G.ClickHand(1, "LeftButton")
+  G.ClickSlot(1, 1, "LeftButton")
+  G.LockIn()
+  MOCK.Advance(60)
+  check(db.daily.done and db.shards >= shards + C.REWARD.daily, "playing the round finished the daily task")
+  local announced = false
+  for i = chat + 1, #MOCK.chat do
+    if MOCK.chat[i]:find("daily task") then announced = true end
+  end
+  check(announced, "and said so")
+  local _, stars = C.Stars(db, "dorn")
+  check(db.match == nil and stars == 3 and db.collection.bangalash == 1, "a decisive win with a plain deck: all three stars and the signature card")
+  G.Continue()
+  G.RefreshLobby()
+end
+
 -- binder / deck editing
 do
   UI.SelectTab("cards")
+  -- crafting: shift-click asks, then makes the card
+  db.collection.kazzak = nil
+  db.shards = C.CRAFT_COST.epic - 1
+  MOCK.shift = true
+  MOCK.popup = nil
+  UI.Binder.Click("kazzak", "LeftButton")
+  check(MOCK.popup == nil and MOCK.errors[#MOCK.errors]:find("costs 150 shards"), "crafting needs the shards")
+  db.shards = C.CRAFT_COST.epic + 3
+  UI.Binder.Click("kazzak", "LeftButton")
+  check(MOCK.popup and MOCK.popup.name == "DECKHAND_CRAFT" and db.collection.kazzak == nil, "crafting asks first")
+  StaticPopupDialogs.DECKHAND_CRAFT.OnAccept()
+  check(db.collection.kazzak == 1 and db.shards == 3, "confirmed: the card is made and the shards spent")
+  StaticPopupDialogs.DECKHAND_CRAFT.OnAccept()
+  check(db.collection.kazzak == 1 and db.shards == 3, "confirming twice makes one card")
+  MOCK.shift = false
   local n = #db.deck
   UI.Binder.Click("kobold", "RightButton")
   check(#db.deck == n - 1, "right-click takes a card out")
@@ -313,8 +380,8 @@ do
   MOCK.Advance(1)
   check(DeckhandToast and DeckhandToast:IsShown(), "flight toast")
   SlashCmdList.DECKHAND("")
-  MOCK.Advance(605)
-  check(db.packs == packs + 1, "a pack for 10 minutes in the air")
+  MOCK.Advance(C.TRAVEL_PACK_SECONDS + 5)
+  check(db.packs == packs + 1, "a pack for 20 minutes in the air")
   MOCK.speed = 7               -- landed, but UnitOnTaxi still says yes (seen on the live client)
   MOCK.Advance(2)
   check(not ns.Travel.IsFlying() and not DeckhandFrame:IsShown(), "landing detected by speed, window closed")
@@ -324,9 +391,12 @@ end
 -- other events and slash commands
 do
   local packs = db.packs
+  local shards = db.shards
   MOCK.Fire("PLAYER_LEVEL_UP", 23)
   MOCK.Fire("UI_INFO_MESSAGE", 0, "New flight path discovered!")
-  check(db.packs == packs + 2, "level up and new flight path give packs")
+  check(db.packs == packs and db.shards == shards + C.REWARD.level + C.REWARD.flightPath, "a level and a new flight path give shards")
+  MOCK.Fire("PLAYER_LEVEL_UP", 30)
+  check(db.packs == packs + 1 and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath, "every tenth level gives a pack too")
   SlashCmdList.DECKHAND("")
   MOCK.Fire("PLAYER_REGEN_DISABLED")
   check(not DeckhandFrame:IsShown(), "combat closes the window")

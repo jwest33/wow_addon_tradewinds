@@ -1,5 +1,6 @@
--- The Cards tab: every card in the set (owned ones in colour) and your deck.
--- Left-click a card to put it in your deck, right-click to take it out.
+-- The Cards tab: every card (owned ones in colour) and your deck.
+-- Left-click a card to put it in your deck, right-click to take it out,
+-- shift-click to craft a copy with shards.
 local _, ns = ...
 local Cards, C = ns.Cards, ns.Collection
 local UI = ns.UI
@@ -31,11 +32,59 @@ local function cellExtra(card)
   local id = card.cardId
   local owned, inDeck = C.Owned(ns.db, id), C.Count(ns.db.deck, id)
   local lines = { ("Owned %d of %d.  In your deck: %d."):format(owned, C.MaxCopies(id), inDeck) }
-  if owned > 0 then lines[2] = "|cff40ff40Left-click: add to deck.  Right-click: take one out.|r" end
+  if owned > 0 then lines[#lines + 1] = "|cff40ff40Left-click: add to deck.  Right-click: take one out.|r" end
+  if owned < C.MaxCopies(id) then
+    local cost = C.CraftCost(id)
+    lines[#lines + 1] = ("%sShift-click: craft a copy for %d shards (you have %d).|r"):format(
+      ns.db.shards >= cost and "|cff9fdfff" or "|cff808080", cost, ns.db.shards)
+  end
   return lines
 end
 
+-- Crafting asks first.
+local crafting
+if StaticPopupDialogs then
+  StaticPopupDialogs.DECKHAND_CRAFT = {
+    text = "Craft %s for %s shards?",
+    button1 = "Craft",
+    button2 = "Cancel",
+    OnAccept = function() B.CraftNow() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+  }
+end
+
+function B.CraftNow()
+  local id = crafting
+  crafting = nil
+  if not id then return end
+  local ok, why = C.Craft(ns.db, id)
+  if ok then
+    ns.Print("Crafted %s for %d shards.", UI.CardName(id), why)
+  else
+    UI.Error(why)
+  end
+  UI.Refresh()
+end
+
+function B.Craft(id)
+  local ok, why = C.CanCraft(ns.db, id)
+  if not ok then UI.Error(why) return end
+  crafting = id
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.DECKHAND_CRAFT then
+    StaticPopup_Show("DECKHAND_CRAFT", Cards.byId[id].name, why)
+  else
+    B.CraftNow()
+  end
+end
+
 local function clickCard(id, button)
+  if button ~= "RightButton" and IsShiftKeyDown and IsShiftKeyDown() then
+    B.Craft(id)
+    return
+  end
   if button == "RightButton" then
     C.DeckRemove(ns.db, id)
   else
@@ -61,7 +110,9 @@ function B.Refresh()
       if owned == 0 then
         cell.card.art:SetDesaturated(true)
         cell.card:SetAlpha(0.45)
-        cell.label:SetText("|cff808080not found yet|r")
+        local sig = c.signature and ns.OpponentById[c.signature]
+        cell.label:SetText(sig and ("|cff808080win from " .. sig.short .. "|r")
+          or C.InPacks(c.id) and "|cff808080not found yet|r" or "|cff808080not in packs|r")
       else
         cell.label:SetText(("%s%d/%d|r  %s"):format(owned >= C.MaxCopies(c.id) and "|cffffd100" or "|cffffffff",
           owned, C.MaxCopies(c.id), inDeck > 0 and ("|cff40ff40" .. inDeck .. " in deck|r") or ""))
@@ -78,7 +129,7 @@ function B.Refresh()
   for _, c in ipairs(Cards.collectible) do
     if C.Owned(ns.db, c.id) > 0 then have = have + 1 end
   end
-  ctl.progress:SetText(("Collected %d of %d cards"):format(have, total))
+  ctl.progress:SetText(("Collected %d of %d cards    |cff9fdfff%d shards|r"):format(have, total, ns.db.shards))
   ctl.filter:SetText(ownedOnly and "Show all" or "Owned only")
 
   -- deck list: one row per card, cheapest first

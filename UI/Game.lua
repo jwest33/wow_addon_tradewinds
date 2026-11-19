@@ -491,9 +491,23 @@ local function showGameOver()
     math.max(0, st.players[OPP].morale), st.round,
     st.tiebreak and " (tie broken by units on the board)" or "")
   for _, r in ipairs(f.rewards) do
-    if r.packs then lines[#lines + 1] = ("|cffffd100+%d card pack|r (%s)"):format(r.packs, r.why) end
-    if r.shards then lines[#lines + 1] = ("|cff9fdfff+%d shard%s|r (%s)"):format(r.shards, r.shards == 1 and "" or "s", r.why) end
+    if r.star then
+      lines[#lines + 1] = ("|cffffd100Star earned: %s|r"):format(r.why)
+    elseif r.card then
+      if r.kind == "shards" then
+        lines[#lines + 1] = ("%s (you have it already: |cff9fdfff+%d shards|r)"):format(UI.CardName(r.card), r.dupe)
+      else
+        lines[#lines + 1] = ("New card: %s (%s)"):format(UI.CardName(r.card), r.why)
+      end
+    elseif r.unlocked then
+      lines[#lines + 1] = ("|cff40ff40%s will play you now.|r"):format(ns.OpponentById[r.unlocked].name)
+    elseif r.packs then
+      lines[#lines + 1] = ("|cffffd100+%d card pack%s|r (%s)"):format(r.packs, r.packs == 1 and "" or "s", r.why)
+    elseif r.shards then
+      lines[#lines + 1] = ("|cff9fdfff+%d shard%s|r (%s)"):format(r.shards, r.shards == 1 and "" or "s", r.why)
+    end
   end
+  if f.conceded then lines[#lines + 1] = "|cff909090Ended early: no reward.|r" end
   ov.body:SetText(table.concat(lines, "\n"))
   ov:Show()
 end
@@ -810,6 +824,8 @@ function G.LockIn()
     view = makeView(st)
     ns.db.match.st = nxt
     plan = {}
+    local task = C.TaskEvents(ns.db, ns.Today(), events, ME)
+    if task then ns.Announce({ task }) end
     replayMarks = {}
     G.Refresh()
     queue, qi, skipping = events, 1, false
@@ -828,6 +844,10 @@ function G.Start(oppId)
     UI.Error(why .. " Fix it in the Cards tab.")
     return
   end
+  if not C.Unlocked(ns.db, oppId) then
+    UI.Error(("Beat %s first."):format(ns.Opponents[o.index - 1].short))
+    return
+  end
   local mine, theirs = {}, {}
   for i, id in ipairs(ns.db.deck) do mine[i] = id end
   for i, id in ipairs(o.deck) do theirs[i] = id end
@@ -835,7 +855,8 @@ function G.Start(oppId)
     seed = math.random(1, 2147483646), decks = { mine, theirs },
     names = { UnitName and UnitName("player") or "You", o.name },
   })
-  ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION }
+  ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION,
+    plain = C.PlainDeck(mine) }
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
   G.Log("%s: \"%s\"", o.short, o.hello)
@@ -848,7 +869,10 @@ function G.EndGame(conceded)
   if not m then return end
   local st = m.st
   local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
-  local rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), conceded)
+  local mine, theirs = math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale)
+  local rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), {
+    conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain,
+  })
   finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded }
   ns.db.match = nil
   plan, sel = {}, nil
@@ -915,6 +939,8 @@ end
 local LEVEL_COLOR = { easy = "|cff40ff40Easy|r", normal = "|cffffd100Normal|r", hard = "|cffff6040Hard|r" }
 local rows = {}
 
+local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
+
 function G.RefreshLobby()
   local ok, why = C.CheckDeck(ns.db)
   if ok then
@@ -923,16 +949,33 @@ function G.RefreshLobby()
     lobby.deck:SetText("|cffff6040" .. why .. "|r Fix it in the Cards tab.")
   end
   for _, r in ipairs(rows) do
-    local rec = ns.db.record[r.opp.id]
-    if rec and (rec.w + rec.l + rec.d) > 0 then
+    local o = r.opp
+    local open = C.Unlocked(ns.db, o.id)
+    local stars = C.Stars(ns.db, o.id)
+    for i, tex in ipairs(r.stars) do
+      local col = stars[i] and STAR_ON or STAR_OFF
+      tex:SetVertexColor(col[1], col[2], col[3])
+    end
+    local rec = ns.db.record[o.id]
+    if not open then
+      r.record:SetText("Beat " .. ns.Opponents[o.index - 1].short .. " first")
+    elseif rec and (rec.w + rec.l + rec.d) > 0 then
       r.record:SetText(("Won %d  Lost %d%s"):format(rec.w, rec.l, rec.d > 0 and ("  Drawn " .. rec.d) or ""))
     else
       r.record:SetText("Not played yet")
     end
-    r.play:SetEnabled(ok and true or false)
+    r.play:SetText(open and "Play" or "Locked")
+    r.play:SetEnabled((ok and open) and true or false)
+    r:SetAlpha(open and 1 or 0.55)
   end
   local s = ns.db.stats
   lobby.stats:SetText(("Overall: %d won, %d lost, %d drawn"):format(s.wins, s.losses, s.draws))
+  local d, task = C.Daily(ns.db, ns.Today())
+  if d.done then
+    lobby.daily:SetText(("|cff40ff40Daily task done:|r %s."):format(task.text))
+  else
+    lobby.daily:SetText(("|cffffd100Daily task:|r %s  (%d/%d)  |cff9fdfff+%d shards|r"):format(task.text, d.n, task.goal, C.REWARD.daily))
+  end
 end
 
 local RULES_TEXT = table.concat({
@@ -950,7 +993,7 @@ local RULES_TEXT = table.concat({
   "",
   "Damage on units stays until they die. The game ends when someone's Morale reaches 0, or after round 8, and the higher Morale wins.",
   "",
-  "Hover any card to see what its keywords do. Earn packs by flying, winning, levelling and finding flight paths.",
+  "Hover any card to see what its keywords do. Beating an opponent unlocks the next one; each has three stars to earn. The Packs tab lists the ways to earn cards.",
 }, "\n")
 
 local function buildLobby()
@@ -969,44 +1012,67 @@ local function buildLobby()
 
   for i, o in ipairs(ns.Opponents) do
     local r = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
-    r:SetSize(PAGE_W - 8, 54)
-    r:SetPoint("TOPLEFT", 4, -40 - (i - 1) * 60)
+    r:SetSize(PAGE_W - 8, 38)
+    r:SetPoint("TOPLEFT", 4, -38 - (i - 1) * 41)
     UI.Backdrop(r, { 0.09, 0.08, 0.06, 0.9 }, { 0.3, 0.26, 0.18 })
     r.opp = o
     local icon = r:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(42, 42)
-    icon:SetPoint("LEFT", 6, 0)
+    icon:SetSize(30, 30)
+    icon:SetPoint("LEFT", 5, 0)
     icon:SetTexture(UI.Icon(o.icon))
-    local name = UI.Text(r, 13)
-    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
+    local name = UI.Text(r, 12)
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
     name:SetText(o.name)
     name:SetTextColor(1, 0.82, 0)
     local lvl = UI.Text(r, 10)
     lvl:SetPoint("LEFT", name, "RIGHT", 8, 0)
     lvl:SetText(LEVEL_COLOR[o.level] or o.level)
-    local ttl = UI.Text(r, 10)
-    ttl:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+    local ttl = UI.Text(r, 9)
+    ttl:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
     ttl:SetText(o.title)
     ttl:SetTextColor(0.7, 0.7, 0.7)
-    r.record = UI.Text(r, 10)
-    r.record:SetPoint("RIGHT", r, "RIGHT", -96, 0)
+    r.stars = {}
+    for k = 1, #C.STARS do
+      local tex = r:CreateTexture(nil, "ARTWORK")
+      tex:SetSize(15, 15)
+      tex:SetPoint("LEFT", r, "LEFT", 290 + (k - 1) * 17, 0)
+      tex:SetTexture(UI.ART .. "Star")
+      r.stars[k] = tex
+    end
+    r.record = UI.Text(r, 9)
+    r.record:SetPoint("RIGHT", r, "RIGHT", -94, 0)
     r.record:SetTextColor(0.75, 0.75, 0.75)
     r.play = UI.Button(r, "Play", 80, 24, function() G.Start(o.id) end)
     r.play:SetPoint("RIGHT", -8, 0)
     r:EnableMouse(true)
-    UI.SimpleTooltip(r, o.name, "\"" .. o.hello .. "\"")
+    r:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(o.name)
+      GameTooltip:AddLine("\"" .. o.hello .. "\"", 0.85, 0.85, 0.85, true)
+      local stars = C.Stars(ns.db, o.id)
+      for k, s in ipairs(C.STARS) do
+        if stars[k] then
+          GameTooltip:AddLine(s.name .. ": earned", 0.4, 1, 0.4)
+        else
+          GameTooltip:AddLine(("%s: %s Reward: %s."):format(s.name, s.text, k == 2 and UI.CardName(o.signature) or s.reward),
+            1, 0.82, 0, true)
+        end
+      end
+      if not C.Unlocked(ns.db, o.id) then
+        GameTooltip:AddLine(("Locked: beat %s first."):format(ns.Opponents[o.index - 1].short), 1, 0.4, 0.4)
+      end
+      GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
     rows[i] = r
   end
 
+  lobby.daily = UI.Text(lobby, 10)
+  lobby.daily:SetPoint("BOTTOMLEFT", 6, 19)
+  lobby.daily:SetTextColor(0.85, 0.85, 0.85)
   lobby.stats = UI.Text(lobby, 10)
-  lobby.stats:SetPoint("BOTTOMLEFT", 6, 30)
+  lobby.stats:SetPoint("BOTTOMLEFT", 6, 4)
   lobby.stats:SetTextColor(0.75, 0.75, 0.75)
-  local foot = UI.Text(lobby, 10)
-  foot:SetPoint("BOTTOMLEFT", 6, 4)
-  foot:SetWidth(PAGE_W - 12)
-  foot:SetJustifyH("LEFT")
-  foot:SetText("Win: +3 shards, plus a pack for your first win of the day and your first win against each opponent. Lose or draw: +1 shard.")
-  foot:SetTextColor(0.6, 0.6, 0.6)
 
   local rules = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
   rules:SetPoint("TOPLEFT", 30, -30)
@@ -1307,18 +1373,19 @@ local function buildBoard()
   shade:SetAllPoints()
   shade:SetColorTexture(0, 0, 0, 0.55)
   local box = CreateFrame("Frame", nil, ov, UI.TEMPLATE)
-  box:SetSize(340, 190)
-  box:SetPoint("CENTER", 0, 20)
+  box:SetSize(360, 250)
+  box:SetPoint("CENTER", 0, 10)
   UI.Backdrop(box, { 0.05, 0.045, 0.04, 0.98 }, { 0.75, 0.6, 0.25 }, true)
   ov.title = UI.Text(box, 26, "OUTLINE")
   ov.title:SetPoint("TOP", 0, -14)
   ov.quote = UI.Text(box, 11)
   ov.quote:SetPoint("TOP", ov.title, "BOTTOM", 0, -8)
-  ov.quote:SetWidth(310)
+  ov.quote:SetWidth(330)
   ov.quote:SetTextColor(0.8, 0.8, 0.8)
   ov.body = UI.Text(box, 11)
   ov.body:SetPoint("TOP", ov.quote, "BOTTOM", 0, -10)
-  ov.body:SetWidth(310)
+  ov.body:SetWidth(330)
+  ov.body:SetSpacing(2)
   local cont = UI.Button(box, "Continue", 100, 24, function() G.Continue() end)
   cont:SetPoint("BOTTOM", 0, 12)
   ov:Hide()

@@ -76,15 +76,30 @@ ns.On("PLAYER_LOGIN", function()
   end
 end)
 
+-- Prints (and toasts) a list of rewards from Collection: { packs = n } and
+-- { shards = n }, each with a reason.
+function ns.Announce(rewards)
+  if not rewards then return end
+  for _, r in ipairs(rewards) do
+    if r.packs then
+      ns.Print("|cffffd100+%d card pack%s|r (%s). /deckhand packs to open.", r.packs, r.packs == 1 and "" or "s", r.why)
+      if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", r.why, r.packs) end
+    elseif r.shards then
+      ns.Print("|cff9fdfff+%d shard%s|r (%s).", r.shards, r.shards == 1 and "" or "s", r.why)
+    end
+  end
+  refresh()
+end
+
 ns.On("PLAYER_LEVEL_UP", function(level)
-  ns.GrantPacks(1, "reaching level " .. tostring(level))
+  ns.Announce(ns.Collection.LevelUp(ns.db, tonumber(level) or level))
 end)
 
 -- "New flight path discovered!" (the message is the second argument on newer
 -- clients, the first on older ones)
 ns.On("UI_INFO_MESSAGE", function(a, b)
   local target = ERR_NEWTAXIPATH
-  if target and (a == target or b == target) then ns.GrantPacks(1, "a new flight path") end
+  if target and (a == target or b == target) then ns.Announce(ns.Collection.FlightPath(ns.db)) end
 end)
 
 -- ---------------------------------------------------------------------------

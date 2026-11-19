@@ -126,8 +126,9 @@ function P.Build(parent)
   shardHelp:SetSize(100, 34)
   shardHelp:EnableMouse(true)
   UI.SimpleTooltip(shardHelp, "Shards",
-    "Cards you already have the maximum of (2, or 1 for legendaries) turn into shards: common 1, uncommon 2, rare 5, epic 10, legendary 25.",
-    "Games give shards too. 20 shards buy a pack.")
+    ("A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."):format(
+      C.SHARD_VALUE.common, C.SHARD_VALUE.uncommon, C.SHARD_VALUE.rare, C.SHARD_VALUE.epic),
+    ("Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."):format(C.PACK_COST))
   ctl.buy = UI.Button(page, "Buy a pack", 100, 22, function()
     if C.BuyPack(ns.db) then UI.Refresh() end
   end)
@@ -165,17 +166,20 @@ function P.Build(parent)
   ctl.barText:SetPoint("TOP", bar, "BOTTOM", 0, -4)
 
   local earn = UI.Text(page, 10)
-  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 64, -300)
-  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -64, -300)
+  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -284)
+  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -30, -284)
   earn:SetJustifyH("LEFT")
   earn:SetSpacing(3)
   earn:SetTextColor(0.75, 0.75, 0.75)
   earn:SetText(table.concat({
     "|cffffd100Ways to earn packs|r",
-    "- Every 10 minutes on a flight path",
-    "- Discovering a new flight path, and every level you gain",
-    "- Your first win of the day, and your first win against each opponent",
-    "- 20 shards from games and extra copies",
+    ("- Every %d minutes on a flight path"):format(C.TRAVEL_PACK_SECONDS / 60),
+    "- Your first win of the day, and every tenth level",
+    "- Stars: your first win against each opponent, and winning with a deck of commons and uncommons",
+    ("- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"):format(C.PACK_COST),
+    "|cffffd100What's in a pack|r",
+    "- Two commons and an uncommon, which is sometimes a rare or an epic",
+    "- Legendaries and signature cards aren't in packs: win them from opponents, or craft them",
   }, "\n"))
 
   page:SetScript("OnShow", function() P.Refresh() end)

@@ -8,6 +8,8 @@
 --   tactics: target ("enemy" | "friend" | "none"), play(st, p, lane)
 --   text (rules beyond keywords), flavor, icon (list of candidates, first one
 --   the client has wins), npc (creature id for the tooltip portrait)
+--   tribe, aura, bonus: see Engine/CardsRoads.lua (the second set)
+--   signature: set by Data/Opponents.lua on cards that are won, not found in packs
 local _, ns = ...
 local R = ns.Rules
 
@@ -16,6 +18,8 @@ ns.Cards = Cards
 
 Cards.RARITIES = { "common", "uncommon", "rare", "epic", "legendary" }
 Cards.RARITY_RANK = { common = 1, uncommon = 2, rare = 3, epic = 4, legendary = 5 }
+Cards.TRIBES = { beast = "Beast", murloc = "Murloc", undead = "Undead", defias = "Defias", dragonkin = "Dragonkin" }
+Cards.SETS = { core = "Core set", roads = "Roads of Azeroth" }
 
 local function icons(...)
   local t = {}
@@ -30,6 +34,8 @@ local function add(c)
   Cards.list[#Cards.list + 1] = c
   Cards.byId[c.id] = c
 end
+Cards.Add = add
+Cards.Icons = icons
 
 local function neighbours(lane)
   local out = {}
@@ -291,20 +297,34 @@ add { id = "sheep", name = "Sheep", cost = 1, type = "unit", rarity = "common", 
 add { id = "ghost", name = "Unknown Unit", cost = 0, type = "unit", rarity = "common", atk = 1, hp = 1, collectible = false,
   icon = icons("INV_Misc_QuestionMark") }
 
--- Collectible cards by rarity, sorted by cost then name (packs and the binder).
-Cards.byRarity = {}
-for _, r in ipairs(Cards.RARITIES) do Cards.byRarity[r] = {} end
-Cards.collectible = {}
-for _, c in ipairs(Cards.list) do
-  if c.collectible then
-    Cards.collectible[#Cards.collectible + 1] = c
-    table.insert(Cards.byRarity[c.rarity], c.id)
-  end
+-- Tribes of the core set's cards.
+for tribe, ids in pairs({
+  beast = { "wolf", "boar", "strider", "spider", "croc", "raptor", "bear", "vulture", "kodo", "bat", "scorpid", "princess" },
+  murloc = { "murloc" },
+  undead = { "ghoul" },
+  defias = { "thug", "vancleef" },
+  dragonkin = { "azuregos", "onyxia" },
+}) do
+  for _, id in ipairs(ids) do Cards.byId[id].tribe = tribe end
 end
-table.sort(Cards.collectible, function(a, b)
-  if a.cost ~= b.cost then return a.cost < b.cost end
-  return a.name < b.name
-end)
+
+-- Collectible cards by rarity, sorted by cost then name (packs and the
+-- binder). Called by the last card file once every set is in.
+function Cards.Finish()
+  Cards.byRarity = {}
+  for _, r in ipairs(Cards.RARITIES) do Cards.byRarity[r] = {} end
+  Cards.collectible = {}
+  for _, c in ipairs(Cards.list) do
+    if c.collectible then
+      Cards.collectible[#Cards.collectible + 1] = c
+      table.insert(Cards.byRarity[c.rarity], c.id)
+    end
+  end
+  table.sort(Cards.collectible, function(a, b)
+    if a.cost ~= b.cost then return a.cost < b.cost end
+    return a.name < b.name
+  end)
+end
 
 -- Card text for tooltips: keyword names, then the card's own text.
 function Cards.KeywordList(kw)

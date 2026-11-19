@@ -1,6 +1,11 @@
--- Collection, deck, packs and rewards. Everything works on the saved
--- per-character table (DeckhandCharDB) passed in as `db`, and takes its random
--- numbers from `rnd`, so it can be tested outside the game.
+-- Collection, deck, packs, crafting, stars, daily tasks and rewards.
+-- Everything works on the saved per-character table (DeckhandCharDB) passed
+-- in as `db`, and takes its random numbers from `rnd`, so it can be tested
+-- outside the game.
+--
+-- The reward numbers are tuned for this pace (tests/engine.lua checks the
+-- pack side of it): about three quarters of the pack cards after two to
+-- three weeks of casual play, everything after two to three months.
 local _, ns = ...
 local Cards = ns.Cards
 
@@ -8,11 +13,27 @@ local C = {}
 ns.Collection = C
 
 C.MAX_COPIES = { common = 2, uncommon = 2, rare = 2, epic = 2, legendary = 1 }
-C.SHARD_VALUE = { common = 1, uncommon = 2, rare = 5, epic = 10, legendary = 25 }
-C.PACK_COST = 20         -- shards
-C.PACK_SIZE = 5
-C.TRAVEL_PACK_SECONDS = 600
-C.STARTER_PACKS = 3
+C.SHARD_VALUE = { common = 1, uncommon = 3, rare = 10, epic = 25, legendary = 50 }  -- a copy past the limit
+C.CRAFT_COST = { common = 10, uncommon = 25, rare = 60, epic = 150, legendary = 400 }
+C.SIGNATURE_CRAFT_COST = 400   -- signature cards, whatever their rarity
+C.PACK_COST = 30               -- shards
+C.PACK_SIZE = 3                -- two commons and one uncommon or better
+C.PACK_ODDS = { rare = 26, epic = 5 }   -- percent, for the third card
+C.PITY = 15                    -- at most this many packs in a row without an epic
+C.TRAVEL_PACK_SECONDS = 1200
+C.STARTER_PACKS = 2
+C.REWARD = {
+  win = { easy = 2, normal = 4, hard = 6 },  -- shards, by the opponent's level
+  fullWins = 3,       -- wins per opponent per day that pay the full amount
+  reducedWin = 1,     -- what later wins that day pay
+  loss = 1,           -- a loss or draw...
+  lossRound = 4,      -- ...that reached this round
+  level = 5,          -- shards per level gained
+  levelPackEvery = 10, -- and a pack on these levels
+  flightPath = 5,     -- shards per flight path discovered
+  daily = 10,         -- shards for the daily task
+  decisive = 6,       -- Morale lead for the second star
+}
 C.STARTER = {
   "kobold", "kobold", "murloc", "murloc", "wolf", "wolf", "boar", "boar", "thug", "thug",
   "strider", "strider", "spider", "spider", "grunt", "grunt", "croc", "croc", "fireball", "fireball",
@@ -55,6 +76,19 @@ C.MIGRATIONS = {
     if type(s) == "table" and type(s.point) == "table" then
       local k = tonumber(s.scale) or 1
       s.point = { (tonumber(s.point[1]) or 0) * k, (tonumber(s.point[2]) or 0) * k }
+    end
+  end,
+  -- 2 (v0.4.0): stars. An opponent already beaten has the first one (that
+  -- win was paid for at the time, so no reward now).
+  function(db)
+    db.stars = type(db.stars) == "table" and db.stars or {}
+    if type(db.record) == "table" then
+      for opp, rec in pairs(db.record) do
+        if type(rec) == "table" and (tonumber(rec.w) or 0) > 0 then
+          db.stars[opp] = type(db.stars[opp]) == "table" and db.stars[opp] or {}
+          db.stars[opp][1] = true
+        end
+      end
     end
   end,
 }
@@ -107,8 +141,10 @@ function C.Init(db, rules)
   db.shards = db.shards or 0
   db.stats = db.stats or { wins = 0, losses = 0, draws = 0 }
   db.record = db.record or {}
+  db.stars = db.stars or {}
   db.progress = db.progress or {}
   db.progress.travel = db.progress.travel or 0
+  db.progress.pity = db.progress.pity or 0
   db.settings = db.settings or {}
   for k, v in pairs(C.SETTING_DEFAULTS) do
     if db.settings[k] == nil then db.settings[k] = v end
@@ -145,26 +181,49 @@ function C.Add(db, id)
   return n == 0 and "new" or "copy", 0
 end
 
--- Five cards: three commons, an uncommon (15%: rare) and a rare slot that is
--- epic 12.5% and legendary 3.5% of the time.
-function C.RollPack(rnd)
-  local function pick(r)
-    local pool = Cards.byRarity[r]
-    return pool[rnd(#pool)]
+-- Packs ---------------------------------------------------------------------------
+-- The cards packs can hold: everything collectible except legendaries and
+-- signature cards (those are won from opponents, or crafted).
+local pool
+function C.PackPool(rarity)
+  if not pool then
+    pool = {}
+    for _, r in ipairs(Cards.RARITIES) do pool[r] = {} end
+    for _, c in ipairs(Cards.collectible) do
+      if c.rarity ~= "legendary" and not c.signature then table.insert(pool[c.rarity], c.id) end
+    end
   end
-  local out = { pick("common"), pick("common"), pick("common") }
-  out[4] = pick(rnd(100) <= 15 and "rare" or "uncommon")
-  local x = rnd(1000)
-  out[5] = pick(x <= 35 and "legendary" or x <= 160 and "epic" or "rare")
-  return out
+  return pool[rarity]
+end
+
+function C.InPacks(id)
+  local c = Cards.byId[id]
+  return (c.collectible and c.rarity ~= "legendary" and not c.signature) and true or false
+end
+
+-- Three cards: two commons and an uncommon, which is a rare 26% and an epic
+-- 5% of the time. pity: packs opened since the last epic; the pack after
+-- C.PITY - 1 dry ones always has one. Returns the cards and the new count.
+function C.RollPack(rnd, pity)
+  pity = pity or 0
+  local function pick(r)
+    local list = C.PackPool(r)
+    return list[rnd(#list)]
+  end
+  local x = rnd(100)
+  local third = (x <= C.PACK_ODDS.epic or pity >= C.PITY - 1) and "epic"
+    or x <= C.PACK_ODDS.epic + C.PACK_ODDS.rare and "rare" or "uncommon"
+  return { pick("common"), pick("common"), pick(third) }, third == "epic" and 0 or pity + 1
 end
 
 -- Returns a list of { id, kind, shards } or nil when there's no pack to open.
 function C.OpenPack(db, rnd)
   if db.packs <= 0 then return nil end
   db.packs = db.packs - 1
+  local cards
+  cards, db.progress.pity = C.RollPack(rnd, db.progress.pity)
   local results = {}
-  for i, id in ipairs(C.RollPack(rnd)) do
+  for i, id in ipairs(cards) do
     local kind, shards = C.Add(db, id)
     results[i] = { id = id, kind = kind, shards = shards }
   end
@@ -176,6 +235,31 @@ function C.BuyPack(db)
   db.shards = db.shards - C.PACK_COST
   db.packs = db.packs + 1
   return true
+end
+
+-- Crafting ------------------------------------------------------------------------
+function C.CraftCost(id)
+  local c = Cards.byId[id]
+  return c.signature and C.SIGNATURE_CRAFT_COST or C.CRAFT_COST[c.rarity]
+end
+
+function C.CanCraft(db, id)
+  local c = Cards.byId[id]
+  if not (c and c.collectible) then return false, "That card can't be crafted." end
+  if C.Owned(db, id) >= C.MaxCopies(id) then return false, "You already have every copy of " .. c.name .. " you can use." end
+  local cost = C.CraftCost(id)
+  if db.shards < cost then
+    return false, ("%s costs %d shards to craft. You have %d."):format(c.name, cost, db.shards)
+  end
+  return true, cost
+end
+
+function C.Craft(db, id)
+  local ok, cost = C.CanCraft(db, id)
+  if not ok then return false, cost end
+  db.shards = db.shards - cost
+  db.collection[id] = C.Owned(db, id) + 1
+  return true, cost
 end
 
 -- Deck building ---------------------------------------------------------------
@@ -256,40 +340,213 @@ function C.ResetDeck(db)
   for i, id in ipairs(C.STARTER) do db.deck[i] = id end
 end
 
+-- A deck with nothing rarer than uncommon (the third star).
+function C.PlainDeck(list)
+  for _, id in ipairs(list) do
+    local c = Cards.byId[id]
+    if c and Cards.RARITY_RANK[c.rarity] >= Cards.RARITY_RANK.rare then return false end
+  end
+  return true
+end
+
+-- Stars and the ladder ----------------------------------------------------------
+-- Three per opponent. The first unlocks the next opponent.
+C.STARS = {
+  { name = "Victory", text = "Win a match.", reward = "a card pack" },
+  { name = "Decisive", text = ("Win with at least %d more Morale than your opponent."):format(C.REWARD.decisive),
+    reward = "their signature card" },
+  { name = "Rank and file", text = "Win with a deck that has no rare, epic or legendary cards.", reward = "2 card packs" },
+}
+
+-- Returns the opponent's three stars (true / nil) and how many are earned.
+function C.Stars(db, oppId)
+  local s = db.stars[oppId] or {}
+  local n = 0
+  for i = 1, #C.STARS do if s[i] then n = n + 1 end end
+  return s, n
+end
+
+function C.Unlocked(db, oppId)
+  local o = ns.OpponentById[oppId]
+  if not o then return false end
+  if o.index == 1 then return true end
+  local own = db.record[oppId]
+  if (db.stars[oppId] and db.stars[oppId][1]) or (own and (own.w or 0) > 0) then return true end
+  local prev = ns.Opponents[o.index - 1]
+  return (db.stars[prev.id] and db.stars[prev.id][1]) and true or false
+end
+
+function C.AllStars(db)
+  for _, o in ipairs(ns.Opponents) do
+    local _, n = C.Stars(db, o.id)
+    if n < #C.STARS then return false end
+  end
+  return true
+end
+
+-- Daily task ----------------------------------------------------------------------
+-- One a day. Most are counted from the events of each round you play.
+C.TASKS = {
+  { id = "wins", goal = 2, text = "Win 2 matches" },
+  { id = "morale", goal = 20, text = "Deal 20 damage to enemy Morale" },
+  { id = "kills", goal = 10, text = "Destroy 10 enemy units" },
+  { id = "tactics", goal = 5, text = "Cast 5 tactics" },
+  { id = "units", goal = 12, text = "Play 12 units" },
+  { id = "beasts", goal = 6, text = "Play 6 Beasts" },
+  { id = "rounds", goal = 15, text = "Play 15 rounds" },
+  { id = "healthy", goal = 1, text = "Win a match with 8 or more Morale left" },
+}
+C.TaskById = {}
+for i, t in ipairs(C.TASKS) do t.index = i; C.TaskById[t.id] = t end
+
+-- Today's task (picked from the date, never the same two days running).
+-- Returns the saved { date, id, n, done } and the task.
+function C.Daily(db, today)
+  local d = db.daily
+  if type(d) ~= "table" or d.date ~= today or not C.TaskById[d.id] then
+    local h = 0
+    for i = 1, #today do h = (h * 31 + today:byte(i)) % 100003 end
+    local i = h % #C.TASKS + 1
+    if type(d) == "table" and C.TaskById[d.id] and C.TaskById[d.id].index == i then i = i % #C.TASKS + 1 end
+    d = { date = today, id = C.TASKS[i].id, n = 0, done = false }
+    db.daily = d
+  end
+  return d, C.TaskById[d.id]
+end
+
+-- Adds progress to today's task if it is `id`. Returns a reward when that
+-- finishes it.
+function C.TaskAdvance(db, today, id, amount)
+  local d, task = C.Daily(db, today)
+  if d.done or d.id ~= id or amount <= 0 then return nil end
+  d.n = math.min(task.goal, d.n + amount)
+  if d.n >= task.goal then
+    d.done = true
+    db.shards = db.shards + C.REWARD.daily
+    return { shards = C.REWARD.daily, why = "daily task: " .. task.text:lower(), paid = true }
+  end
+end
+
+-- Counts one played round's events (from the rules engine) toward the task.
+-- me: which player you are. Returns a reward when the task is finished.
+function C.TaskEvents(db, today, events, me)
+  local n = { rounds = 1, morale = 0, kills = 0, tactics = 0, units = 0, beasts = 0 }
+  for _, e in ipairs(events) do
+    if e.t == "morale" and e.p ~= me and e.delta < 0 then n.morale = n.morale - e.delta
+    elseif e.t == "die" and e.p ~= me then n.kills = n.kills + 1
+    elseif e.t == "tactic" and e.p == me then n.tactics = n.tactics + 1
+    elseif e.t == "place" and e.p == me and not e.summon then
+      n.units = n.units + 1
+      if Cards.byId[e.unit.id].tribe == "beast" then n.beasts = n.beasts + 1 end
+    end
+  end
+  local d = C.Daily(db, today)
+  return n[d.id] and C.TaskAdvance(db, today, d.id, n[d.id]) or nil
+end
+
 -- Rewards -----------------------------------------------------------------------
--- result: "win" | "loss" | "draw". today: a date string. conceded: the player
--- ended the match early (a loss that pays nothing, so starting and ending
--- matches can't be farmed). Returns a list of { packs = n } / { shards = n }
--- rewards, each with a reason.
-function C.RecordResult(db, oppId, result, today, conceded)
+local function pay(db, out)
+  for _, r in ipairs(out) do
+    if not r.paid then
+      db.packs = db.packs + (r.packs or 0)
+      db.shards = db.shards + (r.shards or 0)
+    end
+  end
+  return out
+end
+
+local function giveCard(db, out, id, why)
+  local kind, shards = C.Add(db, id)
+  out[#out + 1] = { card = id, kind = kind, dupe = shards, why = why }
+end
+
+-- result: "win" | "loss" | "draw". today: a date string. info (all optional):
+--   conceded  the player ended the match early: a loss that pays nothing
+--   round     the round the game ended in
+--   morale, margin   your Morale at the end, and your lead
+--   plain     the deck had nothing rarer than uncommon
+-- Returns a list of rewards, each with a reason (why): { packs = n },
+-- { shards = n }, { star = i }, { card = id, kind =, dupe = shards },
+-- { unlocked = opponent id }.
+function C.RecordResult(db, oppId, result, today, info)
+  info = info or {}
+  local o = ns.OpponentById[oppId]
   local rec = db.record[oppId] or { w = 0, l = 0, d = 0 }
   db.record[oppId] = rec
   local out = {}
   if result == "win" then
+    local wasUnlocked = {}
+    for _, x in ipairs(ns.Opponents) do wasUnlocked[x.id] = C.Unlocked(db, x.id) end
     db.stats.wins = db.stats.wins + 1
-    if rec.w == 0 then
-      out[#out + 1] = { packs = 1, why = "first win against this opponent" }
-    end
     rec.w = rec.w + 1
-    if db.progress.dailyWin ~= today then
-      db.progress.dailyWin = today
+    -- shards: full value for the first few wins against this opponent today
+    local p = db.progress
+    if type(p.wins) ~= "table" or p.wins.date ~= today then p.wins = { date = today, n = {} } end
+    local before = p.wins.n[oppId] or 0
+    p.wins.n[oppId] = before + 1
+    if before < C.REWARD.fullWins then
+      out[#out + 1] = { shards = C.REWARD.win[o.level] or C.REWARD.win.normal, why = "victory" }
+    else
+      out[#out + 1] = { shards = C.REWARD.reducedWin,
+        why = ("victory; %s has paid in full %d times today"):format(o.short, C.REWARD.fullWins) }
+    end
+    if p.dailyWin ~= today then
+      p.dailyWin = today
       out[#out + 1] = { packs = 1, why = "first win of the day" }
     end
-    out[#out + 1] = { shards = 3, why = "victory" }
-  elseif result == "loss" then
-    db.stats.losses = db.stats.losses + 1
-    rec.l = rec.l + 1
-    if not conceded then out[#out + 1] = { shards = 1, why = "good game" } end
+    -- stars
+    db.stars[oppId] = db.stars[oppId] or {}
+    local stars = db.stars[oppId]
+    local earned = { true, (info.margin or 0) >= C.REWARD.decisive, info.plain and true or false }
+    for i, got in ipairs(earned) do
+      if got and not stars[i] then
+        stars[i] = true
+        local why = "star: " .. C.STARS[i].name
+        out[#out + 1] = { star = i, why = C.STARS[i].name }
+        if i == 1 then out[#out + 1] = { packs = 1, why = why }
+        elseif i == 2 then giveCard(db, out, o.signature, why)
+        else out[#out + 1] = { packs = 2, why = why } end
+      end
+    end
+    for _, x in ipairs(ns.Opponents) do
+      if not wasUnlocked[x.id] and C.Unlocked(db, x.id) then out[#out + 1] = { unlocked = x.id, why = "beat " .. o.short } end
+    end
+    if not p.champion and C.AllStars(db) then
+      p.champion = true
+      giveCard(db, out, ns.CHAMPION_CARD, "every star on the circuit")
+    end
+    local t = C.TaskAdvance(db, today, "wins", 1)
+    if t then out[#out + 1] = t end
+    if (info.morale or 0) >= 8 then
+      t = C.TaskAdvance(db, today, "healthy", 1)
+      if t then out[#out + 1] = t end
+    end
   else
-    db.stats.draws = db.stats.draws + 1
-    rec.d = rec.d + 1
-    out[#out + 1] = { shards = 1, why = "good game" }
+    if result == "loss" then
+      db.stats.losses = db.stats.losses + 1
+      rec.l = rec.l + 1
+    else
+      db.stats.draws = db.stats.draws + 1
+      rec.d = rec.d + 1
+    end
+    if not info.conceded and (info.round or C.REWARD.lossRound) >= C.REWARD.lossRound then
+      out[#out + 1] = { shards = C.REWARD.loss, why = "good game" }
+    end
   end
-  for _, r in ipairs(out) do
-    db.packs = db.packs + (r.packs or 0)
-    db.shards = db.shards + (r.shards or 0)
+  return pay(db, out)
+end
+
+-- A level gained: shards, and a pack on every tenth level.
+function C.LevelUp(db, level)
+  local out = { { shards = C.REWARD.level, why = "reaching level " .. tostring(level) } }
+  if type(level) == "number" and level > 0 and level % C.REWARD.levelPackEvery == 0 then
+    out[#out + 1] = { packs = 1, why = "reaching level " .. level }
   end
-  return out
+  return pay(db, out)
+end
+
+function C.FlightPath(db)
+  return pay(db, { { shards = C.REWARD.flightPath, why = "a new flight path" } })
 end
 
 -- Adds flight time; returns the number of packs it earned.

@@ -203,6 +203,7 @@ STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 BackdropTemplateMixin = {}
 SOUNDKIT = { IG_SPELLBOOK_OPEN = 1, IG_QUEST_LIST_COMPLETE = 2, IG_BACKPACK_OPEN = 3 }
 function PlaySound() end
+function IsShiftKeyDown() return MOCK.shift and true or false end
 ERR_NEWTAXIPATH = "New flight path discovered!"
 SlashCmdList = {}
 -- the .toc's metadata, read from the real file

@@ -190,6 +190,17 @@ def badge(name, pts=None):
     return finish(img, n, n, name)
 
 
+def star():
+    """A grey, tintable five-pointed star (ladder stars)."""
+    import math
+    pts = []
+    for i in range(10):
+        r = 29 if i % 2 == 0 else 12.5
+        a = -math.pi / 2 + i * math.pi / 5
+        pts.append((32 + r * math.cos(a), 33.5 + r * math.sin(a)))
+    return badge("Star", pts)
+
+
 def board():
     n = 512
     base = flat(n, n, (60, 44, 29))
@@ -268,6 +279,7 @@ if __name__ == "__main__":
     parts = [card_base(), card_border(), card_back(), badge("Gem"),
              badge("BadgeAttack", [(32, 3), (58, 17), (58, 47), (32, 61), (6, 47), (6, 17)]),
              badge("BadgeHealth", [(7, 7), (57, 7), (57, 36), (32, 60), (7, 36)]), board()]
+    star()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
         mock(sys.argv[1], parts)

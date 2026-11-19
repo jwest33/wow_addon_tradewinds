@@ -21,7 +21,7 @@ ns.Rules = R
 
 -- Bump this whenever the rules or a card's behaviour change. A match saved
 -- under another number is ended on load without counting (Collection.Init).
-R.RULES_VERSION = 1
+R.RULES_VERSION = 2
 
 R.LANES = 4
 R.MAX_ROUNDS = 8
@@ -141,8 +141,9 @@ local function newUnit(st, p, id, lane)
   }
 end
 
--- Attack right now: base + this round's bonus + Rally from neighbours. Works on
--- any table shaped like a game (the UI passes its replay view).
+-- Attack right now: base + this round's bonus + Rally from neighbours + the
+-- card's own bonus + auras from your other units (see Engine/CardsRoads.lua).
+-- Works on any table shaped like a game (the UI passes its replay view).
 function R.Attack(st, u)
   local a = u.atk + (u.tmpAtk or 0)
   local board = st.players[u.owner].board
@@ -150,6 +151,16 @@ function R.Attack(st, u)
   if n and n.kw.rally then a = a + 1 end
   n = board[u.lane + 1]
   if n and n.kw.rally then a = a + 1 end
+  local cards = ns.Cards and ns.Cards.byId
+  local c = cards and cards[u.id]
+  if c then
+    if c.bonus then a = a + c.bonus(st, u) end
+    for l = 1, LANES do
+      local x = board[l]
+      local aura = x and l ~= u.lane and cards[x.id] and cards[x.id].aura
+      if aura and (not aura.tribe or aura.tribe == c.tribe) then a = a + aura.atk end
+    end
+  end
   return max(0, a)
 end
 
@@ -157,6 +168,15 @@ function R.Units(st, p)
   local out, board = {}, st.players[p].board
   for l = 1, LANES do
     if board[l] then out[#out + 1] = board[l] end
+  end
+  return out
+end
+
+-- p's lanes with no unit in them.
+function R.EmptyLanes(st, p)
+  local out, board = {}, st.players[p].board
+  for l = 1, LANES do
+    if not board[l] then out[#out + 1] = l end
   end
   return out
 end

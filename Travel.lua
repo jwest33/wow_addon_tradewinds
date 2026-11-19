@@ -50,7 +50,7 @@ local function tick()
   end
   local earned = ns.Collection.AddTravel(ns.db, 1)
   if earned > 0 then
-    ns.Print("|cffffd100+%d card pack|r for 10 minutes in the air.", earned)
+    ns.Print("|cffffd100+%d card pack|r for %d minutes in the air.", earned, ns.Collection.TRAVEL_PACK_SECONDS / 60)
     ns.UI.Refresh()
   end
 end
