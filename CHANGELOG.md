@@ -17,6 +17,8 @@
   it's the last copy you have to offer.
 - New files (`Trade.lua`, `UI/Trading.lua`): restart the game, a /reload
   isn't enough.
+- The card back, the addon icon and the logo carry a wind rose for the new
+  name, in place of Deckhand's anchor.
 
 ## 0.14.0
 

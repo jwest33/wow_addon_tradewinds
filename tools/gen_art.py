@@ -309,16 +309,30 @@ def pill():
     return finish(img, w, h, "Pill")
 
 
-def anchor(d, cx, cy, col):
-    def w(v):
-        return int(v * S)
-    d.ellipse(sc([cx - 8, cy - 40, cx + 8, cy - 24]), outline=col, width=w(4))
-    d.line(sc([cx, cy - 24, cx, cy + 30]), fill=col, width=w(6))
-    d.line(sc([cx - 16, cy - 12, cx + 16, cy - 12]), fill=col, width=w(5))
-    d.arc(sc([cx - 28, cy - 22, cx + 28, cy + 32]), 12, 168, fill=col, width=w(6))
-    for sx in (-1, 1):
-        x = cx + sx * 28
-        d.polygon([(w(x - sx * 9), w(cy + 2)), (w(x + sx * 5), w(cy + 4)), (w(x - sx * 1), w(cy + 17))], fill=col)
+def wind_rose(d, cx, cy, light, dark, bg):
+    """The Tradewinds emblem: a wind rose, the compass star old sea charts
+    used to mark the winds. Each point is split into a lit and a shaded half,
+    so it reads as raised metal; the four winds between are shorter and sit
+    behind. Plain shapes, so it still reads as a star at 16 pixels."""
+    def P(r, a):
+        return ((cx + r * math.cos(a)) * S, (cy + r * math.sin(a)) * S)
+
+    def ring(r, col, width):
+        d.ellipse(sc([cx - r, cy - r, cx + r, cy + r]), outline=col, width=int(width * S))
+    ring(38, dark, 1.4)
+    for i in range(32):                                  # the 32 compass points, as ticks
+        a = i * math.pi / 16
+        r0 = 33.5 if i % 4 == 0 else 35.5
+        d.line([P(r0, a), P(38, a)], fill=dark, width=int(1.1 * S))
+    for length, base, offset in ((33, 8.5, math.pi / 4), (49, 11, 0)):
+        for i in range(4):
+            a = -math.pi / 2 + offset + i * math.pi / 2
+            tip, left, right = P(length, a), P(base, a - math.pi / 4), P(base, a + math.pi / 4)
+            d.polygon([P(0, a), tip, left], fill=light)
+            d.polygon([P(0, a), tip, right], fill=dark)
+            d.line([left, tip, right], fill=bg, width=int(0.9 * S))
+    d.ellipse(sc([cx - 6.5, cy - 6.5, cx + 6.5, cy + 6.5]), fill=bg)
+    d.ellipse(sc([cx - 4.5, cy - 4.5, cx + 4.5, cy + 4.5]), fill=light)
 
 
 def card_back():
@@ -343,7 +357,7 @@ def card_back():
     d.ellipse(sc([cx - 62, cy - 62, cx + 62, cy + 62]), fill=(190, 154, 76, 255))
     d.ellipse(sc([cx - 58, cy - 58, cx + 58, cy + 58]), fill=(12, 18, 42, 255))
     d.ellipse(sc([cx - 53, cy - 53, cx + 53, cy + 53]), outline=(110, 88, 44, 255), width=int(1.2 * S))
-    anchor(d, cx, cy, (222, 186, 98, 255))
+    wind_rose(d, cx, cy, (242, 210, 124, 255), (170, 128, 56, 255), (12, 18, 42, 255))
     return finish(img, CW, CH, "CardBack", (256, 512))
 
 

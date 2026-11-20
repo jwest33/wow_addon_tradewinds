@@ -1,6 +1,7 @@
 """The project logo for CurseForge and the like: a fan of three cards (a unit,
-the card back with its anchor, a tactic) on card-table felt. No text, so it
-reads at any size and doesn't depend on the project's name. All original:
+the card back with its wind rose, a tactic) on card-table felt, with strokes
+of wind arching over and under them (the trade winds; WINDS = False leaves
+them out). No text, so it reads at any size. All original:
 the card frames are the addon's own (tools/gen_art.py), the pictures in
 them are drawn here, not the game's icons.
 
@@ -26,6 +27,7 @@ N = 1024                       # drawn at this size, saved at N and N/2
 # themselves, and nothing written to Art/.
 G.finish = lambda img, w, h, name, canvas=None: img
 S, K = G.S, 1.0                 # card pixels -> pixels of the 4x pictures: x S
+WINDS = True
 
 
 def card_px(v):
@@ -116,6 +118,47 @@ def face(kind, rarity, stats):
     return img
 
 
+def swoosh(cx, cy, r, x0, x1, width, alpha):
+    """A stroke of wind along the circle (cx, cy, r), from x0 on the left to
+    x1 on the right (fractions of N), like air flowing round the fan of
+    cards. It swells from a hairline to `width` a little past the middle and
+    narrows to a point, and fades in from its tail: the wind blows left to
+    right. Returns its alpha (0..1, anti-aliased) over the N x N image."""
+    yy, xx = (np.mgrid[0:N, 0:N].astype("float32") + 0.5) / N
+    up = 1 if cy > 0.5 else -1                   # centre below: an arch; above: a dip
+    a0 = math.atan2(up * -math.sqrt(max(0, r * r - (x0 - cx) ** 2)), x0 - cx)
+    a1 = math.atan2(up * -math.sqrt(max(0, r * r - (x1 - cx) ** 2)), x1 - cx)
+    ang = np.arctan2(yy - cy, xx - cx)
+    t = (ang - a0) / (a1 - a0)
+    inside = (t > 0) & (t < 1)
+    tc = np.clip(t, 0, 1)
+    w = width * np.clip(np.sin(np.pi * tc ** 1.35), 0, 1) ** 0.8      # widest at about 60%
+    dist = np.abs(np.hypot(xx - cx, yy - cy) - r)
+    edge = np.clip((w / 2 - dist) * N + 0.5, 0, 1)
+    tail = np.clip(tc / 0.45, 0, 1)
+    tail = tail * tail * (3 - 2 * tail)
+    return np.where(inside, edge * tail * alpha, 0).astype("float32")
+
+
+def winds():
+    """The trade winds: strokes of air arching over and dipping under the fan
+    of cards, drawn on the felt behind them."""
+    a = np.maximum.reduce([
+        swoosh(0.5, 1.06, 0.93, 0.07, 0.93, 0.024, 0.75),     # over the cards
+        swoosh(0.5, 1.06, 0.975, 0.20, 0.72, 0.013, 0.55),    # a thinner one above it
+        swoosh(0.5, -0.62, 1.55, 0.22, 0.86, 0.020, 0.65),    # under the cards
+    ])
+    stroke = Image.fromarray((a * 255).astype("uint8"), "L")
+    halo = Image.new("RGBA", (N, N), (255, 210, 120, 0))
+    halo.putalpha(stroke.filter(ImageFilter.GaussianBlur(N * 0.01)).point(lambda v: v * 0.5))
+    line = Image.new("RGBA", (N, N), (252, 230, 168, 0))
+    line.putalpha(stroke)
+    out = Image.new("RGBA", (N, N), (0, 0, 0, 0))
+    out.alpha_composite(halo)
+    out.alpha_composite(line)
+    return out
+
+
 def logo():
     cost = G.jewel("StatCost", "circle", (52, 112, 236), facets=8)
     atk = G.jewel("StatAttack", "hex", (236, 162, 42))
@@ -137,6 +180,8 @@ def logo():
     gold = Image.new("RGBA", (N, N), (255, 196, 90, 0))
     gold.putalpha(glow)
     img.alpha_composite(gold)
+    if WINDS:
+        img.alpha_composite(winds())
 
     # the three cards: a tactic and a unit fanned behind the card back
     ch = int(N * 0.64)

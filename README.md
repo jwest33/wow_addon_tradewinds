@@ -418,6 +418,6 @@ plans or translators' template). Unzip it into `Interface/AddOns`. `.pkgmeta`
 has the same exclusions for the CurseForge / Wago packager, which also takes
 the release notes from `CHANGELOG.md`.
 
-## Next
+## AI Disclosure
 
-See `PLAN.md`.
+Built with Claude!
