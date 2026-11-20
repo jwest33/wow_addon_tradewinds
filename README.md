@@ -244,14 +244,25 @@ loosely the easy ones play.
 - **Packs**: open one pack card by card, or all of them at once.
 - **Guide**: every rule, a round step by step, and each keyword with a
   diagram. The tutorial can be started from here too.
-- **Options**: sound, portraits, the forecast, opponent lines, the travel
-  prompt, closing when you arrive or in combat, the minimap button, replay
-  speed and window size.
+- **Options**: sound, the forecast, opponent lines, the travel prompt,
+  closing when you arrive or in combat, the minimap button, replay speed and
+  window size.
 
 The first time a keyword turns up in a match (in your hand or on the board),
 a box explains it with its diagram. Opponents say a line now and then: when
 a match starts, after a big hit either way, and when they're close to losing.
 Click the bubble to dismiss it; the Opponent lines option turns them off.
+
+## Languages
+
+Deckhand follows the game client's language: English, German, French,
+Spanish (Spain and Latin America), Italian, Brazilian Portuguese, Russian,
+Korean, and simplified and traditional Chinese. Cards, creatures, spells and
+places use the client's official names where there are some. The chat
+commands stay in English in every language.
+
+The translations were made with an AI model, not by native speakers, so
+corrections are welcome. To fix or add one, see Translating below.
 
 ## Commands
 
@@ -296,7 +307,13 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
   by one OnUpdate.
 - `UI/`: the window (`Main`), board (`Game`), binder and decks (`Binder`),
   pack opening (`Packs`), options (`Options`), the card frame, tooltips and
-  sounds (`Widgets`), creature portraits (`Portraits`).
+  sounds (`Widgets`).
+- `Locales/`: translations. Text is written in English in the code and looked
+  up in `ns.L` (`L["Lock In"]`); `Locales/Locale.lua` sets that up and each
+  language file fills it when the client uses that language. Card, opponent,
+  keyword and tutorial text goes through `L` where it's defined. Labels that
+  would overflow (card names, card text, buttons) shrink to fit
+  (`UI.FitText`).
 - `Data/CardText.lua`: the short rules text printed on each card.
 - `Data/Tutorial.lua`: the tutorial's script (stacked decks, what each side
   plays in the guided rounds, the coach's text). `UI/Tutorial.lua` draws the
@@ -310,15 +327,12 @@ Click the bubble to dismiss it; the Opponent lines option turns them off.
   moving (docked) or 30 seconds of running (you walked off). Loading screens
   between continents are skipped over. This has not been checked on a real
   boat yet.
-- Creature portraits are still images. The client turns a creature id into a
-  display id through a *hidden* model, and the result is saved. No 3D model is
-  ever shown, because shown models have hung this client's GPU before.
 
 ## Tests
 
 ```
 pip install lupa
-python tests/run_tests.py          # engine, ui and pvp
+python tests/run_tests.py          # engine, ui, pvp and locale
 ```
 
 `tests/engine.lua` checks every keyword and card effect, determinism, the copy
@@ -336,6 +350,13 @@ one offline for a few minutes, concedes, and corrupts one copy to check the
 mismatch is caught. `tests/engine.lua` also plays 30 games as both mirrored
 copies and checks they never differ.
 
+`tests/locale.lua` checks the translations: every text the code looks up is
+in the template `Locales/enUS.lua`, and every language file translates all of
+them, nothing else, with the same placeholders, colour codes and line breaks,
+and card text short enough for the card. `tests/locale_smoke.lua` then plays
+the addon in each language (every tab, card, tooltip, the tutorial and a
+match), so a translation that breaks a format string fails there.
+
 `tests/balance.lua` is the balance harness, run on demand (minutes, not
 seconds):
 
@@ -348,6 +369,25 @@ python tests/run_tests.py balance cards [n] [ids]  # each card's effect on winni
 `cards` plays every card in nine decks (the starter and each opponent's)
 against the opponents, then the same games with a plain unit of the same cost
 in its place, and reports the difference in win rate.
+
+## Translating
+
+`Locales/enUS.lua` lists every text with notes on where it appears. It's
+generated: after changing text in the code, run
+`python tests/run_tests.py locale write`, then `python tests/run_tests.py
+locale` to see what each language is missing. To add a language, copy the
+template to `Locales/<code>.lua`, change the code in its `NewLocale` line,
+add it to `Deckhand.toc` after `Locales\Locale.lua`, and translate the
+right-hand sides. The template's header lists the rules (placeholders in the
+same order, colour codes kept, commands in English).
+
+## Release
+
+`python tools/package.py` runs the tests and builds
+`dist/Deckhand-<version>.zip` with only what the game loads (no tests, tools,
+plans or translators' template). Unzip it into `Interface/AddOns`. `.pkgmeta`
+has the same exclusions for the CurseForge / Wago packager, which also takes
+the release notes from `CHANGELOG.md`.
 
 ## Next
 

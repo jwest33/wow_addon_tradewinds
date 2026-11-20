@@ -7,6 +7,7 @@
 -- pack side of it): about three quarters of the pack cards after two to
 -- three weeks of casual play, everything after two to three months.
 local _, ns = ...
+local L = ns.L
 local Cards = ns.Cards
 
 local C = {}
@@ -49,7 +50,6 @@ C.SETTING_DEFAULTS = {
   hideOnLand = true,   -- close the window when the flight ends
   hideInCombat = true,
   speed = 1,           -- replay speed
-  portraits = false,   -- a creature portrait beside card tooltips (opt-in)
   forecast = true,     -- show what your planned round would do
   minimap = true,
   minimapAngle = 200,
@@ -135,6 +135,12 @@ C.MIGRATIONS = {
       db.active = "ai"
     end
   end,
+  -- 7 (v0.13.0): the creature portrait beside card tooltips is gone (the
+  -- card art already shows the creature), with its saved lookups.
+  function(db)
+    if type(db.settings) == "table" then db.settings.portraits = nil end
+    db.displays = nil
+  end,
 }
 C.SCHEMA = #C.MIGRATIONS
 C.MAX_GAMES = 8   -- games against players at once (one per player)
@@ -175,8 +181,9 @@ end
 
 -- rules: the rules version (Rules.RULES_VERSION). A saved match from another
 -- one, or one that's damaged, is ended without counting. Returns the opponent
--- id of a computer match it ended (if any), and how many games against
--- players it ended.
+-- id of a computer match it ended (if any), how many games against players it
+-- ended, and whether the computer match was damaged (rather than from other
+-- rules).
 function C.Init(db, rules)
   if not db.collection then db.schema = C.SCHEMA end
   for i = (tonumber(db.schema) or 0) + 1, C.SCHEMA do
@@ -209,7 +216,6 @@ function C.Init(db, rules)
   for k, v in pairs(C.SETTING_DEFAULTS) do
     if db.settings[k] == nil then db.settings[k] = v end
   end
-  db.displays = db.displays or {}
   db.holo = db.holo or {}
   -- forget cards that no longer exist (renamed or removed in an update)
   for id in pairs(db.collection) do
@@ -236,10 +242,11 @@ function C.Init(db, rules)
       endedGames = endedGames + 1
     end
   end
-  local ended
+  local ended, damaged
   if db.match and (type(db.match) ~= "table" or db.match.pvp or not playable(db.match)
       or (rules and db.match.rules ~= rules)) then
     local opp = type(db.match) == "table" and db.match.opp or nil
+    damaged = not (type(db.match) == "table" and not db.match.pvp and playable(db.match))
     db.match = nil
     ended = ns.OpponentById[opp] and opp or nil
   end
@@ -248,7 +255,7 @@ function C.Init(db, rules)
   elseif db.active ~= nil and not db.games[db.active] then
     db.active = nil
   end
-  return ended, endedGames
+  return ended, endedGames, damaged
 end
 
 -- Your games against players, oldest first.
@@ -368,11 +375,11 @@ end
 
 function C.CanCraft(db, id)
   local c = Cards.byId[id]
-  if not (c and c.collectible) then return false, "That card can't be crafted." end
-  if C.Owned(db, id) >= C.MaxCopies(id) then return false, "You already have every copy of " .. c.name .. " you can use." end
+  if not (c and c.collectible) then return false, L["That card can't be crafted."] end
+  if C.Owned(db, id) >= C.MaxCopies(id) then return false, L["You already have every copy of %s you can use."]:format(c.name) end
   local cost = C.CraftCost(id)
   if db.shards < cost then
-    return false, ("%s costs %d shards to craft. You have %d."):format(c.name, cost, db.shards)
+    return false, (L["%s costs %d shards to craft. You have %d."]):format(c.name, cost, db.shards)
   end
   return true, cost
 end
@@ -388,13 +395,13 @@ end
 -- Deck building ---------------------------------------------------------------
 function C.CanAdd(db, id)
   local c = Cards.byId[id]
-  if not (c and c.collectible) then return false, "Not a deck card." end
-  if #db.deck >= ns.Rules.DECK_SIZE then return false, "Your deck is full (20 cards)." end
+  if not (c and c.collectible) then return false, L["Not a deck card."] end
+  if #db.deck >= ns.Rules.DECK_SIZE then return false, L["Your deck is full (20 cards)."] end
   local inDeck = count(db.deck, id)
   if inDeck >= C.MaxCopies(id) then
-    return false, c.rarity == "legendary" and "Only one copy of a legendary." or "At most two copies of a card."
+    return false, c.rarity == "legendary" and L["Only one copy of a legendary."] or L["At most two copies of a card."]
   end
-  if inDeck >= C.Owned(db, id) then return false, "You don't own another copy." end
+  if inDeck >= C.Owned(db, id) then return false, L["You don't own another copy."] end
   return true
 end
 
@@ -416,10 +423,12 @@ end
 
 -- Every deck needs some cheap cards, so the guided draws of rounds 1-3 always
 -- find something to play (see R.GUIDED_DRAWS).
+-- label: short, for the deck panel; need: why a deck isn't ready.
 C.CURVE = {
-  { cost = 1, unit = true, min = 2, label = "units costing 1" },
-  { cost = 2, min = 4, label = "cards costing 2" },
-  { cost = 3, min = 3, label = "cards costing 3" },
+  { cost = 1, unit = true, min = 2, label = L["Cost 1 units"],
+    need = L["A deck needs at least %d units costing 1 (yours has %d)."] },
+  { cost = 2, min = 4, label = L["Cost 2 cards"], need = L["A deck needs at least %d cards costing 2 (yours has %d)."] },
+  { cost = 3, min = 3, label = L["Cost 3 cards"], need = L["A deck needs at least %d cards costing 3 (yours has %d)."] },
 }
 
 function C.CurveCounts(list)
@@ -439,7 +448,7 @@ function C.CheckCurve(list)
   local counts = C.CurveCounts(list)
   for i, rule in ipairs(C.CURVE) do
     if counts[i] < rule.min then
-      return false, ("A deck needs at least %d %s (yours has %d)."):format(rule.min, rule.label, counts[i])
+      return false, rule.need:format(rule.min, counts[i])
     end
   end
   return true
@@ -447,12 +456,12 @@ end
 
 function C.CheckDeck(db)
   local n = #db.deck
-  if n ~= ns.Rules.DECK_SIZE then return false, ("Your deck has %d of 20 cards."):format(n) end
+  if n ~= ns.Rules.DECK_SIZE then return false, (L["Your deck has %d of 20 cards."]):format(n) end
   local seen = {}
   for _, id in ipairs(db.deck) do
     seen[id] = (seen[id] or 0) + 1
     if seen[id] > C.MaxCopies(id) or seen[id] > C.Owned(db, id) then
-      return false, "Your deck has more copies of " .. Cards.byId[id].name .. " than allowed."
+      return false, L["Your deck has more copies of %s than allowed."]:format(Cards.byId[id].name)
     end
   end
   return C.CheckCurve(db.deck)
@@ -495,10 +504,10 @@ end
 -- Stars and the ladder ----------------------------------------------------------
 -- Three per opponent. The first unlocks the next opponent.
 C.STARS = {
-  { name = "Victory", text = "Win a match.", reward = "a card pack" },
-  { name = "Decisive", text = ("Win with at least %d more Morale than your opponent."):format(C.REWARD.decisive),
-    reward = "their signature card" },
-  { name = "Rank and file", text = "Win with a deck that has no rare, epic or legendary cards.", reward = "2 card packs" },
+  { name = L["Victory"], text = L["Win a match."], reward = L["a card pack"] },
+  { name = L["Decisive"], text = (L["Win with at least %d more Morale than your opponent."]):format(C.REWARD.decisive),
+    reward = L["their signature card"] },
+  { name = L["Rank and file"], text = L["Win with a deck that has no rare, epic or legendary cards."], reward = L["2 card packs"] },
 }
 
 -- Returns the opponent's three stars (true / nil) and how many are earned.
@@ -552,14 +561,14 @@ end
 -- Daily task ----------------------------------------------------------------------
 -- One a day. Most are counted from the events of each round you play.
 C.TASKS = {
-  { id = "wins", goal = 2, text = "Win 2 matches" },
-  { id = "morale", goal = 20, text = "Deal 20 damage to enemy Morale" },
-  { id = "kills", goal = 10, text = "Destroy 10 enemy units" },
-  { id = "tactics", goal = 5, text = "Cast 5 tactics" },
-  { id = "units", goal = 12, text = "Play 12 units" },
-  { id = "beasts", goal = 6, text = "Play 6 Beasts" },
-  { id = "rounds", goal = 15, text = "Play 15 rounds" },
-  { id = "healthy", goal = 1, text = "Win a match with 8 or more Morale left" },
+  { id = "wins", goal = 2, text = L["Win 2 matches"] },
+  { id = "morale", goal = 20, text = L["Deal 20 damage to enemy Morale"] },
+  { id = "kills", goal = 10, text = L["Destroy 10 enemy units"] },
+  { id = "tactics", goal = 5, text = L["Cast 5 tactics"] },
+  { id = "units", goal = 12, text = L["Play 12 units"] },
+  { id = "beasts", goal = 6, text = L["Play 6 Beasts"] },
+  { id = "rounds", goal = 15, text = L["Play 15 rounds"] },
+  { id = "healthy", goal = 1, text = L["Win a match with 8 or more Morale left"] },
 }
 C.TaskById = {}
 for i, t in ipairs(C.TASKS) do t.index = i; C.TaskById[t.id] = t end
@@ -588,7 +597,7 @@ function C.TaskAdvance(db, today, id, amount)
   if d.n >= task.goal then
     d.done = true
     db.shards = db.shards + C.REWARD.daily
-    return { shards = C.REWARD.daily, why = "daily task: " .. task.text:lower(), paid = true }
+    return { shards = C.REWARD.daily, why = L["daily task: %s"]:format(task.text), paid = true }
   end
 end
 
@@ -660,25 +669,25 @@ function C.RecordResult(db, oppId, result, today, info)
     p.wins.n[key] = before + 1
     if before < C.REWARD.fullWins then
       out[#out + 1] = { shards = heroic and C.REWARD.win.heroic or C.REWARD.win[o.level] or C.REWARD.win.normal,
-        why = heroic and "heroic victory" or "victory" }
+        why = heroic and L["heroic victory"] or L["victory"] }
     else
       out[#out + 1] = { shards = C.REWARD.reducedWin,
-        why = ("victory; %s has paid in full %d times today"):format(o.short, C.REWARD.fullWins) }
+        why = (L["victory; %s has paid in full %d times today"]):format(o.short, C.REWARD.fullWins) }
     end
     if p.dailyWin ~= today then
       p.dailyWin = today
-      out[#out + 1] = { packs = 1, why = "first win of the day" }
+      out[#out + 1] = { packs = 1, why = L["first win of the day"] }
     end
     if heroic then
       if not rec.beaten then
         rec.beaten = true
-        local why = "first heroic win against " .. o.short
+        local why = L["first heroic win against %s"]:format(o.short)
         out[#out + 1] = { packs = C.REWARD.heroicPacks, why = why }
         giveCard(db, out, o.signature, why, true)
       end
       if not p.heroicChampion and C.AllHeroic(db) then
         p.heroicChampion = true
-        giveCard(db, out, ns.CHAMPION_CARD, "every heroic rematch won", true)
+        giveCard(db, out, ns.CHAMPION_CARD, L["every heroic rematch won"], true)
       end
     else
       -- stars
@@ -688,7 +697,7 @@ function C.RecordResult(db, oppId, result, today, info)
       for i, got in ipairs(earned) do
         if got and not stars[i] then
           stars[i] = true
-          local why = "star: " .. C.STARS[i].name
+          local why = L["star: %s"]:format(C.STARS[i].name)
           out[#out + 1] = { star = i, why = C.STARS[i].name }
           if i == 1 then out[#out + 1] = { packs = 1, why = why }
           elseif i == 2 then giveCard(db, out, o.signature, why)
@@ -696,15 +705,15 @@ function C.RecordResult(db, oppId, result, today, info)
         end
       end
       for _, x in ipairs(ns.Opponents) do
-        if not wasUnlocked[x.id] and C.Unlocked(db, x.id) then out[#out + 1] = { unlocked = x.id, why = "beat " .. o.short } end
+        if not wasUnlocked[x.id] and C.Unlocked(db, x.id) then out[#out + 1] = { unlocked = x.id, why = L["beat %s"]:format(o.short) } end
       end
       if C.HeroicUnlocked(db) and not p.heroicOpen then
         p.heroicOpen = true
-        out[#out + 1] = { heroic = true, why = "beat " .. o.short }
+        out[#out + 1] = { heroic = true, why = L["beat %s"]:format(o.short) }
       end
       if not p.champion and C.AllStars(db) then
         p.champion = true
-        giveCard(db, out, ns.CHAMPION_CARD, "every star on the circuit")
+        giveCard(db, out, ns.CHAMPION_CARD, L["every star on the circuit"])
       end
     end
     local t = C.TaskAdvance(db, today, "wins", 1)
@@ -722,7 +731,7 @@ function C.RecordResult(db, oppId, result, today, info)
       rec.d = rec.d + 1
     end
     if not info.conceded and (info.round or C.REWARD.lossRound) >= C.REWARD.lossRound then
-      out[#out + 1] = { shards = C.REWARD.loss, why = "good game" }
+      out[#out + 1] = { shards = C.REWARD.loss, why = L["good game"] }
     end
   end
   return pay(db, out)
@@ -752,14 +761,14 @@ function C.RecordPvP(db, name, result, today, info)
       local before = p.wins.n[key] or 0
       p.wins.n[key] = before + 1
       if before < C.REWARD.fullWins then
-        out[#out + 1] = { shards = C.REWARD.win.pvp, why = "victory over " .. name }
+        out[#out + 1] = { shards = C.REWARD.win.pvp, why = L["victory over %s"]:format(name) }
       else
         out[#out + 1] = { shards = C.REWARD.reducedWin,
-          why = ("victory; games against %s have paid in full %d times today"):format(name, C.REWARD.fullWins) }
+          why = (L["victory; games against %s have paid in full %d times today"]):format(name, C.REWARD.fullWins) }
       end
       if p.dailyWin ~= today then
         p.dailyWin = today
-        out[#out + 1] = { packs = 1, why = "first win of the day" }
+        out[#out + 1] = { packs = 1, why = L["first win of the day"] }
       end
       local t = C.TaskAdvance(db, today, "wins", 1)
       if t then out[#out + 1] = t end
@@ -776,7 +785,7 @@ function C.RecordPvP(db, name, result, today, info)
       db.stats.draws = db.stats.draws + 1
       rec.d = rec.d + 1
     end
-    if not info.conceded and played then out[#out + 1] = { shards = C.REWARD.loss, why = "good game" } end
+    if not info.conceded and played then out[#out + 1] = { shards = C.REWARD.loss, why = L["good game"] } end
   end
   return pay(db, out)
 end
@@ -786,20 +795,20 @@ function C.FinishTutorial(db)
   db.tutorial = type(db.tutorial) == "table" and db.tutorial or {}
   if db.tutorial.done then return {} end
   db.tutorial.done = true
-  return pay(db, { { packs = C.TUTORIAL_PACKS, why = "finishing the tutorial" } })
+  return pay(db, { { packs = C.TUTORIAL_PACKS, why = L["finishing the tutorial"] } })
 end
 
 -- A level gained: shards, and a pack on every tenth level.
 function C.LevelUp(db, level)
-  local out = { { shards = C.REWARD.level, why = "reaching level " .. tostring(level) } }
+  local out = { { shards = C.REWARD.level, why = L["reaching level %s"]:format(tostring(level)) } }
   if type(level) == "number" and level > 0 and level % C.REWARD.levelPackEvery == 0 then
-    out[#out + 1] = { packs = 1, why = "reaching level " .. level }
+    out[#out + 1] = { packs = 1, why = L["reaching level %s"]:format(tostring(level)) }
   end
   return pay(db, out)
 end
 
 function C.FlightPath(db)
-  return pay(db, { { shards = C.REWARD.flightPath, why = "a new flight path" } })
+  return pay(db, { { shards = C.REWARD.flightPath, why = L["a new flight path"] } })
 end
 
 -- Adds flight time; returns the number of packs it earned.

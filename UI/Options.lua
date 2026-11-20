@@ -1,5 +1,6 @@
 -- The Options tab: everything that used to be a slash command only.
 local _, ns = ...
+local L = ns.L
 local UI = ns.UI
 
 local O = {}
@@ -9,14 +10,13 @@ local page
 local checks, ctl = {}, {}
 
 local TOGGLES = {
-  { "sound", "Sound", "Card, combat and pack sounds." },
-  { "portraits", "Creature portraits", "Show a portrait of the creature beside a card's tooltip, when it has one. Off by default." },
-  { "forecast", "Round forecast", "While planning: lane markers, the predicted Morale change and units marked \"dies\"." },
-  { "chatter", "Opponent lines", "Your opponent says a line now and then during a match (a big hit, a close call). Click it to dismiss." },
-  { "toast", "Offer a game when travelling", "Show a small prompt when a flight, boat or zeppelin ride starts." },
-  { "hideOnLand", "Close on arrival", "Close the window when you land or dock. Your game is saved." },
-  { "hideInCombat", "Close in combat", "Close the window when combat starts." },
-  { "minimap", "Minimap button", "Show the Deckhand button on the minimap." },
+  { "sound", L["Sound"], L["Card, combat and pack sounds."] },
+  { "forecast", L["Round forecast"], L["While planning: lane markers, the predicted Morale change and units marked \"dies\"."] },
+  { "chatter", L["Opponent lines"], L["Your opponent says a line now and then during a match (a big hit, a close call). Click it to dismiss."] },
+  { "toast", L["Offer a game when travelling"], L["Show a small prompt when a flight, boat or zeppelin ride starts."] },
+  { "hideOnLand", L["Close on arrival"], L["Close the window when you land or dock. Your game is saved."] },
+  { "hideInCombat", L["Close in combat"], L["Close the window when combat starts."] },
+  { "minimap", L["Minimap button"], L["Show the Deckhand button on the minimap."] },
 }
 
 function O.Set(key, value)
@@ -67,7 +67,7 @@ function O.Build(parent)
   page = parent
   local title = UI.Text(page, 14)
   title:SetPoint("TOPLEFT", 6, -4)
-  title:SetText("Options")
+  title:SetText(L["Options"])
   title:SetTextColor(1, 0.82, 0)
 
   for i, def in ipairs(TOGGLES) do check(page, def, -34 - (i - 1) * 28) end
@@ -75,7 +75,7 @@ function O.Build(parent)
   local x, y = 400, -34
   local sp = UI.Text(page, 12)
   sp:SetPoint("TOPLEFT", x, y - 3)
-  sp:SetText("Round replay speed")
+  sp:SetText(L["Round replay speed"])
   ctl.speed = {}
   for i = 1, 3 do
     local b = UI.Button(page, i .. "x", 44, 22, function() O.Set("speed", i) end)
@@ -86,7 +86,7 @@ function O.Build(parent)
   y = y - 36
   local sc = UI.Text(page, 12)
   sc:SetPoint("TOPLEFT", x, y - 3)
-  sc:SetText("Window size")
+  sc:SetText(L["Window size"])
   ctl.smaller = UI.Button(page, "-", 30, 22, function()
     O.Set("scale", math.max(0.6, math.floor(((ns.db.settings.scale or 1) - 0.1) * 10 + 0.5) / 10))
   end)
@@ -100,23 +100,23 @@ function O.Build(parent)
   ctl.bigger:SetPoint("LEFT", ctl.scale, "RIGHT", 10, 0)
 
   y = y - 36
-  local center = UI.Button(page, "Move window to the middle", 220, 22, function()
+  local center = UI.Button(page, L["Move window to the middle"], 220, 22, function()
     UI.ResetPosition()
   end)
   center:SetPoint("TOPLEFT", x, y)
 
   y = y - 30
-  local tips = UI.Button(page, "Show the first-time tips again", 220, 22, function()
+  local tips = UI.Button(page, L["Show the first-time tips again"], 220, 22, function()
     local S = ns.db.settings
     S.seenRules, S.seenLaneTip, S.seenKw, S.seenWelcome = nil, nil, nil, nil
-    ns.Print("The welcome, the lane tip and the keyword tips will show again.")
+    ns.Print(L["The welcome, the lane tip and the keyword tips will show again."])
   end)
   tips:SetPoint("TOPLEFT", x, y)
 
   local foot = UI.Text(page, 10)
   foot:SetPoint("BOTTOMLEFT", 6, 6)
   foot:SetTextColor(0.6, 0.6, 0.6)
-  foot:SetText(("Deckhand %s.  /deckhand help lists the chat commands."):format(tostring(ns.VERSION)))
+  foot:SetText((L["Deckhand %s.  /deckhand help lists the chat commands."]):format(tostring(ns.VERSION)))
 
   page:SetScript("OnShow", function() O.Refresh() end)
 end

@@ -1,17 +1,18 @@
 -- The main window (tabs: Play, Cards, Packs, Guide, Options), the flight /
 -- pack toast and the minimap button.
 local _, ns = ...
+local L = ns.L
 local UI = ns.UI
 
 local W, H = 800, 600
 local main, content
 local tabs, pages = {}, {}
 local TABS = {
-  { key = "play", label = "Play", module = "Game" },
-  { key = "cards", label = "Cards", module = "Binder" },
-  { key = "packs", label = "Packs", module = "Packs" },
-  { key = "guide", label = "Guide", module = "Guide" },
-  { key = "options", label = "Options", module = "Options" },
+  { key = "play", label = L["Play"], module = "Game" },
+  { key = "cards", label = L["Cards"], module = "Binder" },
+  { key = "packs", label = L["Packs"], module = "Packs" },
+  { key = "guide", label = L["Guide"], module = "Guide" },
+  { key = "options", label = L["Options"], module = "Options" },
 }
 
 -- The saved position is the window's top left corner in screen units, so it
@@ -192,7 +193,7 @@ local function makeToast()
   toast.text:SetPoint("TOPLEFT", toast.title, "BOTTOMLEFT", 0, -3)
   toast.text:SetWidth(170)
   toast.text:SetJustifyH("LEFT")
-  toast.go = UI.Button(toast, "Play", 56, 20)
+  toast.go = UI.Button(toast, L["Play"], 56, 20)
   toast.go:SetPoint("RIGHT", -28, 0)
   toast.x = CreateFrame("Button", nil, toast, "UIPanelCloseButton")
   toast.x:SetSize(22, 22)
@@ -217,23 +218,23 @@ function UI.Toast(kind, why, n)
   if not toast then makeToast() end
   if kind == "pvp" then
     toast.title:SetText("Deckhand")
-    toast.text:SetText(why or "Your opponent is waiting.")
-    toast.go:SetText("Play")
+    toast.text:SetText(why or L["Your opponent is waiting."])
+    toast.go:SetText(L["Play"])
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
   elseif kind == "flight" or kind == "boat" then
     toast.title:SetText("Deckhand")
     if kind == "flight" then
-      toast.text:SetText(UI.AnyGame() and "Your game is waiting. Play while you fly?" or "Deal a hand while you fly?")
+      toast.text:SetText(UI.AnyGame() and L["Your game is waiting. Play while you fly?"] or L["Deal a hand while you fly?"])
     else
-      toast.text:SetText(UI.AnyGame() and "Your game is waiting. Play on the crossing?" or "Deal a hand for the crossing?")
+      toast.text:SetText(UI.AnyGame() and L["Your game is waiting. Play on the crossing?"] or L["Deal a hand for the crossing?"])
     end
-    toast.go:SetText("Play")
+    toast.go:SetText(L["Play"])
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
   else
     n = n or 1
-    toast.title:SetText(("+%d card pack%s"):format(n, n == 1 and "" or "s"))
-    toast.text:SetText(why and ("For " .. why .. ".") or "")
-    toast.go:SetText("Open")
+    toast.title:SetText(ns.Plural(n, "+%d card pack", "+%d card packs"):format(n))
+    toast.text:SetText(why and L["For %s."]:format(why) or "")
+    toast.go:SetText(L["Open"])
     toast.go:SetScript("OnClick", function() UI.Show("packs") end)
   end
   toast:Show()
@@ -292,10 +293,13 @@ local function makeMinimap()
     GameTooltip:AddLine("Deckhand")
     if UI.AnyGame() then
       local moves = UI.Game.YourMoves()
-      GameTooltip:AddLine(moves > 0 and (moves .. " of your games wait for your move.") or "Games in progress.", 0.4, 1, 0.4)
+      GameTooltip:AddLine(moves > 0 and ns.Plural(moves, "%d of your games waits for your move.", "%d of your games wait for your move."):format(moves)
+        or L["Games in progress."], 0.4, 1, 0.4)
     end
-    if ns.db.packs > 0 then GameTooltip:AddLine(("%d unopened pack%s"):format(ns.db.packs, ns.db.packs == 1 and "" or "s"), 1, 0.82, 0) end
-    GameTooltip:AddLine("Click: play.  Right-click: packs.  Drag: move.", 0.7, 0.7, 0.7)
+    if ns.db.packs > 0 then
+      GameTooltip:AddLine(ns.Plural(ns.db.packs, "%d unopened pack", "%d unopened packs"):format(ns.db.packs), 1, 0.82, 0)
+    end
+    GameTooltip:AddLine(L["Click: play.  Right-click: packs.  Drag: move."], 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)
   mm:SetScript("OnLeave", function() GameTooltip:Hide() end)

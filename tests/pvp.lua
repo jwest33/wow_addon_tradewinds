@@ -19,9 +19,10 @@ local drop = nil     -- function(msg, from, to) -> true to lose a message
 
 -- A client: fresh mock and addon in their own global table. saved: the
 -- DeckhandCharDB to start from (a /reload), or nil for a new character.
-local function client(name, saved)
+local function client(name, saved, locale)
   local env = setmetatable({}, { __index = _G })
   env._G = env
+  if locale then env.GetLocale = function() return locale end end
   local function run(path, ...)
     local f = assert(loadfile(ROOT .. "/" .. path))
     setfenv(f, env)
@@ -427,6 +428,27 @@ do
   check(B.ns.Net.Incoming() == "Alice", "/deckhand challenge uses your target")
   B.G.AnswerChallenge(false)
   pump()
+end
+
+-- two clients in different languages: nothing translated goes over the wire,
+-- so they play the same game
+do
+  local H, W = client("Hans", nil, "deDE"), client("Mei", nil, "zhCN")
+  check(H.ns.LOCALE == "deDE" and W.ns.LOCALE == "zhCN", "a German and a Chinese client")
+  startMatch(H, W)
+  local rounds, drifted = 0, 0
+  while H.G.Match() and W.G.Match() and rounds < 12 do
+    rounds = rounds + 1
+    autoPlan(H); H.G.LockIn(); pump()
+    autoPlan(W); W.G.LockIn(); pump()
+    advance(40)
+    if H.G.Match() and W.G.Match() and sum(H) ~= sum(W) then drifted = drifted + 1 end
+  end
+  check(drifted == 0, "the German and Chinese copies never differ")
+  check(noGames(H) and noGames(W), "their match ends on both sides (" .. rounds .. " rounds)")
+  local rh, rw = H.db().pvpRecord["Mei"], W.db().pvpRecord["Hans"]
+  check(rh and rw and rh.w == rw.l and rh.l == rw.w, "both record the same result")
+  H.offline, W.offline = true, true
 end
 
 -- every message fits, and a full deck does with room to spare

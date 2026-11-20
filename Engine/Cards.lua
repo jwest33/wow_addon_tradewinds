@@ -7,10 +7,11 @@
 --     onDeath(st, u, dead) whenever another unit dies
 --   tactics: target ("enemy" | "friend" | "none"), play(st, p, lane)
 --   text (rules beyond keywords), flavor, icon (list of candidates, first one
---   the client has wins), npc (creature id for the tooltip portrait)
+--   the client has wins)
 --   tribe, aura, bonus: see Engine/CardsRoads.lua (the second set)
 --   signature: set by Data/Opponents.lua on cards that are won, not found in packs
 local _, ns = ...
+local L = ns.L
 local R = ns.Rules
 
 local Cards = { list = {}, byId = {} }
@@ -18,8 +19,8 @@ ns.Cards = Cards
 
 Cards.RARITIES = { "common", "uncommon", "rare", "epic", "legendary" }
 Cards.RARITY_RANK = { common = 1, uncommon = 2, rare = 3, epic = 4, legendary = 5 }
-Cards.TRIBES = { beast = "Beast", murloc = "Murloc", undead = "Undead", defias = "Defias", dragonkin = "Dragonkin" }
-Cards.SETS = { core = "Core set", roads = "Roads of Azeroth" }
+Cards.TRIBES = { beast = L["Beast"], murloc = L["Murloc"], undead = L["Undead"], defias = L["Defias"], dragonkin = L["Dragonkin"] }
+Cards.SETS = { core = L["Core set"], roads = L["Roads of Azeroth"] }
 
 local function icons(...)
   local t = {}
@@ -27,7 +28,15 @@ local function icons(...)
   return t
 end
 
+-- The card's text in the client's language (Locales/Locale.lua).
+local function translate(c)
+  c.name = L[c.name]
+  if c.text then c.text = L[c.text] end
+  if c.flavor then c.flavor = L[c.flavor] end
+end
+
 local function add(c)
+  translate(c)
   c.set = c.set or "core"
   if c.collectible == nil then c.collectible = true end
   c.kw = c.kw or {}
@@ -57,22 +66,22 @@ end
 -- Common
 -- ---------------------------------------------------------------------------
 add { id = "kobold", name = "Kobold Vermin", cost = 1, type = "unit", rarity = "common", atk = 1, hp = 2,
-  flavor = "You no take candle!", icon = icons("INV_Misc_Head_Kobold_01", "Trade_Mining"), npc = 6 }
+  flavor = "You no take candle!", icon = icons("INV_Misc_Head_Kobold_01", "Trade_Mining") }
 
 add { id = "murloc", name = "Murloc Forager", cost = 1, type = "unit", rarity = "common", atk = 2, hp = 1,
-  flavor = "Mrrrggk!", icon = icons("INV_Misc_Head_Murloc_01", "INV_Misc_Fish_02"), npc = 46 }
+  flavor = "Mrrrggk!", icon = icons("INV_Misc_Head_Murloc_01", "INV_Misc_Fish_02") }
 
 add { id = "wolf", name = "Young Wolf", cost = 1, type = "unit", rarity = "common", atk = 1, hp = 1, kw = { swift = true },
-  flavor = "The first thing that bit you in Elwynn.", icon = icons("Ability_Hunter_Pet_Wolf"), npc = 299 }
+  flavor = "The first thing that bit you in Elwynn.", icon = icons("Ability_Hunter_Pet_Wolf") }
 
 add { id = "boar", name = "Mottled Boar", cost = 2, type = "unit", rarity = "common", atk = 2, hp = 2, kw = { pierce = true },
-  flavor = "Durotar's welcoming committee.", icon = icons("Ability_Hunter_Pet_Boar"), npc = 3098 }
+  flavor = "Durotar's welcoming committee.", icon = icons("Ability_Hunter_Pet_Boar") }
 
 add { id = "thug", name = "Defias Thug", cost = 2, type = "unit", rarity = "common", atk = 2, hp = 3,
-  flavor = "Westfall's finest, by default.", icon = icons("INV_Misc_Bandana_03", "INV_Misc_Head_Human_01"), npc = 38 }
+  flavor = "Westfall's finest, by default.", icon = icons("INV_Misc_Bandana_03", "INV_Misc_Head_Human_01") }
 
 add { id = "gnoll", name = "Riverpaw Gnoll", cost = 2, type = "unit", rarity = "common", atk = 3, hp = 2,
-  flavor = "Hogger sends his regards.", icon = icons("INV_Misc_Head_Gnoll_01", "Ability_Hunter_Pet_Hyena"), npc = 117 }
+  flavor = "Hogger sends his regards.", icon = icons("INV_Misc_Head_Gnoll_01", "Ability_Hunter_Pet_Hyena") }
 
 add { id = "mountaineer", name = "Ironforge Mountaineer", cost = 2, type = "unit", rarity = "common", atk = 1, hp = 4,
   kw = { guard = true }, flavor = "Nothing gets past Dun Morogh. Nothing.",
@@ -80,20 +89,20 @@ add { id = "mountaineer", name = "Ironforge Mountaineer", cost = 2, type = "unit
 
 add { id = "strider", name = "Plainstrider", cost = 2, type = "unit", rarity = "common", atk = 1, hp = 3,
   text = "Arrive: restore 2 Morale.", flavor = "Mulgore's most dignified bird.",
-  icon = icons("Ability_Hunter_Pet_TallStrider"), npc = 2955,
+  icon = icons("Ability_Hunter_Pet_TallStrider"),
   arrive = function(st, u) R.RestoreMorale(st, u.owner, 2) end }
 
 add { id = "spider", name = "Forest Spider", cost = 2, type = "unit", rarity = "common", atk = 1, hp = 3, kw = { venom = true },
-  flavor = "Duskwood's welcome mat.", icon = icons("Ability_Hunter_Pet_Spider"), npc = 30 }
+  flavor = "Duskwood's welcome mat.", icon = icons("Ability_Hunter_Pet_Spider") }
 
 add { id = "croc", name = "Loch Crocolisk", cost = 3, type = "unit", rarity = "common", atk = 2, hp = 5,
-  flavor = "Loch Modan's lazy landlord.", icon = icons("Ability_Hunter_Pet_Crocolisk"), npc = 1693 }
+  flavor = "Loch Modan's lazy landlord.", icon = icons("Ability_Hunter_Pet_Crocolisk") }
 
 add { id = "axe", name = "Darkspear Axe Thrower", cost = 3, type = "unit", rarity = "common", atk = 2, hp = 3, kw = { ranged = true },
   flavor = "Never misses the weak link.", icon = icons("INV_ThrowingAxe_01", "INV_Axe_02") }
 
 add { id = "grunt", name = "Orgrimmar Grunt", cost = 3, type = "unit", rarity = "common", atk = 3, hp = 4,
-  flavor = "Lok'tar!", icon = icons("INV_Misc_Head_Orc_01", "INV_Axe_02"), npc = 3296 }
+  flavor = "Lok'tar!", icon = icons("INV_Misc_Head_Orc_01", "INV_Axe_02") }
 
 add { id = "raptor", name = "Sunscale Lashtail", cost = 3, type = "unit", rarity = "common", atk = 3, hp = 2, kw = { swift = true },
   flavor = "The Barrens' fastest grudge.", icon = icons("Ability_Hunter_Pet_Raptor") }
@@ -140,7 +149,7 @@ add { id = "bandage", name = "Heavy Linen Bandage", cost = 1, type = "tactic", r
 -- ---------------------------------------------------------------------------
 add { id = "watcher", name = "Harvest Watcher", cost = 3, type = "unit", rarity = "uncommon", atk = 2, hp = 4,
   text = "Fallen: deal 2 damage to the enemy unit across.", flavor = "Westfall's scarecrows took the job too seriously.",
-  icon = icons("INV_Misc_Gear_01"), npc = 114,
+  icon = icons("INV_Misc_Gear_01"),
   fallen = function(st, u) R.Damage(st, across(st, u), 2) end }
 
 add { id = "vulture", name = "Carrion Vulture", cost = 2, type = "unit", rarity = "uncommon", atk = 1, hp = 2,
@@ -251,24 +260,24 @@ add { id = "chain", name = "Chain Lightning", cost = 3, type = "tactic", rarity 
 -- ---------------------------------------------------------------------------
 add { id = "hogger", name = "Hogger", cost = 4, type = "unit", rarity = "epic", atk = 4, hp = 4,
   text = "Arrive: summon a 1/1 Riverpaw Runt in each of your empty neighbouring lanes.",
-  flavor = "Elwynn's most wanted.", icon = icons("INV_Misc_Head_Gnoll_01", "Ability_Hunter_Pet_Hyena"), npc = 448,
+  flavor = "Elwynn's most wanted.", icon = icons("INV_Misc_Head_Gnoll_01", "Ability_Hunter_Pet_Hyena"),
   arrive = function(st, u)
     for _, l in ipairs(neighbours(u.lane)) do R.Summon(st, u.owner, l, "runt") end
   end }
 
 add { id = "princess", name = "Princess", cost = 3, type = "unit", rarity = "epic", atk = 2, hp = 5, kw = { guard = true },
   text = "Fallen: restore 4 Morale.", flavor = "The pride of the Brackwell Pumpkin Patch.",
-  icon = icons("Ability_Hunter_Pet_Boar"), npc = 330,
+  icon = icons("Ability_Hunter_Pet_Boar"),
   fallen = function(st, u) R.RestoreMorale(st, u.owner, 4) end }
 
 add { id = "azuregos", name = "Azuregos", cost = 6, type = "unit", rarity = "epic", atk = 5, hp = 7,
   text = "Arrive: freeze every enemy unit (they don't strike this round).", flavor = "Azshara's most bookish resident.",
-  icon = icons("INV_Misc_Head_Dragon_Blue", "Spell_Frost_FrostNova"), npc = 6109,
+  icon = icons("INV_Misc_Head_Dragon_Blue", "Spell_Frost_FrostNova"),
   arrive = function(st, u) eachEnemy(st, u.owner, function(x) R.Freeze(st, x) end) end }
 
 add { id = "kazzak", name = "Lord Kazzak", cost = 6, type = "unit", rarity = "epic", atk = 5, hp = 6,
   kw = { cleave = true }, text = "Arrive: restore 3 Morale.", flavor = "The Blasted Lands earned the name.",
-  icon = icons("Spell_Shadow_SummonInfernal"), npc = 12397,
+  icon = icons("Spell_Shadow_SummonInfernal"),
   arrive = function(st, u) R.RestoreMorale(st, u.owner, 3) end }
 
 -- ---------------------------------------------------------------------------
@@ -276,16 +285,16 @@ add { id = "kazzak", name = "Lord Kazzak", cost = 6, type = "unit", rarity = "ep
 -- ---------------------------------------------------------------------------
 add { id = "onyxia", name = "Onyxia", cost = 6, type = "unit", rarity = "legendary", atk = 6, hp = 7,
   text = "Arrive: deal 2 damage to every enemy unit.", flavor = "Lady Prestor sends her apologies.",
-  icon = icons("INV_Misc_Head_Dragon_01", "INV_Misc_Head_Dragon_Black"), npc = 10184,
+  icon = icons("INV_Misc_Head_Dragon_01", "INV_Misc_Head_Dragon_Black"),
   arrive = function(st, u) eachEnemy(st, u.owner, function(x) R.Damage(st, x, 2) end) end }
 
 add { id = "ragnaros", name = "Ragnaros", cost = 6, type = "unit", rarity = "legendary", atk = 6, hp = 6,
   kw = { cleave = true, pierce = true }, flavor = "Too soon, executus.",
-  icon = icons("INV_Hammer_Unique_Sulfuras", "Spell_Fire_Immolation"), npc = 11502 }
+  icon = icons("INV_Hammer_Unique_Sulfuras", "Spell_Fire_Immolation") }
 
 add { id = "vancleef", name = "Edwin VanCleef", cost = 4, type = "unit", rarity = "legendary", atk = 4, hp = 3,
   kw = { swift = true, stealth = true, pierce = true }, flavor = "The Brotherhood remembers.",
-  icon = icons("Ability_Stealth"), npc = 639, display = 2029 }
+  icon = icons("Ability_Stealth"), display = 2029 }
 
 -- ---------------------------------------------------------------------------
 -- Tokens (made by other cards, never in packs or decks)

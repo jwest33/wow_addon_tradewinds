@@ -15,6 +15,7 @@
 -- heroic: their deck for heroic rematches, which open once the whole circuit
 -- is beaten (Collection.HeroicUnlocked). It's played by the heroic AI.
 local _, ns = ...
+local L = ns.L
 
 local function deck(spec)
   local out = {}
@@ -152,8 +153,14 @@ ns.Opponents = {
 -- The reward for earning every star on the circuit.
 ns.CHAMPION_CARD = "ragnaros"
 
+-- Their text in the client's language (Locales/Locale.lua).
+ns.OPPONENT_TEXT = { "name", "short", "title", "hello", "win", "lose", "hit", "hurt", "low", "rematch" }
+
 ns.OpponentById = {}
 for i, o in ipairs(ns.Opponents) do
+  for _, k in ipairs(ns.OPPONENT_TEXT) do
+    if o[k] then o[k] = L[o[k]] end
+  end
   o.index = i
   ns.OpponentById[o.id] = o
   ns.Cards.byId[o.signature].signature = o.id

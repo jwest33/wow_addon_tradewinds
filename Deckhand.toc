@@ -1,11 +1,31 @@
 ## Interface: 16001
 ## Title: Deckhand
 ## Notes: A Warcraft card game for flights and boat rides. Earn packs while you travel, build a deck, beat the tavern regulars.
-## Version: 0.12.0
+## Notes-deDE: Ein Warcraft-Kartenspiel für Flüge und Schiffsreisen. Verdiene auf Reisen Kartenpacks, baue ein Deck und besiege die Stammgäste der Taverne.
+## Notes-frFR: Un jeu de cartes Warcraft pour les vols et les traversées en bateau. Gagnez des paquets de cartes en voyageant, construisez un deck et battez les habitués de la taverne.
+## Notes-esES: Un juego de cartas de Warcraft para vuelos y viajes en barco. Gana sobres mientras viajas, arma un mazo y vence a los habituales de la taberna.
+## Notes-esMX: Un juego de cartas de Warcraft para vuelos y viajes en barco. Gana sobres mientras viajas, arma un mazo y vence a los habituales de la taberna.
+## Notes-itIT: Un gioco di carte di Warcraft per voli e traversate in nave. Guadagna pacchetti viaggiando, costruisci un mazzo e sconfiggi i clienti abituali della taverna.
+## Notes-ptBR: Um jogo de cartas de Warcraft para voos e viagens de barco. Ganhe pacotes de cartas enquanto viaja, monte um baralho e vença os frequentadores da taverna.
+## Notes-ruRU: Карточная игра по Warcraft для полётов и плаваний. Получайте наборы карт в пути, собирайте колоду и побеждайте завсегдатаев таверны.
+## Notes-koKR: 비행과 배 여행 중에 즐기는 워크래프트 카드 게임. 여행하며 카드 팩을 모으고, 덱을 짜서 선술집 단골들을 이겨 보세요.
+## Notes-zhCN: 在飞行和乘船途中游玩的魔兽卡牌游戏。旅途中赚取卡包，组建套牌，击败酒馆的常客。
+## Notes-zhTW: 在飛行與搭船途中遊玩的魔獸卡牌遊戲。旅途中賺取卡包，組建牌組，擊敗酒館的常客。
+## Version: 0.13.0
 ## IconTexture: Interface\Icons\INV_Misc_Ticket_Darkmoon_01
 ## SavedVariablesPerCharacter: DeckhandCharDB
 ## AddonCompartmentFunc: Deckhand_Toggle
 
+Locales\Locale.lua
+Locales\deDE.lua
+Locales\frFR.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\koKR.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
 Engine\Rules.lua
 Engine\Cards.lua
 Engine\CardsRoads.lua
@@ -17,7 +37,6 @@ Collection.lua
 Net.lua
 Core.lua
 UI\Widgets.lua
-UI\Portraits.lua
 UI\Main.lua
 UI\Effects.lua
 UI\Game.lua

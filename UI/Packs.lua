@@ -1,6 +1,7 @@
 -- The Packs tab: open packs card by card, buy packs with shards, and see how
 -- close the next flight pack is.
 local _, ns = ...
+local L = ns.L
 local Cards, C = ns.Cards, ns.Collection
 local UI = ns.UI
 
@@ -18,16 +19,16 @@ local function fmtTime(s)
 end
 
 local KIND_LABEL = {
-  new = "|cffffd100NEW!|r",
-  copy = "|cffb0b0b0copy|r",
+  new = "|cffffd100" .. L["NEW!"] .. "|r",
+  copy = "|cffb0b0b0" .. L["copy"] .. "|r",
 }
 
 local function label(r)
   if r.kind == "shards" then
-    return ("|cff9fdfff+%d shard%s|r"):format(r.shards, r.shards == 1 and "" or "s")
+    return "|cff9fdfff" .. ns.Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards) .. "|r"
   elseif r.holo then
-    return r.kind == "holo" and UI.Rainbow("Now holographic!")
-      or (r.kind == "new" and (KIND_LABEL.new .. " ") or "") .. UI.Rainbow("Holographic!")
+    return r.kind == "holo" and UI.Rainbow(L["Now holographic!"])
+      or (r.kind == "new" and (KIND_LABEL.new .. " ") or "") .. UI.Rainbow(L["Holographic!"])
   end
   return KIND_LABEL[r.kind]
 end
@@ -43,10 +44,10 @@ local function reveal(i)
   local col = UI.RARITY_COLOR[c.rarity]
   slot.card:Flash(col[1], col[2], col[3])
   if r.holo then
-    slot.card:Float("Holographic!", 0.7, 0.95, 1)
+    slot.card:Float(L["Holographic!"], 0.7, 0.95, 1)
     UI.Sound("rare")
   elseif c.rarity == "legendary" or c.rarity == "epic" then
-    slot.card:Float(c.rarity == "legendary" and "Legendary!" or "Epic!", col[1], col[2], col[3])
+    slot.card:Float(c.rarity == "legendary" and L["Legendary!"] or L["Epic!"], col[1], col[2], col[3])
     UI.Sound("rare")
   else
     UI.Sound("reveal")
@@ -71,13 +72,13 @@ local function openAll()
     n, last = n + 1, results
     for _, r in ipairs(results) do
       if r.kind == "new" then names[#names + 1] = UI.CardName(r.id) end
-      if r.holo then special[#special + 1] = UI.Rainbow("Holographic") .. " " .. UI.CardName(r.id) end
-      if Cards.byId[r.id].rarity == "legendary" then special[#special + 1] = "Legendary: " .. UI.CardName(r.id) end
+      if r.holo then special[#special + 1] = L["%s: %s"]:format(UI.Rainbow(L["Holographic"]), UI.CardName(r.id)) end
+      if Cards.byId[r.id].rarity == "legendary" then special[#special + 1] = L["%s: %s"]:format(L["Legendary"], UI.CardName(r.id)) end
       shards = shards + (r.shards or 0)
     end
   end
   if n == 0 then
-    UI.Error("No packs to open.")
+    UI.Error(L["No packs to open."])
     return
   end
   opened = { results = last, shown = {} }
@@ -86,10 +87,10 @@ local function openAll()
     slots[i].label:SetText("")
   end
   revealAll()
-  ns.Print("Opened %d pack%s: %d new card%s, %d shard%s from extra copies.", n, n == 1 and "" or "s",
-    #names, #names == 1 and "" or "s", shards, shards == 1 and "" or "s")
+  ns.Print(L["Opened %s: %s, %s from extra copies."], ns.Plural(n, "%d pack", "%d packs"):format(n),
+    ns.Plural(#names, "%d new card", "%d new cards"):format(#names), ns.Plural(shards, "%d shard", "%d shards"):format(shards))
   for i = 1, #names, 6 do
-    ns.Print("New: %s", table.concat(names, ", ", i, math.min(#names, i + 5)))
+    ns.Print(L["New: %s"], table.concat(names, ", ", i, math.min(#names, i + 5)))
   end
   for _, s in ipairs(special) do ns.Print("%s", s) end
   if #special > 0 then UI.Sound("rare") end
@@ -100,7 +101,7 @@ local function openPack()
   revealAll()
   local results = C.OpenPack(ns.db, ns.Rand)
   if not results then
-    UI.Error("No packs to open.")
+    UI.Error(L["No packs to open."])
     return
   end
   opened = { results = results, shown = {} }
@@ -119,7 +120,7 @@ function P.Refresh()
   local db = ns.db
   ctl.count:SetText(db.packs)
   ctl.open:SetEnabled(db.packs > 0)
-  ctl.open:SetText(db.packs > 0 and "Open a pack" or "No packs")
+  ctl.open:SetText(db.packs > 0 and L["Open a pack"] or L["No packs"])
   ctl.openAll:SetEnabled(db.packs > 1)
   ctl.shards:SetText(("%d / %d"):format(db.shards, C.PACK_COST))
   ctl.buy:SetEnabled(db.shards >= C.PACK_COST)
@@ -135,8 +136,9 @@ function P.Refresh()
   local t = db.progress.travel or 0
   ctl.bar:SetValue(t / C.TRAVEL_PACK_SECONDS)
   local T = ns.Travel
-  ctl.barText:SetText(("Travel time toward your next pack: %s / %s%s"):format(fmtTime(t), fmtTime(C.TRAVEL_PACK_SECONDS),
-    (T and T.IsFlying()) and "  |cff40ff40(in the air)|r" or (T and T.IsRiding()) and "  |cff40ff40(on board)|r" or ""))
+  local where = (T and T.IsFlying()) and L["(in the air)"] or (T and T.IsRiding()) and L["(on board)"]
+  ctl.barText:SetText(L["Travel time toward your next pack: %s / %s"]:format(fmtTime(t), fmtTime(C.TRAVEL_PACK_SECONDS))
+    .. (where and ("  |cff40ff40" .. where .. "|r") or ""))
 end
 
 function P.Build(parent)
@@ -148,16 +150,16 @@ function P.Build(parent)
   icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
   local label = UI.Text(page, 11)
   label:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
-  label:SetText("Card packs")
+  label:SetText(L["Card packs"])
   label:SetTextColor(0.75, 0.75, 0.75)
   ctl.count = UI.Text(page, 26, "OUTLINE")
   ctl.count:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -4)
   ctl.count:SetTextColor(1, 0.82, 0)
-  ctl.open = UI.Button(page, "Open a pack", 120, 26, openPack)
+  ctl.open = UI.Button(page, L["Open a pack"], 120, 26, openPack)
   ctl.open:SetPoint("TOPLEFT", page, "TOPLEFT", 160, -14)
-  ctl.openAll = UI.Button(page, "Open all", 90, 26, openAll)
+  ctl.openAll = UI.Button(page, L["Open all"], 90, 26, openAll)
   ctl.openAll:SetPoint("LEFT", ctl.open, "RIGHT", 6, 0)
-  UI.SimpleTooltip(ctl.openAll, "Open all", "Opens every pack you have. The new cards are listed in chat.")
+  UI.SimpleTooltip(ctl.openAll, L["Open all"], L["Opens every pack you have. The new cards are listed in chat."])
 
   local sIcon = page:CreateTexture(nil, "ARTWORK")
   sIcon:SetSize(32, 32)
@@ -165,7 +167,7 @@ function P.Build(parent)
   sIcon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Enchant_ShardBrilliantSmall", "Interface\\Icons\\INV_Misc_Gem_Pearl_04" }))
   local sLabel = UI.Text(page, 11)
   sLabel:SetPoint("TOPLEFT", sIcon, "TOPRIGHT", 8, 0)
-  sLabel:SetText("Shards")
+  sLabel:SetText(L["Shards"])
   sLabel:SetTextColor(0.75, 0.75, 0.75)
   ctl.shards = UI.Text(page, 14, "OUTLINE")
   ctl.shards:SetPoint("TOPLEFT", sLabel, "BOTTOMLEFT", 0, -3)
@@ -174,11 +176,11 @@ function P.Build(parent)
   shardHelp:SetPoint("TOPLEFT", sIcon, "TOPLEFT")
   shardHelp:SetSize(100, 34)
   shardHelp:EnableMouse(true)
-  UI.SimpleTooltip(shardHelp, "Shards",
-    ("A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."):format(
+  UI.SimpleTooltip(shardHelp, L["Shards"],
+    (L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."]):format(
       C.SHARD_VALUE.common, C.SHARD_VALUE.uncommon, C.SHARD_VALUE.rare, C.SHARD_VALUE.epic),
-    ("Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."):format(C.PACK_COST))
-  ctl.buy = UI.Button(page, "Buy a pack", 100, 22, function()
+    (L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."]):format(C.PACK_COST))
+  ctl.buy = UI.Button(page, L["Buy a pack"], 100, 22, function()
     if C.BuyPack(ns.db) then UI.Refresh() end
   end)
   ctl.buy:SetPoint("TOPLEFT", page, "TOPLEFT", 600, -14)
@@ -198,9 +200,9 @@ function P.Build(parent)
   end
   ctl.empty = UI.Text(page, 11)
   ctl.empty:SetPoint("TOP", page, "TOP", 0, -140)
-  ctl.empty:SetText("Open a pack to see what's inside. Click each card to turn it over.")
+  ctl.empty:SetText(L["Open a pack to see what's inside. Click each card to turn it over."])
   ctl.empty:SetTextColor(0.6, 0.6, 0.6)
-  ctl.revealAll = UI.Button(page, "Reveal all", 100, 22, revealAll)
+  ctl.revealAll = UI.Button(page, L["Reveal all"], 100, 22, revealAll)
   ctl.revealAll:SetPoint("TOP", page, "TOP", 0, -240)
 
   local bar = CreateFrame("StatusBar", nil, page, UI.TEMPLATE)
@@ -221,15 +223,15 @@ function P.Build(parent)
   earn:SetSpacing(3)
   earn:SetTextColor(0.75, 0.75, 0.75)
   earn:SetText(table.concat({
-    "|cffffd100Ways to earn packs|r",
-    ("- Every %d minutes on a flight path, boat or zeppelin"):format(C.TRAVEL_PACK_SECONDS / 60),
-    "- Your first win of the day, and every tenth level",
-    "- Stars: your first win against each opponent, and winning with a deck of commons and uncommons",
-    ("- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"):format(C.PACK_COST),
-    "|cffffd100What's in a pack|r",
-    "- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary",
-    "- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them",
-    "- About 1 pack in " .. C.HOLO_ODDS .. " has a " .. UI.Rainbow("holographic") .. " card. It plays the same; it just shines",
+    "|cffffd100" .. L["Ways to earn packs"] .. "|r",
+    L["- Every %d minutes on a flight path, boat or zeppelin"]:format(C.TRAVEL_PACK_SECONDS / 60),
+    L["- Your first win of the day, and every tenth level"],
+    L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"],
+    L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"]:format(C.PACK_COST),
+    "|cffffd100" .. L["What's in a pack"] .. "|r",
+    L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"],
+    L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"],
+    L["- About 1 pack in %d has a %s card. It plays the same; it just shines"]:format(C.HOLO_ODDS, UI.Rainbow(L["holographic"])),
   }, "\n"))
 
   page:SetScript("OnShow", function() P.Refresh() end)

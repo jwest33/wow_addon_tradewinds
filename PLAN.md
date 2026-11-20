@@ -435,6 +435,33 @@ Status (v0.8.0, 2026-11-19): built, not yet seen in game.
 5. A memory and frame-time check over a long session.
 6. 1.0.
 
+Status (v0.13.0, 2026-11-19): items 1-5 done, not yet seen in game.
+
+1. `tools/package.py` builds `dist/Deckhand-<version>.zip` with only the
+   files the .toc loads, `Bindings.xml` and `Art/`; `.pkgmeta` has the same
+   exclusions for the CurseForge / Wago packager.
+2. `CHANGELOG.md`, and the version scheme stays 0.x until 1.0. Left for the
+   author: `## Author`, a licence file, and the project ids
+   (`## X-Curse-Project-ID`, `## X-Wago-ID`) once the project pages exist.
+3. Went further than planned (asked for, 2026-11-19): every text is in
+   `ns.L` and there are nine client languages besides English (de, fr, es
+   for Spain and Latin America, it, pt-BR, ru, ko, zh-CN, zh-TW), made with
+   an AI model. `Locales/enUS.lua` is the generated template;
+   `tests/locale.lua` checks each language and `tests/locale_smoke.lua`
+   plays the addon in each. Sentences that used to be glued together from
+   pieces ("You" / "Dorn" + " played ...") are whole sentences now, one for
+   you and one for them, since word order differs between languages. Card
+   names, card text and buttons shrink their font when a translation
+   doesn't fit.
+4. A damaged saved match is ended on load with its own message (before,
+   it got the rules-update one).
+5. `tests/ui.lua` plays a run of matches and checks the effect pools and
+   saved log stay bounded, nothing is left animating, and a board refresh
+   stays cheap. Not measured in game.
+
+Also removed (asked for): the creature portrait option beside card
+tooltips, with its saved lookups (migration 7).
+
 ### Player against player
 
 Status (v0.9.0, 2026-11-19): built, not yet tried in game. Moved ahead of

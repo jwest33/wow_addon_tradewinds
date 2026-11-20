@@ -15,6 +15,7 @@
 -- The game ends at the end of a round in which someone's Morale reaches 0, or
 -- after round 8; the higher Morale wins (tied: more units on the board wins).
 local _, ns = ...
+local L = ns.L
 
 local R = {}
 ns.Rules = R
@@ -37,17 +38,17 @@ local floor, max, min = math.floor, math.max, math.min
 
 -- Shown on cards and in tooltips, in this order.
 R.KEYWORDS = {
-  { key = "swift", name = "Swift", text = "Strikes before other units. A unit it kills doesn't strike back." },
-  { key = "guard", name = "Guard", text = "An unblocked enemy in a neighbouring lane strikes this unit instead of your Morale." },
-  { key = "ranged", name = "Ranged", text = "Strikes the weakest enemy unit, wherever it is. With no enemy units it strikes Morale." },
-  { key = "pierce", name = "Pierce", text = "Damage beyond the health of the unit it strikes carries on to the enemy's Morale." },
-  { key = "cleave", name = "Cleave", text = "Also strikes the enemy units in the neighbouring lanes." },
-  { key = "venom", name = "Venom", text = "Destroys any unit it damages." },
-  { key = "drain", name = "Drain", text = "Damage it deals restores that much of your Morale." },
-  { key = "sturdy", name = "Sturdy", text = "The first time it would die, it survives with 1 health instead." },
-  { key = "regen", name = "Regenerate", text = "Heals to full at the end of each round." },
-  { key = "rally", name = "Rally", text = "Your units in the neighbouring lanes have +1 attack." },
-  { key = "stealth", name = "Stealth", text = "Enemy tactics can't target it until it has struck." },
+  { key = "swift", name = L["Swift"], text = L["Strikes before other units. A unit it kills doesn't strike back."] },
+  { key = "guard", name = L["Guard"], text = L["An unblocked enemy in a neighbouring lane strikes this unit instead of your Morale."] },
+  { key = "ranged", name = L["Ranged"], text = L["Strikes the weakest enemy unit, wherever it is. With no enemy units it strikes Morale."] },
+  { key = "pierce", name = L["Pierce"], text = L["Damage beyond the health of the unit it strikes carries on to the enemy's Morale."] },
+  { key = "cleave", name = L["Cleave"], text = L["Also strikes the enemy units in the neighbouring lanes."] },
+  { key = "venom", name = L["Venom"], text = L["Destroys any unit it damages."] },
+  { key = "drain", name = L["Drain"], text = L["Damage it deals restores that much of your Morale."] },
+  { key = "sturdy", name = L["Sturdy"], text = L["The first time it would die, it survives with 1 health instead."] },
+  { key = "regen", name = L["Regenerate"], text = L["Heals to full at the end of each round."] },
+  { key = "rally", name = L["Rally"], text = L["Your units in the neighbouring lanes have +1 attack."] },
+  { key = "stealth", name = L["Stealth"], text = L["Enemy tactics can't target it until it has struck."] },
 }
 R.KEYWORD = {}
 for i, k in ipairs(R.KEYWORDS) do k.order = i; R.KEYWORD[k.key] = k end
@@ -400,18 +401,18 @@ end
 
 function R.CheckPlan(st, p, plan)
   local P = st.players[p]
-  if type(plan) ~= "table" then return false, "No plan." end
+  if type(plan) ~= "table" then return false, L["No plan."] end
   local cost, usedH, newLane = 0, {}, {}
   for _, a in ipairs(plan) do
     local id = P.hand[a.h]
-    if not id or usedH[a.h] or (a.id and a.id ~= id) then return false, "That card isn't in your hand." end
+    if not id or usedH[a.h] or (a.id and a.id ~= id) then return false, L["That card isn't in your hand."] end
     usedH[a.h] = true
     local c = card(id)
     cost = cost + c.cost
     if c.type == "unit" then
       local l = a.lane
-      if type(l) ~= "number" or l < 1 or l > LANES then return false, "Pick a lane for " .. c.name .. "." end
-      if P.board[l] or newLane[l] then return false, "That lane is taken." end
+      if type(l) ~= "number" or l < 1 or l > LANES then return false, L["Pick a lane for %s."]:format(c.name) end
+      if P.board[l] or newLane[l] then return false, L["That lane is taken."] end
       newLane[l] = true
     end
   end
@@ -419,13 +420,13 @@ function R.CheckPlan(st, p, plan)
     local c = card(P.hand[a.h])
     if c.type == "tactic" and c.target ~= "none" then
       local l = a.lane
-      if type(l) ~= "number" or l < 1 or l > LANES then return false, c.name .. " needs a target lane." end
+      if type(l) ~= "number" or l < 1 or l > LANES then return false, L["%s needs a target lane."]:format(c.name) end
       if c.target == "friend" and not (P.board[l] or newLane[l]) then
-        return false, c.name .. " needs one of your units."
+        return false, L["%s needs one of your units."]:format(c.name)
       end
     end
   end
-  if cost > P.supply then return false, "Not enough supply." end
+  if cost > P.supply then return false, L["Not enough supply."] end
   return true, cost
 end
 
@@ -601,7 +602,7 @@ function R.NewGame(o)
     local deck = {}
     for i, id in ipairs(o.decks[p]) do card(id); deck[i] = id end
     st.players[p] = {
-      name = o.names and o.names[p] or ("Player " .. p),
+      name = o.names and o.names[p] or L["Player %d"]:format(p),
       morale = R.START_MORALE, deck = deck, hand = {}, grave = {}, board = {}, supply = 0,
     }
   end

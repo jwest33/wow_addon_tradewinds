@@ -9,7 +9,7 @@ end
 
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
-local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
+local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Deckhand.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
@@ -1293,6 +1293,12 @@ do
   v6b.match = { opp = "dorn", rules = R.RULES_VERSION, st = R.NewGame({ seed = 4, decks = { C.STARTER, C.STARTER } }) }
   C.Init(v6b, R.RULES_VERSION)
   check(v6b.match and v6b.active == "ai" and next(v6b.games) == nil, "migration 6: a computer match stays on the board")
+  -- migration 7: the portrait option and its saved lookups go
+  local v7 = {}
+  C.Init(v7)
+  v7.schema, v7.settings.portraits, v7.displays = 6, true, { [448] = 10448 }
+  C.Init(v7, R.RULES_VERSION)
+  check(v7.settings.portraits == nil and v7.displays == nil and v7.schema == C.SCHEMA, "migration 7: portraits forgotten")
   -- the games list is checked like the match
   v6.games["456"] = pvpGame("456")
   v6.games["456"].rules = R.RULES_VERSION - 1

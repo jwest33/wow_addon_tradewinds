@@ -10,6 +10,7 @@
 -- DeckhandCharDB.games, so they survive /reload and logging out; the board
 -- shows one of them at a time (DeckhandCharDB.active, see M below).
 local _, ns = ...
+local L = ns.L
 local R, Cards, AI, C = ns.Rules, ns.Cards, ns.AI, ns.Collection
 local UI = ns.UI
 
@@ -88,8 +89,10 @@ local function lockedIn()
   local m = pvpMatch()
   return (m and not m.st.winner and m.pvp.mine[m.st.round]) and true or false
 end
-local function who(p) return p == ME and "You" or (opponent() and opponent().short or "They") end
-local function whose(p) return p == ME and "your" or ((opponent() and opponent().short or "their") .. "'s") end
+-- The opponent's name in sentences. Sentences about you and about them are
+-- separate texts (L["You played %s."], L["%s played %s."]): languages differ
+-- in more than the name.
+local function oppName() return opponent() and opponent().short or L["Your opponent"] end
 
 -- The match, if it's the tutorial.
 local function tutorialMatch()
@@ -185,15 +188,15 @@ local function validTarget(st, side, l)
   if not sel then return false end
   local c = Cards.byId[st.players[ME].hand[sel]]
   if c.type == "unit" then
-    if side ~= ME then return false, "Units go in your own lanes (the bottom row)." end
-    if st.players[ME].board[l] or plannedUnitAt(l) then return false, "That lane is taken." end
+    if side ~= ME then return false, L["Units go in your own lanes (the bottom row)."] end
+    if st.players[ME].board[l] or plannedUnitAt(l) then return false, L["That lane is taken."] end
     return true
   elseif c.target == "enemy" then
-    if side ~= OPP then return false, c.name .. " targets an enemy lane (the top row)." end
+    if side ~= OPP then return false, L["%s targets an enemy lane (the top row)."]:format(c.name) end
     return true
   elseif c.target == "friend" then
-    if side ~= ME then return false, c.name .. " targets one of your units (the bottom row)." end
-    if not (st.players[ME].board[l] or plannedUnitAt(l)) then return false, "You have no unit there." end
+    if side ~= ME then return false, L["%s targets one of your units (the bottom row)."]:format(c.name) end
+    if not (st.players[ME].board[l] or plannedUnitAt(l)) then return false, L["You have no unit there."] end
     return true
   end
   return false
@@ -300,65 +303,76 @@ local function analyzeLane(st, l)
   local mine, myKw = laneUnit(st, ME, l)
   local theirs, theirKw = laneUnit(st, OPP, l)
   local ms, ts = f.strikes[ME][l], f.strikes[OPP][l]
-  local mName = mine and ("your " .. UI.CardName(mine))
-  local tName = theirs and ("their " .. UI.CardName(theirs))
-  local function cap(s) return (s:gsub("^%l", string.upper)) end
+  local mName = mine and UI.CardName(mine)
+  local tName = theirs and UI.CardName(theirs)
   local function targetName(e)
     local id = laneUnit(st, e.tp, e.tl)
-    return id and UI.CardName(id) or "a unit"
+    return id and UI.CardName(id) or L["a unit"]
   end
   local lines = {}
   local state, amt
   if ts and not ts.tl then
     state, amt = "in", ts.amt
-    lines[1] = ("Nothing of yours is across from %s, so it hits your Morale for %d."):format(tName, ts.amt)
-    lines[2] = ("Play a unit in lane %d to block it."):format(l)
+    lines[1] = L["Nothing of yours is across from their %s, so it hits your Morale for %d."]:format(tName, ts.amt)
+    lines[2] = L["Play a unit in lane %d to block it."]:format(l)
   elseif ms and not ms.tl then
     state, amt = "out", ms.amt
-    lines[1] = ("Nothing is across from %s, so it hits %s's Morale for %d."):format(mName, o.short, ms.amt)
-    lines[2] = "It keeps doing that every round until they block this lane."
+    lines[1] = L["Nothing is across from your %s, so it hits %s's Morale for %d."]:format(mName, o.short, ms.amt)
+    lines[2] = L["It keeps doing that every round until they block this lane."]
   elseif ms or ts then
     state = "fight"
     if mine and theirs then
-      lines[1] = ("%s and %s face each other, so they fight."):format(cap(mName), tName)
+      lines[1] = L["Your %s and their %s face each other, so they fight."]:format(mName, tName)
     end
-    for _, pair in ipairs({ { ms, mName, myKw }, { ts, tName, theirKw } }) do
+    local SAY = {
+      { strike = L["Your %s strikes %s for %d."],
+        ranged = L["Your %s is Ranged: it shoots the weakest enemy unit, %s in lane %d, for %d."],
+        guard = L["Your %s has nothing across, but the Guard %s in lane %d steps in and takes the %d damage."],
+        none = L["Your %s doesn't strike this round (it dies first, is frozen, or has no attack)."] },
+      { strike = L["Their %s strikes %s for %d."],
+        ranged = L["Their %s is Ranged: it shoots the weakest enemy unit, %s in lane %d, for %d."],
+        guard = L["Their %s has nothing across, but the Guard %s in lane %d steps in and takes the %d damage."],
+        none = L["Their %s doesn't strike this round (it dies first, is frozen, or has no attack)."] },
+    }
+    for side, pair in ipairs({ { ms, mName, myKw }, { ts, tName, theirKw } }) do
       local e, name, kw = pair[1], pair[2], pair[3]
+      local say = SAY[side]
       if e then
         if e.tl == l then
-          lines[#lines + 1] = ("%s strikes %s for %d."):format(cap(name), targetName(e), e.amt)
+          lines[#lines + 1] = say.strike:format(name, targetName(e), e.amt)
         elseif kw and kw.ranged then
           state = (state == "fight" and mine and theirs) and "fight" or "ranged"
-          lines[#lines + 1] = ("%s is Ranged: it shoots the weakest enemy unit, %s in lane %d, for %d."):format(
-            cap(name), targetName(e), e.tl, e.amt)
+          lines[#lines + 1] = say.ranged:format(name, targetName(e), e.tl, e.amt)
         else
           state = (state == "fight" and mine and theirs) and "fight" or "guard"
-          lines[#lines + 1] = ("%s has nothing across, but the Guard %s in lane %d steps in and takes the %d damage."):format(
-            cap(name), targetName(e), e.tl, e.amt)
+          lines[#lines + 1] = say.guard:format(name, targetName(e), e.tl, e.amt)
         end
       elseif name then
-        lines[#lines + 1] = ("%s doesn't strike this round (it dies first, is frozen, or has no attack)."):format(cap(name))
+        lines[#lines + 1] = say.none:format(name)
       end
     end
-  elseif mine or theirs then
+  elseif mine then
     state = "idle"
-    lines[1] = ("%s won't strike this round (frozen, or no attack)."):format(cap(mName or tName))
+    lines[1] = L["Your %s won't strike this round (frozen, or no attack)."]:format(mName)
+  elseif theirs then
+    state = "idle"
+    lines[1] = L["Their %s won't strike this round (frozen, or no attack)."]:format(tName)
   else
     state = "open"
-    lines[1] = ("Lane %d is empty on both sides."):format(l)
-    lines[2] = ("A unit you play here strikes whatever is across from it, or %s's Morale if nothing is."):format(o.short)
+    lines[1] = L["Lane %d is empty on both sides."]:format(l)
+    lines[2] = L["A unit you play here strikes whatever is across from it, or %s's Morale if nothing is."]:format(o.short)
   end
   return state, amt, lines
 end
 
 local MARK = {
-  out = { arrow = "Interface\\Buttons\\Arrow-Up-Up", r = 0.35, g = 1, b = 0.35, label = "hits them" },
-  ["in"] = { arrow = "Interface\\Buttons\\Arrow-Down-Up", r = 1, g = 0.35, b = 0.35, label = "hits you" },
-  fight = { swords = true, r = 1, g = 0.82, b = 0.3, label = "fight" },
-  guard = { swords = true, r = 0.6, g = 0.8, b = 1, label = "Guard" },
-  ranged = { swords = true, r = 0.6, g = 0.8, b = 1, label = "Ranged" },
-  idle = { r = 0.6, g = 0.6, b = 0.6, label = "no attack" },
-  open = { r = 0.45, g = 0.42, b = 0.36, label = "open lane" },
+  out = { arrow = "Interface\\Buttons\\Arrow-Up-Up", r = 0.35, g = 1, b = 0.35, label = L["hits them"] },
+  ["in"] = { arrow = "Interface\\Buttons\\Arrow-Down-Up", r = 1, g = 0.35, b = 0.35, label = L["hits you"] },
+  fight = { swords = true, r = 1, g = 0.82, b = 0.3, label = L["fight"] },
+  guard = { swords = true, r = 0.6, g = 0.8, b = 1, label = L["Guard"] },
+  ranged = { swords = true, r = 0.6, g = 0.8, b = 1, label = L["Ranged"] },
+  idle = { r = 0.6, g = 0.6, b = 0.6, label = L["no attack"] },
+  open = { r = 0.45, g = 0.42, b = 0.36, label = L["open lane"] },
 }
 
 local function paintMarker(l, state, amt, lines)
@@ -489,13 +503,13 @@ local function renderSlot(p, l)
   local maybe = planning and forecast and forecast.maybe[p][l]
   if u then
     card:SetCard(u.id, u, S, p == ME and C.IsHolo(ns.db, u.id))
-    if dies then card:SetTag("dies", 1, 0.3, 0.3) elseif maybe then card:SetTag("may die", 1, 0.65, 0.2) end
+    if dies then card:SetTag(L["dies"], 1, 0.3, 0.3) elseif maybe then card:SetTag(L["may die"], 1, 0.65, 0.2) end
   elseif p == ME and (planning or lockedIn()) and plannedUnitAt(l) then
     card:SetCard(plannedUnitAt(l).id, nil, nil, C.IsHolo(ns.db, plannedUnitAt(l).id))
     card:SetAlpha(0.85)
-    if dies then card:SetTag("dies", 1, 0.3, 0.3)
-    elseif maybe then card:SetTag("may die", 1, 0.65, 0.2)
-    else card:SetTag("planned", 0.4, 1, 0.4) end
+    if dies then card:SetTag(L["dies"], 1, 0.3, 0.3)
+    elseif maybe then card:SetTag(L["may die"], 1, 0.65, 0.2)
+    else card:SetTag(L["planned"], 0.4, 1, 0.4) end
   else
     card:Hide()
   end
@@ -546,16 +560,16 @@ local function renderPanels()
       pn.predict:SetText("")
     end
     if view then
-      pn.counts:SetText(("Hand %d   Deck %d"):format(view.players[p].handCount, view.players[p].deckCount))
+      pn.counts:SetText((L["Hand %d   Deck %d"]):format(view.players[p].handCount, view.players[p].deckCount))
     else
-      pn.counts:SetText(("Hand %d   Deck %d"):format(#st.players[p].hand, #st.players[p].deck))
+      pn.counts:SetText((L["Hand %d   Deck %d"]):format(#st.players[p].hand, #st.players[p].deck))
     end
     if p == OPP and o then
       local heroic = (M() and M().heroic) or (not M() and finished and finished.heroic)
-      pn.name:SetText(heroic and (o.name .. " |cffc080ff(Heroic)|r") or o.name)
+      pn.name:SetText(heroic and (o.name .. " |cffc080ff" .. L["(Heroic)"] .. "|r") or o.name)
       pn.icon:SetTexture(UI.Icon(o.icon))
     else
-      pn.name:SetText(UnitName and UnitName("player") or "You")
+      pn.name:SetText(UnitName and UnitName("player") or L["You"])
     end
   end
 end
@@ -593,34 +607,36 @@ local function renderHand()
 end
 
 local function hintText(st)
-  if thinking then return (opponent().short or "They") .. " is choosing..." end
+  if thinking then return L["%s is choosing..."]:format(oppName()) end
   if lockedIn() and not view then
     if ns.Net.IsOffline(pvpMatch()) then
-      return opponent().short .. " seems to be offline. Your plan is sent again now and then, and the game is saved."
+      return L["%s seems to be offline. Your plan is sent again now and then, and the game is saved."]:format(oppName())
     end
-    return "Locked in. Waiting for " .. opponent().short .. " to lock in..."
+    return L["Locked in. Waiting for %s to lock in..."]:format(oppName())
   end
-  if view then return "Playing out the round. Click the board to skip." end
+  if view then return L["Playing out the round. Click the board to skip."] end
   if not current() then return "" end
   local tm = tutorialMatch()
-  if tm and UI.Tutorial.Gate(tm) then return "Click " .. (tm.st.round > ns.Tutorial.GUIDED and "Let's play" or "Next") .. " to carry on." end
+  if tm and UI.Tutorial.Gate(tm) then
+    return L["Click %s to carry on."]:format(tm.st.round > ns.Tutorial.GUIDED and L["Let's play"] or L["Next"])
+  end
   if sel then
     local c = Cards.byId[st.players[ME].hand[sel]]
-    if c.type == "unit" then return "Click one of your empty lanes (bottom row) for " .. c.name .. "." end
-    if c.target == "enemy" then return "Click an enemy lane (top row) for " .. c.name .. "." end
-    return "Click one of your units for " .. c.name .. "."
+    if c.type == "unit" then return L["Click one of your empty lanes (bottom row) for %s."]:format(c.name) end
+    if c.target == "enemy" then return L["Click an enemy lane (top row) for %s."]:format(c.name) end
+    return L["Click one of your units for %s."]:format(c.name)
   end
   if forecast and forecast.winner == ME then
-    return "This plan wins the game if " .. opponent().short .. " adds nothing new!"
+    return L["This plan wins the game if %s adds nothing new!"]:format(oppName())
   end
-  if #plan == 0 then return "Pick cards from your hand (click or drag), place them, then Lock In." end
+  if #plan == 0 then return L["Pick cards from your hand (click or drag), place them, then Lock In."] end
   local left, used = supplyLeft(st), plannedHand()
   for h, id in ipairs(st.players[ME].hand) do
     if not used[h] and Cards.byId[id].cost <= left then
-      return ("You still have %d Supply and a card you could play. Lock In when ready."):format(left)
+      return (L["You still have %d Supply and a card you could play. Lock In when ready."]):format(left)
     end
   end
-  return "Lock In when ready. Right-click a planned card to take it back."
+  return L["Lock In when ready. Right-click a planned card to take it back."]
 end
 
 local function renderControls()
@@ -628,13 +644,13 @@ local function renderControls()
   local S = view or st
   local left = R.MAX_ROUNDS - S.round
   if left == 0 then
-    ctl.round:SetText("Final round")
+    ctl.round:SetText(L["Final round"])
     ctl.round:SetTextColor(1, 0.5, 0.2)
   else
-    ctl.round:SetText(("Round %d of %d (%d left)"):format(S.round, R.MAX_ROUNDS, left))
+    ctl.round:SetText((L["Round %d of %d (%d left)"]):format(S.round, R.MAX_ROUNDS, left))
     if left <= 2 then ctl.round:SetTextColor(1, 0.65, 0.25) else ctl.round:SetTextColor(1, 0.82, 0) end
   end
-  ctl.init:SetText(S.init == ME and "You have initiative" or (who(OPP) .. " has initiative"))
+  ctl.init:SetText(S.init == ME and L["You have initiative"] or L["%s has initiative"]:format(oppName()))
   local planning = isPlanning()
   if planning then
     ctl.supply:SetText(("%d/%d"):format(supplyLeft(st), st.players[ME].supply))
@@ -642,13 +658,13 @@ local function renderControls()
     ctl.supply:SetText(("-/%d"):format(view and view.supply or st.players[ME].supply))
   end
   ctl.lock:SetEnabled(planning and true or false)
-  ctl.lock:SetText(thinking and "Thinking..." or view and "Playing..." or lockedIn() and "Waiting..." or "Lock In")
+  ctl.lock:SetText(thinking and L["Thinking..."] or view and L["Playing..."] or lockedIn() and L["Waiting..."] or L["Lock In"])
   ctl.clear:SetEnabled(planning and #plan > 0)
   ctl.replay:SetEnabled((planning and M().last) and true or false)
   ctl.endMatch:SetShown(current() ~= nil)
   ctl.back:SetShown(current() ~= nil)
   ctl.back:SetEnabled(not thinking)
-  ctl.endMatch:SetText(tutorialMatch() and "Leave tutorial" or "End match")
+  ctl.endMatch:SetText(tutorialMatch() and L["Leave tutorial"] or L["End match"])
   -- untargeted tactics in the plan
   local n = 0
   if planning then
@@ -669,7 +685,7 @@ local function renderControls()
   ctl.freeLabel:SetShown(n > 0)
   local hint = hintText(st)
   if planning and pvpMatch() and ns.Net.TheyLockedIn(pvpMatch()) then
-    hint = "|cff40ff40" .. opponent().short .. " has locked in.|r " .. hint
+    hint = "|cff40ff40" .. L["%s has locked in."]:format(oppName()) .. "|r " .. hint
   end
   ctl.hint:SetText(hint)
 end
@@ -680,66 +696,67 @@ local function showGameOver()
   local ov = ctl.over
   local st = f.st
   if f.result == "win" then
-    ov.title:SetText(f.heroic and "Heroic victory!" or "Victory!")
+    ov.title:SetText(f.heroic and L["Heroic victory!"] or L["Victory!"])
     ov.title:SetTextColor(1, 0.82, 0)
     if f.pvp then
-      ov.quote:SetText(f.pvp.theyConceded and (o.short .. " conceded.") or ("You beat " .. o.short .. "."))
+      ov.quote:SetText(f.pvp.theyConceded and L["%s conceded."]:format(o.short) or L["You beat %s."]:format(o.short))
     else
-      ov.quote:SetText(o.short .. ": \"" .. o.lose .. "\"")
+      ov.quote:SetText(L["%s: \"%s\""]:format(o.short, o.lose))
     end
   elseif f.result == "loss" then
-    ov.title:SetText(f.conceded and "Conceded" or "Defeat")
+    ov.title:SetText(f.conceded and L["Conceded"] or L["Defeat"])
     ov.title:SetTextColor(1, 0.3, 0.3)
     if f.pvp then
-      ov.quote:SetText(o.short .. " wins this one.")
+      ov.quote:SetText(L["%s wins this one."]:format(o.short))
     else
-      ov.quote:SetText(o.short .. ": \"" .. o.win .. "\"")
+      ov.quote:SetText(L["%s: \"%s\""]:format(o.short, o.win))
     end
   else
-    ov.title:SetText("Draw")
+    ov.title:SetText(L["Draw"])
     ov.title:SetTextColor(0.8, 0.8, 0.8)
-    ov.quote:SetText("Honours even.")
+    ov.quote:SetText(L["Honours even."])
   end
   local lines = {}
-  lines[1] = ("Morale %d to %d after round %d%s"):format(math.max(0, st.players[ME].morale),
-    math.max(0, st.players[OPP].morale), st.round,
-    st.tiebreak and " (tie broken by units on the board)" or "")
+  lines[1] = L["Morale %d to %d after round %d"]:format(math.max(0, st.players[ME].morale),
+    math.max(0, st.players[OPP].morale), st.round)
+    .. (st.tiebreak and (" " .. L["(tie broken by units on the board)"]) or "")
   if f.stats and not f.conceded then
-    lines[#lines + 1] = ("|cffb0b0b0You dealt %d Morale damage and destroyed %d units; you took %d and lost %d.|r"):format(
+    lines[#lines + 1] = (L["|cffb0b0b0You dealt %d Morale damage and destroyed %d units; you took %d and lost %d.|r"]):format(
       f.stats.dealt, f.stats.kills, f.stats.taken, f.stats.lost)
   end
   for _, r in ipairs(f.rewards) do
     if r.star then
-      lines[#lines + 1] = ("|cffffd100Star earned: %s|r"):format(r.why)
+      lines[#lines + 1] = (L["|cffffd100Star earned: %s|r"]):format(r.why)
     elseif r.card then
       if r.kind == "shards" then
-        lines[#lines + 1] = ("%s (you have it already: |cff9fdfff+%d shards|r)"):format(UI.CardName(r.card), r.dupe)
+        lines[#lines + 1] = L["%s (you have it already: %s)"]:format(UI.CardName(r.card),
+          "|cff9fdfff" .. ns.Plural(r.dupe, "+%d shard", "+%d shards"):format(r.dupe) .. "|r")
       elseif r.holo then
-        lines[#lines + 1] = ("%s %s (%s)"):format(UI.Rainbow(r.kind == "holo" and "Now holographic:" or "Holographic card:"),
+        lines[#lines + 1] = ("%s %s (%s)"):format(UI.Rainbow(r.kind == "holo" and L["Now holographic:"] or L["Holographic card:"]),
           UI.CardName(r.card), r.why)
       else
-        lines[#lines + 1] = ("New card: %s (%s)"):format(UI.CardName(r.card), r.why)
+        lines[#lines + 1] = (L["New card: %s (%s)"]):format(UI.CardName(r.card), r.why)
       end
     elseif r.unlocked then
-      lines[#lines + 1] = ("|cff40ff40%s will play you now.|r"):format(ns.OpponentById[r.unlocked].name)
+      lines[#lines + 1] = (L["|cff40ff40%s will play you now.|r"]):format(ns.OpponentById[r.unlocked].name)
     elseif r.heroic then
-      lines[#lines + 1] = "|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"
+      lines[#lines + 1] = L["|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"]
     elseif r.packs then
-      lines[#lines + 1] = ("|cffffd100+%d card pack%s|r (%s)"):format(r.packs, r.packs == 1 and "" or "s", r.why)
+      lines[#lines + 1] = ("|cffffd100%s|r (%s)"):format(ns.Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
     elseif r.shards then
-      lines[#lines + 1] = ("|cff9fdfff+%d shard%s|r (%s)"):format(r.shards, r.shards == 1 and "" or "s", r.why)
+      lines[#lines + 1] = ("|cff9fdfff%s|r (%s)"):format(ns.Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
     end
   end
   if f.tutorial then
     if f.conceded then
-      lines = { "|cff909090You left the tutorial. Start it again any time from the Play tab or the Guide.|r" }
+      lines = { L["|cff909090You left the tutorial. Start it again any time from the Play tab or the Guide.|r"] }
     else
-      table.insert(lines, 2, "|cffffd100Tutorial complete!|r")
-      lines[#lines + 1] = "Next: the tavern circuit. Dorn is first on the list, and this time he's not holding back."
-      lines[#lines + 1] = "|cffb0b0b0The Guide tab has every rule and keyword.|r"
+      table.insert(lines, 2, L["|cffffd100Tutorial complete!|r"])
+      lines[#lines + 1] = L["Next: the tavern circuit. Dorn is first on the list, and this time he's not holding back."]
+      lines[#lines + 1] = L["|cffb0b0b0The Guide tab has every rule and keyword.|r"]
     end
   elseif f.conceded then
-    lines[#lines + 1] = "|cff909090Ended early: no reward.|r"
+    lines[#lines + 1] = L["|cff909090Ended early: no reward.|r"]
   end
   ov.body:SetText(table.concat(lines, "\n"))
   ov:Show()
@@ -779,7 +796,7 @@ renderTips = function(st, tm)
     return
   end
   tip.key = k.key
-  tip.title:SetText("New keyword: " .. k.name)
+  tip.title:SetText(L["New keyword: %s"]:format(k.name))
   tip.diagram.tex:SetTexture(UI.ART .. "Diagram_" .. k.key)
   tip.text:SetText(k.text)
   tip:Show()
@@ -806,7 +823,7 @@ function G.Say(kind, noLog)
   local o = opponent()
   local line = o and o[kind]
   if not line or not ns.db.settings.chatter or tutorialMatch() or not ctl.bubble then return end
-  if not noLog then G.Log("%s: \"%s\"", o.short, line) end
+  if not noLog then G.Log(L["%s: \"%s\""], o.short, line) end
   local b = ctl.bubble
   b.kind = kind
   b.text:SetText(line)
@@ -899,11 +916,11 @@ function G.ClickHand(h, button)
   local c = Cards.byId[st.players[ME].hand[h]]
   local tm = tutorialMatch()
   if tm and not ns.Tutorial.Allowed(st, plan, st.players[ME].hand[h]) then
-    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
+    UI.Error(L["%s: \"%s\""]:format(oppName(), UI.Tutorial.Nudge(st, plan)))
     return
   end
   if c.cost > supplyLeft(st) then
-    UI.Error(("Not enough supply for %s (%d)."):format(c.name, c.cost))
+    UI.Error((L["Not enough supply for %s (%d)."]):format(c.name, c.cost))
     return
   end
   if c.type == "tactic" and c.target == "none" then
@@ -912,7 +929,7 @@ function G.ClickHand(h, button)
   elseif c.type == "tactic" and c.target == "friend" then
     local any = false
     for l = 1, R.LANES do if st.players[ME].board[l] or plannedUnitAt(l) then any = true end end
-    if not any then UI.Error(c.name .. " needs one of your units. Place a unit first.") return end
+    if not any then UI.Error(L["%s needs one of your units. Place a unit first."]:format(c.name)) return end
     sel = h
   else
     sel = h
@@ -943,7 +960,7 @@ function G.ClickSlot(p, l, button)
     return
   end
   if tutorialMatch() and not ns.Tutorial.Allowed(st, plan, st.players[ME].hand[sel], l) then
-    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
+    UI.Error(L["%s: \"%s\""]:format(oppName(), UI.Tutorial.Nudge(st, plan)))
     return
   end
   plan[#plan + 1] = { h = sel, id = st.players[ME].hand[sel], lane = l }
@@ -1004,12 +1021,12 @@ local bannerToken = 0
 local function showTactic(e)
   local b = ctl.banner
   b.card:SetCard(e.id, nil, nil, e.p == ME and C.IsHolo(ns.db, e.id))
-  b.who:SetText(e.p == ME and "You cast" or (who(OPP) .. " casts"))
+  b.who:SetText(e.p == ME and L["You cast"] or L["%s casts"]:format(oppName()))
   b.what:SetText(UI.CardName(e.id))
   local c = Cards.byId[e.id]
   if e.lane then
     local side = c.target == "friend" and e.p or (3 - e.p)
-    b.where:SetText(("on %s lane %d"):format(side == ME and "your" or whose(OPP), e.lane))
+    b.where:SetText(side == ME and L["on your lane %d"]:format(e.lane) or L["on %s's lane %d"]:format(oppName(), e.lane))
     slots[side][e.lane]:Flash(0.7, 0.4, 1)
     if not skipping then
       local FX = UI.FX
@@ -1024,7 +1041,11 @@ local function showTactic(e)
   bannerToken = bannerToken + 1
   local mine = bannerToken
   C_Timer.After(1.1 / (ns.db.settings.speed or 1), function() if mine == bannerToken then b:Hide() end end)
-  G.Log("%s cast %s%s.", who(e.p), UI.CardName(e.id), e.lane and (" at lane " .. e.lane) or "")
+  if e.p == ME then
+    G.Log(e.lane and L["You cast %s at lane %d."] or L["You cast %s."], UI.CardName(e.id), e.lane)
+  else
+    G.Log(e.lane and L["%s cast %s at lane %d."] or L["%s cast %s."], oppName(), UI.CardName(e.id), e.lane)
+  end
 end
 
 -- Replay pacing (seconds at speed 1): a strike's projectile flies for
@@ -1037,10 +1058,10 @@ local FLIGHT, FLIGHT_FAR, HIT = 0.28, 0.4, 0.16
 local function calloutY(p) return p == ME and 44 or -44 end
 
 local VIA = {
-  guard = { "Guard", { 0.55, 0.8, 1 }, "Shield" },
-  ranged = { "Ranged", { 1, 0.85, 0.35 } },
-  pierce = { "Pierce", { 1, 0.45, 0.3 } },
-  cleave = { "Cleave", { 1, 0.7, 0.3 } },
+  guard = { L["Guard"], { 0.55, 0.8, 1 }, "Shield" },
+  ranged = { L["Ranged"], { 1, 0.85, 0.35 } },
+  pierce = { L["Pierce"], { 1, 0.45, 0.3 } },
+  cleave = { L["Cleave"], { 1, 0.7, 0.3 } },
 }
 
 local swiftShown = {}  -- "Swift" called out once per unit per volley
@@ -1053,7 +1074,7 @@ local function apply(e)
     if not fx then return 0 end
     return FX.Countdown()
   elseif t == "phase" then
-    ctl.phase:SetText(e.name == "combat" and "Combat!" or "Reveal!")
+    ctl.phase:SetText(e.name == "combat" and L["Combat!"] or L["Reveal!"])
     if e.name == "reveal" then
       replayMarks = {}
       renderMarkers()
@@ -1061,12 +1082,12 @@ local function apply(e)
     return 0.35
   elseif t == "volley" then
     swiftShown = {}
-    ctl.phase:SetText(e.swift and "Swift strikes!" or "Combat!")
+    ctl.phase:SetText(e.swift and L["Swift strikes!"] or L["Combat!"])
     if not fx then return 0 end
     if e.swift then
-      FX.Banner("Swift units strike first", "A unit they kill doesn't strike back.", FX.FROST)
+      FX.Banner(L["Swift units strike first"], L["A unit they kill doesn't strike back."], FX.FROST)
     else
-      FX.Banner("Combat", "Every unit strikes at the same time.", FX.GOLD)
+      FX.Banner(L["Combat"], L["Every unit strikes at the same time."], FX.GOLD)
     end
     return 0.6
   elseif t == "place" then
@@ -1076,10 +1097,18 @@ local function apply(e)
     cd:Flash(1, 1, 1)
     if fx then FX.Arrive(cd, e.summon and FX.MAGIC or (e.p == ME and FX.MINE or FX.THEIRS)) end
     if e.summon then
-      G.Log("%s joined %s side.", UI.CardName(e.unit.id), whose(e.p))
+      if e.p == ME then
+        G.Log(L["%s joined your side."], UI.CardName(e.unit.id))
+      else
+        G.Log(L["%s joined %s's side."], UI.CardName(e.unit.id), oppName())
+      end
       return 0.3
     end
-    G.Log("%s played %s.", who(e.p), UI.CardName(e.unit.id))
+    if e.p == ME then
+      G.Log(L["You played %s."], UI.CardName(e.unit.id))
+    else
+      G.Log(L["%s played %s."], oppName(), UI.CardName(e.unit.id))
+    end
     return 0.18
   elseif t == "set" then
     view.players[e.p].board[e.lane] = R.DeepCopy(e.unit)
@@ -1087,15 +1116,15 @@ local function apply(e)
     local col = SET_COLOR[e.why] or { 1, 1, 1 }
     local s = slots[e.p][e.lane]
     s.card:Flash(col[1], col[2], col[3])
-    if e.why == "transform" then G.Log("Baa! A unit became a %s.", UI.CardName(e.unit.id)) end
+    if e.why == "transform" then G.Log(L["Baa! A unit became a %s."], UI.CardName(e.unit.id)) end
     if not fx or e.why == "endround" then return 0 end
     if e.why == "sturdy" then
       FX.Pulse(s, FX.WHITE, 130)
-      FX.Callout(s, "Sturdy!", FX.WHITE, calloutY(e.p), "Shield")
+      FX.Callout(s, L["Sturdy!"], FX.WHITE, calloutY(e.p), "Shield")
       return 0.3
     elseif e.why == "freeze" then
       FX.Pulse(s, FX.FROST, 120)
-      FX.Callout(s, "Frozen", FX.FROST, calloutY(e.p))
+      FX.Callout(s, L["Frozen"], FX.FROST, calloutY(e.p))
       return 0.15
     elseif e.why == "reveal" then
       FX.Pulse(s, FX.MAGIC, 90)
@@ -1125,14 +1154,22 @@ local function apply(e)
     local pn = panels[e.p]
     if e.delta < 0 then
       pn:Flash(1, 0.1, 0.1)
-      G.Log("%s lost %d Morale (%d left).", who(e.p), -e.delta, math.max(0, e.value))
+      if e.p == ME then
+        G.Log(L["You lost %d Morale (%d left)."], -e.delta, math.max(0, e.value))
+      else
+        G.Log(L["%s lost %d Morale (%d left)."], oppName(), -e.delta, math.max(0, e.value))
+      end
       if not fx then return 0 end
       pn:Shake(-e.delta >= 4 and 7 or 4)
       FX.Impact(pn.morale, FX.HURT, -e.delta >= 4 and 1.5 or 1.2)
       FX.Number(pn.morale, tostring(e.delta), FX.HURT, -e.delta >= 4 and 38 or 32)
     else
       pn:Flash(0.2, 1, 0.2)
-      G.Log("%s restored %d Morale.", who(e.p), e.delta)
+      if e.p == ME then
+        G.Log(L["You restored %d Morale."], e.delta)
+      else
+        G.Log(L["%s restored %d Morale."], oppName(), e.delta)
+      end
       if not fx then return 0 end
       FX.Pulse(pn.morale, FX.HEAL, 130)
       FX.Number(pn.morale, "+" .. e.delta, FX.HEAL, 32)
@@ -1144,7 +1181,11 @@ local function apply(e)
     view.players[e.p].board[e.lane] = nil
     renderSlot(e.p, e.lane)
     s:Flash(0.7, 0.1, 0.1)
-    G.Log("%s %s died.", e.p == ME and "Your" or (who(OPP) .. "'s"), UI.CardName(e.id))
+    if e.p == ME then
+      G.Log(L["Your %s died."], UI.CardName(e.id))
+    else
+      G.Log(L["%s's %s died."], oppName(), UI.CardName(e.id))
+    end
     return fx and 0.24 or 0
   elseif t == "strike" then
     local src = slots[e.p][e.lane]
@@ -1181,7 +1222,7 @@ local function apply(e)
     end
     if e.swift and not swiftShown[e.p .. ":" .. e.lane] then
       swiftShown[e.p .. ":" .. e.lane] = true
-      if not v then FX.Callout(src, "Swift", FX.FROST, calloutY(e.p)) end
+      if not v then FX.Callout(src, L["Swift"], FX.FROST, calloutY(e.p)) end
     end
     return far and FLIGHT_FAR or FLIGHT
   elseif t == "fx" then
@@ -1189,13 +1230,13 @@ local function apply(e)
     if e.kind == "venom" then
       local s = slots[e.p][e.lane]
       s.card:Flash(0.4, 1, 0.3)
-      FX.Callout(s, "Venom", FX.VENOM, calloutY(e.p), "Skull")
+      FX.Callout(s, L["Venom"], FX.VENOM, calloutY(e.p), "Skull")
       return 0.12
     elseif e.kind == "drain" then
       for i, l in ipairs(e.lanes or {}) do
         local s = slots[e.p][l]
         FX.Projectile(s, panels[e.p].morale, FX.HEAL, 0.38)
-        if i == 1 then FX.Callout(s, "Drain", FX.HEAL, calloutY(e.p)) end
+        if i == 1 then FX.Callout(s, L["Drain"], FX.HEAL, calloutY(e.p)) end
       end
       return 0.4
     end
@@ -1205,7 +1246,7 @@ local function apply(e)
     if s.card:IsShown() then s.card:Flash(0.7, 0.4, 1) end
     if not fx then return 0 end
     FX.Pulse(s, FX.MAGIC, 130)
-    FX.Callout(s, e.kind == "fallen" and "Fallen" or "Arrive", FX.MAGIC, calloutY(e.p))
+    FX.Callout(s, e.kind == "fallen" and L["Fallen"] or L["Arrive"], FX.MAGIC, calloutY(e.p))
     return 0.32
   elseif t == "tactic" then
     showTactic(e)
@@ -1217,24 +1258,28 @@ local function apply(e)
     view.round, view.init = e.n, e.init
     ctl.phase:SetText("")
     renderControls()
-    G.Log("|cffffd100Round %d|r", e.n)
+    G.Log("|cffffd100" .. L["Round %d"] .. "|r", e.n)
     if fx then
       local left = R.MAX_ROUNDS - e.n
-      local init = e.init == ME and "You have" or (who(OPP) .. " has")
+      local init = e.init == ME and L["You have initiative."] or L["%s has initiative."]:format(oppName())
       if left == 0 then
-        FX.Banner("Final round", ("Highest Morale after this one wins. %s initiative."):format(init), { 1, 0.5, 0.2 })
+        FX.Banner(L["Final round"], L["Highest Morale after this one wins."] .. " " .. init, { 1, 0.5, 0.2 })
       else
-        FX.Banner("Round " .. e.n, ("%s. Supply %d. %s initiative."):format(
-          left == 1 and "One round left after this" or (left .. " rounds left after this"),
-          math.min(e.n, R.SUPPLY_CAP), init), left <= 2 and { 1, 0.65, 0.25 } or FX.GOLD)
+        FX.Banner(L["Round %d"]:format(e.n), ns.Plural(left, "%d round left after this.", "%d rounds left after this."):format(left)
+          .. " " .. L["Supply %d."]:format(math.min(e.n, R.SUPPLY_CAP)) .. " " .. init,
+          left <= 2 and { 1, 0.65, 0.25 } or FX.GOLD)
       end
     end
     return 0
   elseif t == "burn" then
-    G.Log("%s hand was full: %s burned.", e.p == ME and "Your" or (who(OPP) .. "'s"), UI.CardName(e.id))
+    if e.p == ME then
+      G.Log(L["Your hand was full: %s burned."], UI.CardName(e.id))
+    else
+      G.Log(L["%s's hand was full: %s burned."], oppName(), UI.CardName(e.id))
+    end
     return 0
   elseif t == "empty" then
-    if e.p == ME then G.Log("Your deck is empty.") end
+    if e.p == ME then G.Log(L["Your deck is empty."]) end
     return 0
   end
   return 0
@@ -1291,7 +1336,7 @@ end
 function G.Replay()
   local m = M()
   if not (m and m.last) or view or busy then return end
-  G.Log("|cff909090(the last round again)|r")
+  G.Log(L["|cff909090(the last round again)|r"])
   startReplay(m.last)
 end
 
@@ -1358,9 +1403,9 @@ local function playRound(m, mine, theirs)
       busy = false
       G.Refresh()
     end
-    UI.Error("Deckhand hit an error playing that round. Your match is unchanged.")
-    ns.Print("Error playing the round (please report it): %s", tostring(err))
-    if m.pvp then ns.Net.Abort(m, "Deckhand hit an error playing that round, so the game was ended without a result.") end
+    UI.Error(L["Deckhand hit an error playing that round. Your match is unchanged."])
+    ns.Print(L["Error playing the round (please report it): %s"], tostring(err))
+    if m.pvp then ns.Net.Abort(m, L["Deckhand hit an error playing that round, so the game was ended without a result."]) end
     return
   end
   local events = nxt.events
@@ -1410,7 +1455,7 @@ function G.LockIn()
   local tm = tutorialMatch()
   local scripted = tm and ns.Tutorial.Round(st)
   if scripted and #ns.Tutorial.Remaining(st, plan) > 0 then
-    UI.Error(opponent().short .. ": " .. UI.Tutorial.Nudge(st, plan))
+    UI.Error(L["%s: \"%s\""]:format(oppName(), UI.Tutorial.Nudge(st, plan)))
     return
   end
   busy, sel = true, nil
@@ -1443,11 +1488,11 @@ function G.Start(oppId, heroic)
   local o = ns.OpponentById[oppId]
   local ok, why = C.CheckDeck(ns.db)
   if not ok then
-    UI.Error(why .. " Fix it in the Cards tab.")
+    UI.Error(L["%s Fix it in the Cards tab."]:format(why))
     return
   end
   if heroic and not C.HeroicUnlocked(ns.db) then
-    UI.Error(("Heroic rematches open once you've beaten %s."):format(ns.Opponents[#ns.Opponents].short))
+    UI.Error((L["Heroic rematches open once you've beaten %s."]):format(ns.Opponents[#ns.Opponents].short))
     return
   end
   local cur = ns.db.match
@@ -1456,13 +1501,13 @@ function G.Start(oppId, heroic)
     if cur.opp == oppId and not cur.tutorial and (cur.heroic and true or false) == (heroic and true or false) then
       G.Open("ai")
     else
-      UI.Error(("Finish or end your match against %s first (Your games)."):format(cur.tutorial and "Dorn (the tutorial)"
-        or ns.OpponentById[cur.opp].short))
+      UI.Error(cur.tutorial and L["Finish or leave the tutorial first (Your games)."]
+        or L["Finish or end your match against %s first (Your games)."]:format(ns.OpponentById[cur.opp].short))
     end
     return
   end
   if not C.Unlocked(ns.db, oppId) then
-    UI.Error(("Beat %s first."):format(ns.Opponents[o.index - 1].short))
+    UI.Error((L["Beat %s first."]):format(ns.Opponents[o.index - 1].short))
     return
   end
   local mine, theirs = {}, {}
@@ -1470,7 +1515,7 @@ function G.Start(oppId, heroic)
   for i, id in ipairs(heroic and o.heroic or o.deck) do theirs[i] = id end
   local st = R.NewGame({
     seed = math.random(1, 2147483646), decks = { mine, theirs },
-    names = { UnitName and UnitName("player") or "You", o.name },
+    names = { UnitName and UnitName("player") or L["You"], o.name },
   })
   ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION,
     plain = C.PlainDeck(mine), heroic = heroic and true or nil }
@@ -1478,8 +1523,8 @@ function G.Start(oppId, heroic)
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
   local hello = heroic and "rematch" or "hello"
-  G.Log("%s%s: \"%s\"", heroic and "|cffc080ffHeroic|r " or "", o.short, o[hello])
-  G.Log("|cffffd100Round 1|r")
+  G.Log((heroic and ("|cffc080ff" .. L["Heroic"] .. "|r ") or "") .. L["%s: \"%s\""]:format(o.short, o[hello]))
+  G.Log("|cffffd100" .. L["Round %d"]:format(1) .. "|r")
   G.Refresh()
   G.Say(hello, true)
 end
@@ -1491,12 +1536,12 @@ function G.StartTutorial()
   local cur = ns.db.match
   if cur then
     if cur.tutorial then G.Open("ai") return end
-    UI.Error(("Finish or end your match against %s first (Your games)."):format(ns.OpponentById[cur.opp].short))
+    UI.Error((L["Finish or end your match against %s first (Your games)."]):format(ns.OpponentById[cur.opp].short))
     return
   end
   local T = ns.Tutorial
   local o = ns.OpponentById[T.OPP]
-  local st = T.NewGame({ UnitName and UnitName("player") or "You", o.name })
+  local st = T.NewGame({ UnitName and UnitName("player") or L["You"], o.name })
   ns.db.match = { opp = o.id, st = st, tutorial = true, tut = { ack = 0 }, started = time and time() or 0,
     version = ns.VERSION, rules = R.RULES_VERSION }
   ns.db.active = "ai"
@@ -1504,8 +1549,8 @@ function G.StartTutorial()
   ns.db.settings.seenLaneTip = true   -- the coach covers lanes
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
-  G.Log("%s: \"Pull up a stool. I'll show you how it's done.\"", o.short)
-  G.Log("|cffffd100Round 1|r")
+  G.Log(L["%s: \"%s\""]:format(o.short, L["Pull up a stool. I'll show you how it's done."]))
+  G.Log("|cffffd100" .. L["Round %d"]:format(1) .. "|r")
   if UI.tab ~= "play" then UI.SelectTab("play") else G.Refresh() end
 end
 
@@ -1540,10 +1585,11 @@ function G.EndGame(conceded)
   ns.db.active = nil
   plan, sel = {}, nil
   local o = opponent()
-  ns.Print("%s%s against %s (Morale %d to %d).", m.tutorial and "Tutorial: " or m.heroic and "Heroic: " or "",
-    result == "win" and "|cff40ff40Victory|r"
-    or result == "loss" and "|cffff4040Defeat|r" or "Draw", o.name, math.max(0, st.players[ME].morale),
-    math.max(0, st.players[OPP].morale))
+  local said = result == "win" and "|cff40ff40" .. L["Victory against %s (Morale %d to %d)."] .. "|r"
+    or result == "loss" and "|cffff4040" .. L["Defeat against %s (Morale %d to %d)."] .. "|r"
+    or L["Draw against %s (Morale %d to %d)."]
+  ns.Print((m.tutorial and (L["Tutorial:"] .. " ") or m.heroic and (L["Heroic:"] .. " ") or "") .. said, o.name,
+    math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale))
   if m.tutorial then ns.Announce(rewards) end
   UI.Refresh()
 end
@@ -1552,9 +1598,9 @@ end
 -- moment, even while a round is playing out or the opponent is thinking.
 if StaticPopupDialogs then
   StaticPopupDialogs.DECKHAND_END_MATCH = {
-    text = "End your match against %s?\nIt counts as a loss and earns nothing.",
-    button1 = "End match",
-    button2 = "Keep playing",
+    text = L["End your match against %s?\nIt counts as a loss and earns nothing."],
+    button1 = L["End match"],
+    button2 = L["Keep playing"],
     OnAccept = function() G.EndMatch() end,
     timeout = 0,
     whileDead = true,
@@ -1562,9 +1608,9 @@ if StaticPopupDialogs then
     preferredIndex = 3,
   }
   StaticPopupDialogs.DECKHAND_END_TUTORIAL = {
-    text = "Leave the tutorial?\nYou can start it again from the Play tab.",
-    button1 = "Leave",
-    button2 = "Keep going",
+    text = L["Leave the tutorial?\nYou can start it again from the Play tab."],
+    button1 = L["Leave"],
+    button2 = L["Keep going"],
     OnAccept = function() G.EndMatch() end,
     timeout = 0,
     whileDead = true,
@@ -1619,7 +1665,7 @@ end
 -- game id. A round that was playing out is shown again next time.
 function G.Open(key)
   if thinking then
-    UI.Error((opponent() and opponent().short or "Your opponent") .. " is still choosing. One moment.")
+    UI.Error(L["%s is still choosing. One moment."]:format(oppName()))
     return false
   end
   if key == "ai" and not ns.db.match then return false end
@@ -1647,9 +1693,9 @@ function G.StartPvP(pv, st)
   local m = { opp = "pvp", pvp = pv, st = st, started = time and time() or 0, version = ns.VERSION,
     rules = R.RULES_VERSION }
   local who = ns.Net.Short(pv.name)
-  m.log = { ("Your match against %s begins. Good luck!"):format(who), "|cffffd100Round 1|r" }
+  m.log = { L["Your match against %s begins. Good luck!"]:format(who), "|cffffd100" .. L["Round %d"]:format(1) .. "|r" }
   ns.db.games[pv.gid] = m
-  ns.Print("Your match against %s begins.", who)
+  ns.Print(L["Your match against %s begins."], who)
   UI.Sound("challenge")
   -- you both just agreed to play, so it goes on the board (unless the
   -- computer is in the middle of choosing in another match)
@@ -1689,8 +1735,9 @@ local function endOffBoard(m, conceded)
   })
   ns.Net.Finished(m, conceded)
   ns.db.games[m.pvp.gid] = nil
-  ns.Print("%s %s", m.pvp.theyConceded and (who .. " conceded your game.") or ("Your game against " .. who .. " is over."),
-    result == "win" and "|cff40ff40Victory!|r" or result == "loss" and "|cffff4040Defeat.|r" or "A draw.")
+  ns.Print("%s %s", m.pvp.theyConceded and L["%s conceded your game."]:format(who) or L["Your game against %s is over."]:format(who),
+    result == "win" and ("|cff40ff40" .. L["Victory!"] .. "|r") or result == "loss" and ("|cffff4040" .. L["Defeat."] .. "|r")
+    or L["A draw."])
   ns.Announce(rewards)
 end
 
@@ -1730,7 +1777,7 @@ function G.Challenge(name)
     UI.Error(why)
     return false
   end
-  ns.Print("Challenge sent to %s. They have %d seconds to answer.", ns.Net.Short(name), ns.Net.ANSWER_SECONDS)
+  ns.Print(L["Challenge sent to %s. They have %d seconds to answer."], ns.Net.Short(name), ns.Net.ANSWER_SECONDS)
   G.Refresh()
   return true
 end
@@ -1747,7 +1794,7 @@ function G.AskChallenge()
 end
 
 function G.OnChallenge(name)
-  ns.Print("%s challenges you to a game of Deckhand.", name)
+  ns.Print(L["%s challenges you to a game of Deckhand."], name)
   UI.Sound("challenge")
   if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.DECKHAND_CHALLENGE then
     StaticPopup_Show("DECKHAND_CHALLENGE", name)
@@ -1768,15 +1815,15 @@ function G.AnswerChallenge(accept)
     if why then UI.Error(why) end
     return false
   end
-  if accept then ns.Print("You accepted %s's challenge. The game starts in a moment.", who or "the") end
+  if accept then ns.Print(L["You accepted %s's challenge. The game starts in a moment."], who or "?") end
   return true
 end
 
 if StaticPopupDialogs then
   StaticPopupDialogs.DECKHAND_CHALLENGE = {
-    text = "%s challenges you to a game of Deckhand.",
-    button1 = "Accept",
-    button2 = "Decline",
+    text = L["%s challenges you to a game of Deckhand."],
+    button1 = L["Accept"],
+    button2 = L["Decline"],
     OnAccept = function() G.AnswerChallenge(true) end,
     OnCancel = function(_, _, reason) if reason == "clicked" then G.AnswerChallenge(false) end end,
     timeout = 0,
@@ -1789,9 +1836,9 @@ if StaticPopupDialogs then
     return eb and eb:GetText() or ""
   end
   StaticPopupDialogs.DECKHAND_CHALLENGE_WHO = {
-    text = "Challenge which player? They need Deckhand too.",
-    button1 = "Challenge",
-    button2 = "Cancel",
+    text = L["Challenge which player? They need Deckhand too."],
+    button1 = L["Challenge"],
+    button2 = CANCEL or L["Cancel"],
     hasEditBox = true,
     maxLetters = 64,
     OnShow = function(self)
@@ -1830,8 +1877,8 @@ end
 -- ---------------------------------------------------------------------------
 -- Lobby
 -- ---------------------------------------------------------------------------
-local LEVEL_COLOR = { easy = "|cff40ff40Easy|r", normal = "|cffffd100Normal|r", hard = "|cffff6040Hard|r",
-  heroic = "|cffc080ffHeroic|r" }
+local LEVEL_COLOR = { easy = "|cff40ff40" .. L["Easy"] .. "|r", normal = "|cffffd100" .. L["Normal"] .. "|r",
+  hard = "|cffff6040" .. L["Hard"] .. "|r", heroic = "|cffc080ff" .. L["Heroic"] .. "|r" }
 local rows = {}
 
 local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
@@ -1867,18 +1914,18 @@ end
 -- What a game in the list says, and whether it's waiting for you.
 function G.GameStatus(m)
   local st = m.st
-  if st.winner then return "Over: open it to see how it ended", true end
-  if m.last and m.shown == false then return "A new round to watch", true end
-  if not m.pvp then return m.tutorial and "The tutorial" or "Your move", true end
+  if st.winner then return L["Over: open it to see how it ended"], true end
+  if m.last and m.shown == false then return L["A new round to watch"], true end
+  if not m.pvp then return m.tutorial and L["The tutorial"] or L["Your move"], true end
   local r = st.round
   local who = ns.Net.Short(m.pvp.name)
   local mine, theirs = m.pvp.mine[r], m.pvp.theirs[r]
   if mine and not theirs then
-    return ns.Net.IsOffline(m) and (who .. " seems to be offline") or ("Waiting for " .. who), false
+    return ns.Net.IsOffline(m) and L["%s seems to be offline"]:format(who) or L["Waiting for %s"]:format(who), false
   end
-  if theirs and not mine then return who .. " has locked in: your move", true end
-  if mine and theirs then return "Playing the round...", false end
-  return "Your move", true
+  if theirs and not mine then return L["%s has locked in: your move"]:format(who), true end
+  if mine and theirs then return L["Playing the round..."], false end
+  return L["Your move"], true
 end
 
 -- How many of your games are waiting for you.
@@ -1901,13 +1948,14 @@ local function refreshGameRows()
       local o
       if m.pvp then o = ns.Net.Opponent(m.pvp.name) else o = ns.OpponentById[m.opp] end
       r.icon:SetTexture(UI.Icon(o.icon))
-      r.name:SetText(m.pvp and o.name or (o.name .. (m.heroic and " |cffc080ff(Heroic)|r" or m.tutorial and " (tutorial)" or "")))
-      r.kind:SetText(m.pvp and "|cff9fdfffPlayer|r" or "|cffb0b0b0Computer|r")
+      r.name:SetText(m.pvp and o.name or (o.name .. (m.heroic and (" |cffc080ff" .. L["(Heroic)"] .. "|r")
+        or m.tutorial and (" " .. L["(tutorial)"]) or "")))
+      r.kind:SetText(m.pvp and L["|cff9fdfffPlayer|r"] or L["|cffb0b0b0Computer|r"])
       local text, yours = G.GameStatus(m)
       r.status:SetText(text)
       if yours then r.status:SetTextColor(0.4, 1, 0.4) else r.status:SetTextColor(0.75, 0.75, 0.75) end
       local st = m.st
-      r.score:SetText(("Round %d of %d    Morale %d - %d"):format(st.round, R.MAX_ROUNDS,
+      r.score:SetText((L["Round %d of %d    Morale %d - %d"]):format(st.round, R.MAX_ROUNDS,
         math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale)))
     end
   end
@@ -1917,9 +1965,9 @@ end
 function G.RefreshLobby()
   local ok, why = C.CheckDeck(ns.db)
   if ok then
-    lobby.deck:SetText("|cff40ff40Your deck: 20 cards, ready|r")
+    lobby.deck:SetText(L["|cff40ff40Your deck: 20 cards, ready|r"])
   else
-    lobby.deck:SetText("|cffff6040" .. why .. "|r Fix it in the Cards tab.")
+    lobby.deck:SetText("|cffff6040" .. why .. "|r " .. L["Fix it in the Cards tab."])
   end
   local heroicOpen = C.HeroicUnlocked(ns.db)
   if not heroicOpen then heroicView = false end
@@ -1927,23 +1975,23 @@ function G.RefreshLobby()
   if not lobbyView then lobbyView = moves > 0 and #C.Games(ns.db) > 0 and "games" or "circuit" end
   local games = lobbyView == "games"
   lobby.heroicBtn:SetShown(heroicOpen and not games)
-  lobby.heroicBtn:SetText(heroicView and "Back to the circuit" or "Heroic rematches")
+  lobby.heroicBtn:SetText(heroicView and L["Back to the circuit"] or L["Heroic rematches"])
   local n = #allGames()
   if games then
-    lobby.gamesBtn:SetText("Back to the circuit")
+    lobby.gamesBtn:SetText(L["Back to the circuit"])
   elseif moves > 0 then
-    lobby.gamesBtn:SetText(("|cff40ff40Your games: %d your move|r"):format(moves))
+    lobby.gamesBtn:SetText((L["|cff40ff40Your games: %d your move|r"]):format(moves))
   else
-    lobby.gamesBtn:SetText(("Your games (%d)"):format(n))
+    lobby.gamesBtn:SetText((L["Your games (%d)"]):format(n))
   end
   if games then
-    lobby.title:SetText("Your games")
-    lobby.sub:SetText("Games against players go at their own pace: a round plays once you've both locked in.")
+    lobby.title:SetText(L["Your games"])
+    lobby.sub:SetText(L["Games against players go at their own pace: a round plays once you've both locked in."])
   else
-    lobby.title:SetText(heroicView and "The Tavern Circuit: |cffc080ffHeroic|r" or "The Tavern Circuit")
+    lobby.title:SetText(heroicView and (L["The Tavern Circuit"] .. ": |cffc080ff" .. L["Heroic"] .. "|r") or L["The Tavern Circuit"])
     lobby.sub:SetText(heroicView
-      and "Their best decks, their sharpest play."
-      or "Pick an opponent. Games are saved, so you can stop any time.")
+      and L["Their best decks, their sharpest play."]
+      or L["Pick an opponent. Games are saved, so you can stop any time."])
   end
   for _, r in ipairs(rows) do r:SetShown(not games) end
   for _, r in ipairs(gameRows) do r:SetShown(false) end
@@ -1951,7 +1999,7 @@ function G.RefreshLobby()
   lobby.invite:SetShown(games and ns.Net.Incoming() ~= nil)
   if games then
     refreshGameRows()
-    if ns.Net.Incoming() then lobby.invite.text:SetText(ns.Net.Incoming() .. " challenges you to a game.") end
+    if ns.Net.Incoming() then lobby.invite.text:SetText(L["%s challenges you to a game."]:format(ns.Net.Incoming())) end
   end
   local cur = ns.db.match
   for _, r in ipairs(rows) do
@@ -1977,34 +2025,35 @@ function G.RefreshLobby()
       r.lvl:SetText(LEVEL_COLOR[o.level] or o.level)
     end
     if not open then
-      r.record:SetText("Beat " .. ns.Opponents[o.index - 1].short .. " first")
+      r.record:SetText(L["Beat %s first"]:format(ns.Opponents[o.index - 1].short))
     elseif rec and (rec.w + rec.l + rec.d) > 0 then
-      r.record:SetText(("Won %d  Lost %d%s"):format(rec.w, rec.l, rec.d > 0 and ("  Drawn " .. rec.d) or ""))
+      r.record:SetText(L["Won %d  Lost %d"]:format(rec.w, rec.l) .. (rec.d > 0 and ("  " .. L["Drawn %d"]:format(rec.d)) or ""))
     else
-      r.record:SetText("Not played yet")
+      r.record:SetText(L["Not played yet"])
     end
     local resume = cur and cur.opp == o.id and not cur.tutorial and (cur.heroic and true or false) == heroicView
-    r.play:SetText(resume and "Resume" or open and "Play" or "Locked")
+    r.play:SetText(resume and L["Resume"] or open and L["Play"] or L["Locked"])
     r.play:SetEnabled((resume or (ok and open)) and true or false)
     r:SetAlpha(open and 1 or 0.55)
   end
   local s = ns.db.stats
   local pw, pl = 0, 0
   for _, r in pairs(ns.db.pvpRecord or {}) do pw, pl = pw + r.w, pl + r.l end
-  lobby.stats:SetText(("Overall: %d won, %d lost, %d drawn"):format(s.wins, s.losses, s.draws) ..
-    ((pw + pl > 0) and ("   Against players: %d won, %d lost"):format(pw, pl) or ""))
+  lobby.stats:SetText(L["Overall: %d won, %d lost, %d drawn"]:format(s.wins, s.losses, s.draws) ..
+    ((pw + pl > 0) and ("   " .. L["Against players: %d won, %d lost"]:format(pw, pl)) or ""))
   local outgoing, incoming = ns.Net.Outgoing(), ns.Net.Incoming()
-  lobby.challenge:SetText(outgoing and "Cancel challenge" or "Challenge a player")
-  lobby.pvpStatus:SetText(outgoing and ("Waiting for " .. outgoing .. " to answer...")
-    or incoming and ("|cffffd100" .. incoming .. " challenged you.|r") or "")
+  lobby.challenge:SetText(outgoing and L["Cancel challenge"] or L["Challenge a player"])
+  lobby.pvpStatus:SetText(outgoing and L["Waiting for %s to answer..."]:format(outgoing)
+    or incoming and ("|cffffd100" .. L["%s challenged you."]:format(incoming) .. "|r") or "")
   local done = ns.db.tutorial and ns.db.tutorial.done
-  lobby.tutorial:SetText(done and "Tutorial" or ("Tutorial (+%d pack)"):format(C.TUTORIAL_PACKS))
+  lobby.tutorial:SetText(done and L["Tutorial"] or ns.Plural(C.TUTORIAL_PACKS, "Tutorial (+%d pack)", "Tutorial (+%d packs)"):format(C.TUTORIAL_PACKS))
   lobby.welcome:SetShown(not ns.db.settings.seenWelcome)
   local d, task = C.Daily(ns.db, ns.Today())
   if d.done then
-    lobby.daily:SetText(("|cff40ff40Daily task done:|r %s."):format(task.text))
+    lobby.daily:SetText("|cff40ff40" .. L["Daily task done:"] .. "|r " .. task.text)
   else
-    lobby.daily:SetText(("|cffffd100Daily task:|r %s  (%d/%d)  |cff9fdfff+%d shards|r"):format(task.text, d.n, task.goal, C.REWARD.daily))
+    lobby.daily:SetText("|cffffd100" .. L["Daily task:"] .. "|r " .. ("%s  (%d/%d)  "):format(task.text, d.n, task.goal)
+      .. "|cff9fdfff" .. ns.Plural(C.REWARD.daily, "+%d shard", "+%d shards"):format(C.REWARD.daily) .. "|r")
   end
 end
 
@@ -2013,12 +2062,12 @@ local function buildLobby()
   lobby:SetAllPoints()
   local title = UI.Text(lobby, 14)
   title:SetPoint("TOPLEFT", 4, -2)
-  title:SetText("The Tavern Circuit")
+  title:SetText(L["The Tavern Circuit"])
   title:SetTextColor(1, 0.82, 0)
   lobby.title = title
   local sub = UI.Text(lobby, 10)
   sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-  sub:SetText("Pick an opponent. Games are saved, so you can stop any time.")
+  sub:SetText(L["Pick an opponent. Games are saved, so you can stop any time."])
   sub:SetTextColor(0.7, 0.7, 0.7)
   lobby.sub = sub
   lobby.deck = UI.Text(lobby, 10)
@@ -2057,38 +2106,38 @@ local function buildLobby()
     r.record = UI.Text(r, 10)
     r.record:SetPoint("RIGHT", r, "RIGHT", -106, 0)
     r.record:SetTextColor(0.75, 0.75, 0.75)
-    r.play = UI.Button(r, "Play", 90, 26, function() G.Start(o.id, heroicView) end)
+    r.play = UI.Button(r, L["Play"], 90, 26, function() G.Start(o.id, heroicView) end)
     r.play:SetPoint("RIGHT", -8, 0)
     r:EnableMouse(true)
     r:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       if heroicView then
-        GameTooltip:AddLine(o.name .. " |cffc080ff(Heroic)|r")
-        GameTooltip:AddLine("\"" .. o.rematch .. "\"", 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(o.name .. " |cffc080ff" .. L["(Heroic)"] .. "|r")
+        GameTooltip:AddLine(L["\"%s\""]:format(o.rematch), 0.85, 0.85, 0.85, true)
         local rec = ns.db.heroic[o.id]
         if rec and rec.beaten then
-          GameTooltip:AddLine("Beaten on heroic.", 0.75, 0.5, 1)
+          GameTooltip:AddLine(L["Beaten on heroic."], 0.75, 0.5, 1)
         else
-          GameTooltip:AddLine(("First heroic win: a card pack and a %s %s."):format(UI.Rainbow("holographic"),
+          GameTooltip:AddLine(L["First heroic win: a card pack and a %s %s."]:format(UI.Rainbow(L["holographic"]),
             UI.CardName(o.signature)), 1, 0.82, 0, true)
         end
-        GameTooltip:AddLine(("Wins pay %d shards."):format(C.REWARD.win.heroic), 0.62, 0.87, 1)
+        GameTooltip:AddLine((L["Wins pay %d shards."]):format(C.REWARD.win.heroic), 0.62, 0.87, 1)
         GameTooltip:Show()
         return
       end
       GameTooltip:AddLine(o.name)
-      GameTooltip:AddLine("\"" .. o.hello .. "\"", 0.85, 0.85, 0.85, true)
+      GameTooltip:AddLine(L["\"%s\""]:format(o.hello), 0.85, 0.85, 0.85, true)
       local stars = C.Stars(ns.db, o.id)
       for k, s in ipairs(C.STARS) do
         if stars[k] then
-          GameTooltip:AddLine(s.name .. ": earned", 0.4, 1, 0.4)
+          GameTooltip:AddLine(L["%s: earned"]:format(s.name), 0.4, 1, 0.4)
         else
-          GameTooltip:AddLine(("%s: %s Reward: %s."):format(s.name, s.text, k == 2 and UI.CardName(o.signature) or s.reward),
+          GameTooltip:AddLine((L["%s: %s Reward: %s."]):format(s.name, s.text, k == 2 and UI.CardName(o.signature) or s.reward),
             1, 0.82, 0, true)
         end
       end
       if not C.Unlocked(ns.db, o.id) then
-        GameTooltip:AddLine(("Locked: beat %s first."):format(ns.Opponents[o.index - 1].short), 1, 0.4, 0.4)
+        GameTooltip:AddLine((L["Locked: beat %s first."]):format(ns.Opponents[o.index - 1].short), 1, 0.4, 0.4)
       end
       GameTooltip:Show()
     end)
@@ -2115,7 +2164,7 @@ local function buildLobby()
     r.score = UI.Text(r, 10)
     r.score:SetPoint("RIGHT", r, "RIGHT", -106, 0)
     r.score:SetTextColor(0.75, 0.75, 0.75)
-    r.open = UI.Button(r, "Open", 90, 24, function() G.Open(r.m.pvp and r.m.pvp.gid or "ai") end)
+    r.open = UI.Button(r, L["Open"], 90, 24, function() G.Open(r.m.pvp and r.m.pvp.gid or "ai") end)
     r.open:SetPoint("RIGHT", -8, 0)
     r:SetScript("OnClick", function() G.Open(r.m.pvp and r.m.pvp.gid or "ai") end)
     r:Hide()
@@ -2123,7 +2172,7 @@ local function buildLobby()
   end
   lobby.noGames = UI.Text(lobby, 12)
   lobby.noGames:SetPoint("TOP", 0, -90)
-  lobby.noGames:SetText("No games going. Pick an opponent on the circuit, or challenge a player.")
+  lobby.noGames:SetText(L["No games going. Pick an opponent on the circuit, or challenge a player."])
   lobby.noGames:SetTextColor(0.75, 0.75, 0.75)
   lobby.noGames:Hide()
   -- a challenge waiting for an answer (the popup can be closed by accident)
@@ -2134,22 +2183,22 @@ local function buildLobby()
   inv.text = UI.Text(inv, 12)
   inv.text:SetPoint("LEFT", 10, 0)
   inv.text:SetTextColor(1, 0.82, 0)
-  local decline = UI.Button(inv, "Decline", 80, 22, function() G.AnswerChallenge(false) end)
+  local decline = UI.Button(inv, L["Decline"], 80, 22, function() G.AnswerChallenge(false) end)
   decline:SetPoint("RIGHT", -6, 0)
-  local accept = UI.Button(inv, "Accept", 80, 22, function() G.AnswerChallenge(true) end)
+  local accept = UI.Button(inv, L["Accept"], 80, 22, function() G.AnswerChallenge(true) end)
   accept:SetPoint("RIGHT", decline, "LEFT", -6, 0)
   inv:Hide()
   lobby.invite = inv
 
-  lobby.challenge = UI.Button(lobby, "Challenge a player", 150, 22, function() G.AskChallenge() end)
+  lobby.challenge = UI.Button(lobby, L["Challenge a player"], 150, 22, function() G.AskChallenge() end)
   lobby.challenge:SetPoint("BOTTOMRIGHT", -4, 4)
-  UI.SimpleTooltip(lobby.challenge, "Challenge a player",
-    "Play a friend or guildmate who has Deckhand (the same version). Target them first, or type their name.",
-    "Wins count for the daily task and the first win of the day once the game reaches round 4.")
-  lobby.gamesBtn = UI.Button(lobby, "Your games", 190, 22, function() G.ShowGames(lobbyView ~= "games") end)
+  UI.SimpleTooltip(lobby.challenge, L["Challenge a player"],
+    L["Play a friend or guildmate who has Deckhand (the same version). Target them first, or type their name."],
+    L["Wins count for the daily task and the first win of the day once the game reaches round 4."])
+  lobby.gamesBtn = UI.Button(lobby, L["Your games"], 190, 22, function() G.ShowGames(lobbyView ~= "games") end)
   lobby.gamesBtn:SetPoint("RIGHT", lobby.challenge, "LEFT", -6, 0)
-  UI.SimpleTooltip(lobby.gamesBtn, "Your games", "Your match against the computer and your games against players.",
-    "Games against players go at their own pace. Open one to play your move.")
+  UI.SimpleTooltip(lobby.gamesBtn, L["Your games"], L["Your match against the computer and your games against players."],
+    L["Games against players go at their own pace. Open one to play your move."])
   lobby.pvpStatus = UI.Text(lobby, 10)
   lobby.pvpStatus:SetPoint("BOTTOMRIGHT", lobby.challenge, "TOPRIGHT", 0, 6)
   lobby.pvpStatus:SetTextColor(0.85, 0.85, 0.85)
@@ -2161,17 +2210,17 @@ local function buildLobby()
   lobby.stats:SetPoint("BOTTOMLEFT", 6, 6)
   lobby.stats:SetTextColor(0.75, 0.75, 0.75)
 
-  lobby.tutorial = UI.Button(lobby, "Tutorial", 130, 20, function() G.StartTutorial() end)
+  lobby.tutorial = UI.Button(lobby, L["Tutorial"], 130, 20, function() G.StartTutorial() end)
   lobby.tutorial:SetPoint("TOPRIGHT", -108, -17)
-  UI.SimpleTooltip(lobby.tutorial, "Tutorial", "A short guided match against Flightmaster Dorn: four rounds with his help, then you finish it.",
-    "It doesn't use your deck or count on the circuit. Finishing it the first time earns a card pack.")
-  local guide = UI.Button(lobby, "Guide", 100, 20, function() UI.SelectTab("guide") end)
+  UI.SimpleTooltip(lobby.tutorial, L["Tutorial"], L["A short guided match against Flightmaster Dorn: four rounds with his help, then you finish it."],
+    L["It doesn't use your deck or count on the circuit. Finishing it the first time earns a card pack."])
+  local guide = UI.Button(lobby, L["Guide"], 100, 20, function() UI.SelectTab("guide") end)
   guide:SetPoint("TOPRIGHT", -4, -17)
-  UI.SimpleTooltip(guide, "Guide", "Every rule and keyword, with diagrams.")
-  lobby.heroicBtn = UI.Button(lobby, "Heroic rematches", 150, 20, function() G.SetHeroicView(not heroicView) end)
+  UI.SimpleTooltip(guide, L["Guide"], L["Every rule and keyword, with diagrams."])
+  lobby.heroicBtn = UI.Button(lobby, L["Heroic rematches"], 150, 20, function() G.SetHeroicView(not heroicView) end)
   lobby.heroicBtn:SetPoint("TOPRIGHT", -242, -17)
-  UI.SimpleTooltip(lobby.heroicBtn, "Heroic rematches", "Every opponent again, with their best deck and the sharpest computer play.",
-    "The first win against each pays a card pack and a holographic copy of their signature card.")
+  UI.SimpleTooltip(lobby.heroicBtn, L["Heroic rematches"], L["Every opponent again, with their best deck and the sharpest computer play."],
+    L["The first win against each pays a card pack and a holographic copy of their signature card."])
   lobby.heroicBtn:Hide()
 
   -- the first time: offer the tutorial
@@ -2187,24 +2236,23 @@ local function buildLobby()
   icon:SetTexture(UI.Icon(ns.OpponentById[ns.Tutorial.OPP].icon))
   local wt = UI.Text(w, 16)
   wt:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -4)
-  wt:SetText("Welcome to Deckhand")
+  wt:SetText(L["Welcome to Deckhand"])
   wt:SetTextColor(1, 0.82, 0)
   local wb = UI.Text(w, 12)
   wb:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -12)
   wb:SetWidth(434)
   wb:SetJustifyH("LEFT")
   wb:SetSpacing(3)
-  wb:SetText("A card game for flights and boat rides. Flightmaster Dorn will show you how it works in a short " ..
-    "guided match: four rounds with his help, then you finish it yourself. Finishing it earns a card pack.\n\n" ..
-    "|cffb0b0b0Know how to play already? Skip it. The tutorial stays on this page, and the Guide tab has every rule.|r")
-  local go = UI.Button(w, "Play the tutorial", 150, 26, function() G.StartTutorial() end)
+  wb:SetText(L["A card game for flights and boat rides. Flightmaster Dorn will show you how it works in a short guided match: four rounds with his help, then you finish it yourself. Finishing it earns a card pack."]
+    .. "\n\n|cffb0b0b0" .. L["Know how to play already? Skip it. The tutorial stays on this page, and the Guide tab has every rule."] .. "|r")
+  local go = UI.Button(w, L["Play the tutorial"], 150, 26, function() G.StartTutorial() end)
   go:SetPoint("BOTTOMLEFT", 18, 16)
-  local read = UI.Button(w, "Open the Guide", 130, 26, function()
+  local read = UI.Button(w, L["Open the Guide"], 130, 26, function()
     ns.db.settings.seenWelcome = true
     UI.SelectTab("guide")
   end)
   read:SetPoint("LEFT", go, "RIGHT", 8, 0)
-  local skip = UI.Button(w, "Skip", 80, 26, function()
+  local skip = UI.Button(w, L["Skip"], 80, 26, function()
     ns.db.settings.seenWelcome = true
     w:Hide()
   end)
@@ -2226,7 +2274,7 @@ local function badge(parent, size)
   b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:SetScript("OnEnter", function(self)
-    if self.cardId then UI.CardTooltip(self, self.cardId, nil, nil, { "|cff40ff40Planned. Click to take it back.|r" }) end
+    if self.cardId then UI.CardTooltip(self, self.cardId, nil, nil, { "|cff40ff40" .. L["Planned. Click to take it back."] .. "|r" }) end
   end)
   b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   b:Hide()
@@ -2283,7 +2331,7 @@ local function buildPanel(p)
   f.name:SetWordWrap(true)
   local label = UI.Text(f, 10)
   label:SetPoint("TOPLEFT", 8, -48)
-  label:SetText("Morale")
+  label:SetText(L["Morale"])
   label:SetTextColor(0.7, 0.7, 0.7)
   f.morale = UI.Text(f, 34, "OUTLINE")
   f.morale:SetPoint("TOPLEFT", 8, -62)
@@ -2296,8 +2344,8 @@ local function buildPanel(p)
   UI.AttachFloat(f)
   UI.AttachShake(f)
   f:EnableMouse(true)
-  UI.SimpleTooltip(f, "Morale", "When it reaches 0 at the end of a round, that player loses. After round 8 the higher Morale wins.",
-    "Units with nothing across from them in their lane hit Morale. The small number beside it is what your plan does this round if your opponent plays nothing new.")
+  UI.SimpleTooltip(f, L["Morale"], L["When it reaches 0 at the end of a round, that player loses. After round 8 the higher Morale wins."],
+    L["Units with nothing across from them in their lane hit Morale. The small number beside it is what your plan does this round if your opponent plays nothing new."])
   panels[p] = f
 end
 
@@ -2367,13 +2415,12 @@ local function buildBoard()
     m:EnableMouse(true)
     m:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:AddLine("Lane " .. l)
+      GameTooltip:AddLine(L["Lane %d"]:format(l))
       if self.lines then
         for _, line in ipairs(self.lines) do GameTooltip:AddLine(line, 1, 1, 1, true) end
-        GameTooltip:AddLine("This assumes " .. (opponent() and opponent().short or "they") ..
-          " plays nothing new. They're planning too.", 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine(L["This assumes %s plays nothing new. They're planning too."]:format(oppName()), 0.6, 0.6, 0.6, true)
       else
-        GameTooltip:AddLine("Every unit strikes the enemy unit straight across from it in its lane, or the enemy's Morale if that slot is empty.", 1, 1, 1, true)
+        GameTooltip:AddLine(L["Every unit strikes the enemy unit straight across from it in its lane, or the enemy's Morale if that slot is empty."], 1, 1, 1, true)
       end
       GameTooltip:Show()
     end)
@@ -2397,7 +2444,7 @@ local function buildBoard()
   initHelp:SetPoint("TOPLEFT", ctl.round, "TOPLEFT")
   initHelp:SetSize(PANEL_W, 32)
   initHelp:EnableMouse(true)
-  UI.SimpleTooltip(initHelp, "Initiative", "The player with initiative has their Arrive effects and tactics resolve first. It alternates every round.")
+  UI.SimpleTooltip(initHelp, L["Initiative"], L["The player with initiative has their Arrive effects and tactics resolve first. It alternates every round."])
   ctl.phase = UI.Text(board, 20, "OUTLINE")
   ctl.phase:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, MID_Y + 10)
   ctl.phase:SetTextColor(1, 0.82, 0)
@@ -2414,11 +2461,10 @@ local function buildBoard()
   tt:SetPoint("TOPRIGHT", -12, -10)
   tt:SetJustifyH("LEFT")
   tt:SetSpacing(2)
-  tt:SetText("|cffffd100How lanes work|r\n" ..
-    "Each column is a lane. Every unit strikes the enemy unit straight across from it. " ..
-    "If that enemy slot is empty, it hits their Morale instead.\n" ..
-    "The markers between the rows show what each lane will do this round. Hover one for details.")
-  local ok = UI.Button(tip, "Got it", 80, 22, function()
+  tt:SetText("|cffffd100" .. L["How lanes work"] .. "|r\n" ..
+    L["Each column is a lane. Every unit strikes the enemy unit straight across from it. If that enemy slot is empty, it hits their Morale instead."] .. "\n" ..
+    L["The markers between the rows show what each lane will do this round. Hover one for details."])
+  local ok = UI.Button(tip, L["Got it"], 80, 22, function()
     ns.db.settings.seenLaneTip = true
     tip:Hide()
     G.Refresh()
@@ -2443,7 +2489,7 @@ local function buildBoard()
   kt.text:SetPoint("TOP", kt.diagram, "BOTTOM", 0, -6)
   kt.text:SetWidth(272)
   kt.text:SetJustifyH("CENTER")
-  local gotIt = UI.Button(kt, "Got it", 80, 22, function() G.DismissKeyword() end)
+  local gotIt = UI.Button(kt, L["Got it"], 80, 22, function() G.DismissKeyword() end)
   gotIt:SetPoint("BOTTOM", 0, 8)
   kt:Hide()
   ctl.kwTip = kt
@@ -2451,7 +2497,7 @@ local function buildBoard()
   -- right column
   local sl = UI.Text(board, 11)
   sl:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -4)
-  sl:SetText("Supply left")
+  sl:SetText(L["Supply left"])
   sl:SetTextColor(0.8, 0.8, 0.8)
   ctl.supply = UI.Text(board, 30, "OUTLINE")
   ctl.supply:SetPoint("TOPLEFT", sl, "BOTTOMLEFT", 0, -3)
@@ -2460,11 +2506,11 @@ local function buildBoard()
   supplyHelp:SetPoint("TOPLEFT", sl, "TOPLEFT")
   supplyHelp:SetSize(100, 50)
   supplyHelp:EnableMouse(true)
-  UI.SimpleTooltip(supplyHelp, "Supply", "What you can spend this round: 1 in round 1, 2 in round 2 and so on, up to 6. Unspent supply is lost.")
+  UI.SimpleTooltip(supplyHelp, L["Supply"], L["What you can spend this round: 1 in round 1, 2 in round 2 and so on, up to 6. Unspent supply is lost."])
 
   ctl.freeLabel = UI.Text(board, 10)
   ctl.freeLabel:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + 106, -4)
-  ctl.freeLabel:SetText("Also casting:")
+  ctl.freeLabel:SetText(L["Also casting:"])
   ctl.freeLabel:SetTextColor(0.8, 0.8, 0.8)
   ctl.free = {}
   for i = 1, 4 do
@@ -2481,22 +2527,22 @@ local function buildBoard()
     ctl.free[i] = b
   end
 
-  ctl.lock = UI.Button(board, "Lock In", RIGHT_W, 34, function() G.LockIn() end)
+  ctl.lock = UI.Button(board, L["Lock In"], RIGHT_W, 34, function() G.LockIn() end)
   ctl.lock:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -62)
-  ctl.clear = UI.Button(board, "Clear", RIGHT_W / 2 - 3, 22, function() G.ClearPlan() end)
+  ctl.clear = UI.Button(board, L["Clear"], RIGHT_W / 2 - 3, 22, function() G.ClearPlan() end)
   ctl.clear:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -102)
-  ctl.replay = UI.Button(board, "Replay", RIGHT_W / 2 - 3, 22, function() G.Replay() end)
+  ctl.replay = UI.Button(board, L["Replay"], RIGHT_W / 2 - 3, 22, function() G.Replay() end)
   ctl.replay:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, -102)
-  UI.SimpleTooltip(ctl.replay, "Replay", "Shows the last round again.")
+  UI.SimpleTooltip(ctl.replay, L["Replay"], L["Shows the last round again."])
 
-  ctl.back = UI.Button(board, "All games", RIGHT_W / 2 - 3, 22, function() G.Back() end)
+  ctl.back = UI.Button(board, L["All games"], RIGHT_W / 2 - 3, 22, function() G.Back() end)
   ctl.back:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, ROW_Y[ME] - SH + 24)
-  UI.SimpleTooltip(ctl.back, "All games", "Back to the opponent list and your other games. This one stays as it is.")
-  ctl.endMatch = UI.Button(board, "End match", RIGHT_W / 2 - 3, 22, function() G.AskEndMatch() end)
+  UI.SimpleTooltip(ctl.back, L["All games"], L["Back to the opponent list and your other games. This one stays as it is."])
+  ctl.endMatch = UI.Button(board, L["End match"], RIGHT_W / 2 - 3, 22, function() G.AskEndMatch() end)
   ctl.endMatch:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, ROW_Y[ME] - SH + 24)
-  UI.SimpleTooltip(ctl.endMatch, "End match",
-    "Ends this match now. It counts as a loss and earns nothing.",
-    "You don't need to end a match to stop playing: it's saved after every round, so you can just close the window.")
+  UI.SimpleTooltip(ctl.endMatch, L["End match"],
+    L["Ends this match now. It counts as a loss and earns nothing."],
+    L["You don't need to end a match to stop playing: it's saved after every round, so you can just close the window."])
 
   -- hand cards: click one and then a lane, or drag it onto the lane
   for i = 1, R.HAND_MAX do
@@ -2578,7 +2624,7 @@ local function buildBoard()
   ov.body:SetPoint("TOP", ov.quote, "BOTTOM", 0, -10)
   ov.body:SetWidth(410)
   ov.body:SetSpacing(2)
-  local cont = UI.Button(box, "Continue", 100, 24, function() G.Continue() end)
+  local cont = UI.Button(box, L["Continue"], 100, 24, function() G.Continue() end)
   cont:SetPoint("BOTTOM", 0, 12)
   ov:Hide()
   ctl.over = ov

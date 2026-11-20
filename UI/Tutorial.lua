@@ -3,6 +3,7 @@
 -- The script and its checks are in Data/Tutorial.lua; UI/Game.lua asks this
 -- file whether you may plan yet (Gate) and calls Refresh after every redraw.
 local _, ns = ...
+local L = ns.L
 local UI, Cards = ns.UI, ns.Cards
 local T = ns.Tutorial
 
@@ -38,10 +39,12 @@ end
 function TU.Nudge(st, plan)
   local rest = T.Remaining(st, plan)
   local want = rest and rest[1]
-  if not want then return "That's everything for this round. Press Lock In." end
+  if not want then return L["That's everything for this round. Press Lock In."] end
   local c = Cards.byId[want.id]
-  local where = (c.type == "tactic" and c.target == "enemy") and ("my lane " .. want.lane) or ("your lane " .. want.lane)
-  return ("Not that one yet: play %s in %s."):format(c.name, where)
+  if c.type == "tactic" and c.target == "enemy" then
+    return L["Not that one yet: play %s in my lane %d."]:format(c.name, want.lane)
+  end
+  return L["Not that one yet: play %s in your lane %d."]:format(c.name, want.lane)
 end
 
 -- ---------------------------------------------------------------------------
@@ -89,13 +92,13 @@ function TU.Refresh(m, s)
   local st = m.st
   if s.view then
     local r = T.ROUNDS[s.view.round]
-    if r then say(r.watch .. "  |cff909090(Click the board to skip.)|r") else coach:Hide() end
+    if r then say(r.watch .. "  |cff909090" .. L["(Click the board to skip.)"] .. "|r") else coach:Hide() end
     point(nil)
     return
   end
   local text, kind = TU.Gate(m)
   if kind then
-    say(text, kind == "free" and "Let's play" or "Next")
+    say(text, kind == "free" and L["Let's play"] or L["Next"])
     point(coach.next)
     return
   end
@@ -154,7 +157,7 @@ function TU.Build(board, y, width, h)
   coach.text:SetJustifyV("MIDDLE")
   coach.text:SetSpacing(2)
   coach.text:SetTextColor(0.93, 0.9, 0.82)
-  coach.next = UI.Button(coach, "Next", 90, 26, function() TU.Next() end)
+  coach.next = UI.Button(coach, L["Next"], 90, 26, function() TU.Next() end)
   coach.next:SetPoint("RIGHT", -10, 0)
   coach:Hide()
   TU.coach = coach

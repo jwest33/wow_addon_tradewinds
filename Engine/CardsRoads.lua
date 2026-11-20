@@ -161,7 +161,7 @@ add { id = "gargoyle", name = "Stoneskin Gargoyle", cost = 4, type = "unit", rar
 add { id = "rivendare", name = "Baron Rivendare", cost = 5, type = "unit", rarity = "legendary", atk = 4, hp = 5, tribe = "undead",
   kw = { rally = true }, text = "Arrive: your other Undead get +1/+1 and Sturdy.",
   flavor = "Stratholme keeps its own time. You're late.",
-  icon = icons("Ability_Mount_Undeadhorse", "Spell_Shadow_DeathPact"), npc = 10440,
+  icon = icons("Ability_Mount_Undeadhorse", "Spell_Shadow_DeathPact"),
   arrive = function(st, u)
     for _, x in ipairs(others(st, u, "undead")) do R.Buff(st, x, 1, 1, "sturdy") end
   end }
@@ -211,7 +211,7 @@ add { id = "taskmaster", name = "Defias Taskmaster", cost = 4, type = "unit", ra
 
 add { id = "smite", name = "Mr. Smite", cost = 5, type = "unit", rarity = "epic", atk = 5, hp = 5, tribe = "defias",
   text = "Arrive: freeze the enemy unit across and the ones next to it.", flavor = "Now you're making me angry!",
-  icon = icons("Ability_Smash", "INV_Hammer_09"), npc = 646,
+  icon = icons("Ability_Smash", "INV_Hammer_09"),
   arrive = function(st, u)
     local eb = st.players[3 - u.owner].board
     R.Freeze(st, eb[u.lane])
@@ -256,7 +256,7 @@ add { id = "technician", name = "Blackwing Technician", cost = 3, type = "unit",
 
 add { id = "drakkisath", name = "General Drakkisath", cost = 5, type = "unit", rarity = "epic", atk = 4, hp = 6, tribe = "dragonkin",
   kw = { rally = true }, text = "Arrive: your other Dragonkin get +2 health.", flavor = "The spire's last door.",
-  icon = icons("Spell_Shadow_ShadowWordDominate", "INV_Misc_Head_Dragon_Black"), npc = 10363,
+  icon = icons("Spell_Shadow_ShadowWordDominate", "INV_Misc_Head_Dragon_Black"),
   arrive = function(st, u)
     for _, x in ipairs(others(st, u, "dragonkin")) do R.Buff(st, x, 0, 2) end
   end }
@@ -298,7 +298,7 @@ add { id = "archer", name = "Darnassus Archer", cost = 3, type = "unit", rarity 
 
 add { id = "seahorn", name = "Fleet Master Seahorn", cost = 4, type = "unit", rarity = "epic", atk = 3, hp = 3,
   text = "Arrive: draw 2 cards.", flavor = "Every ship in Booty Bay owes him a favour.",
-  icon = icons("INV_Misc_Spyglass_02", "INV_Misc_Coin_03"), npc = 2487,
+  icon = icons("INV_Misc_Spyglass_02", "INV_Misc_Coin_03"),
   arrive = function(st, u) R.Draw(st, u.owner, 2) end }
 
 add { id = "warstomp", name = "War Stomp", cost = 2, type = "tactic", rarity = "common", target = "enemy",

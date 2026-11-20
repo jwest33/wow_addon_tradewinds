@@ -32,6 +32,7 @@
 --   HI;game;round                        back after a reload: please resend
 --   EN;game;reason                       concede | gone (no such game here)
 local _, ns = ...
+local L = ns.L
 
 local N = {}
 ns.Net = N
@@ -183,7 +184,7 @@ function N.Opponent(name)
   local o = opps[name]
   if not o then
     local s = short(name)
-    o = { id = "pvp", name = s, short = s, title = "Another player", level = "pvp", player = name,
+    o = { id = "pvp", name = s, short = s, title = L["Another player"], level = "pvp", player = name,
       icon = { "Interface\\Icons\\Ability_Warrior_Challange", "Interface\\Icons\\INV_BannerPVP_01" } }
     opps[name] = o
   end
@@ -192,9 +193,9 @@ end
 
 -- Can a game with `name` start? Returns false and why not.
 local function room(name)
-  if N.GameWith(name) then return false, "You already have a game going with " .. short(name) .. "." end
+  if N.GameWith(name) then return false, L["You already have a game going with %s."]:format(short(name)) end
   if count() >= ns.Collection.MAX_GAMES then
-    return false, ("You have %d games going against players. Finish one first."):format(ns.Collection.MAX_GAMES)
+    return false, (L["You have %d games going against players. Finish one first."]):format(ns.Collection.MAX_GAMES)
   end
   return true
 end
@@ -204,14 +205,14 @@ end
 -- ---------------------------------------------------------------------------
 function N.Challenge(name)
   name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
-  if name == "" then return false, "Type a player's name, or target them first." end
-  if same(name, UnitName and UnitName("player")) then return false, "You can't challenge yourself." end
+  if name == "" then return false, L["Type a player's name, or target them first."] end
+  if same(name, UnitName and UnitName("player")) then return false, L["You can't challenge yourself."] end
   local ok, why = room(name)
   if not ok then return false, why end
-  if out then return false, "You're already waiting for " .. short(out.name) .. " to answer." end
-  if inc then return false, "Answer " .. short(inc.name) .. "'s challenge first." end
+  if out then return false, L["You're already waiting for %s to answer."]:format(short(out.name)) end
+  if inc then return false, L["Answer %s's challenge first."]:format(short(inc.name)) end
   ok, why = ns.Collection.CheckDeck(ns.db)
-  if not ok then return false, why .. " Fix it in the Cards tab." end
+  if not ok then return false, L["%s Fix it in the Cards tab."]:format(why) end
   out = { name = name, nonce = tostring(math.random(100000000, 999999999)), at = now() }
   send(name, "CH", out.nonce, N.PROTO, ns.Rules.RULES_VERSION, N.CardSum(), ns.VERSION)
   refresh()
@@ -253,7 +254,7 @@ end
 
 local function begin(name, gid, seed, host, mine, theirs)
   local st = ns.Rules.NewGame({ seed = seed, decks = { mine, theirs }, seats = host and { 1, 2 } or { 2, 1 },
-    names = { UnitName and UnitName("player") or "You", short(name) } })
+    names = { UnitName and UnitName("player") or L["You"], short(name) } })
   resends[gid] = nil
   offline[short(name):lower()] = nil
   game().StartPvP({ name = name, gid = gid, host = host, mine = {}, theirs = {}, sums = {}, theirSums = {} }, st)
@@ -293,8 +294,8 @@ function N.TryPlay(m)
   if not (a and b) or not game().PvPReady(m) then return end
   local mine, theirs = N.DecodePlan(m.st, 1, a), N.DecodePlan(m.st, 2, b)
   if not (mine and theirs) then
-    N.Abort(m, "Your game with " .. short(m.pvp.name) .. " went out of step (a plan didn't fit the hand), " ..
-      "so it was ended without a result.")
+    N.Abort(m, L["Your game with %s went out of step (a plan didn't fit the hand), so it was ended without a result."]:format(
+      short(m.pvp.name)))
     return
   end
   game().PlayPvPRound(m, mine, theirs)
@@ -309,8 +310,8 @@ end
 local function compare(m, r)
   local a, b = m.pvp.sums[r], m.pvp.theirSums[r]
   if a and b and a ~= b then
-    N.Abort(m, ("Your game with %s went out of step after round %d, so it was ended without a result. " ..
-      "Please report it."):format(short(m.pvp.name), r))
+    N.Abort(m, L["Your game with %s went out of step after round %d, so it was ended without a result. Please report it."]:format(
+      short(m.pvp.name), r))
   end
 end
 
@@ -356,26 +357,26 @@ end
 local H = {}
 
 local REASONS = {
-  busy = "%s is busy answering another challenge. Try again in a minute.",
-  declined = "%s declined your challenge.",
-  version = "%s has a different version of Deckhand (%s). You both need the same one.",
-  timeout = "%s didn't answer your challenge.",
-  deck = "%s can't start a game right now (their deck isn't ready, or they have too many games going).",
-  already = "You already have a game going with %s.",
-  full = "%s has too many games going. They need to finish one first.",
+  busy = L["%s is busy answering another challenge. Try again in a minute."],
+  declined = L["%s declined your challenge."],
+  version = L["%s has a different version of Deckhand (%s). You both need the same one."],
+  timeout = L["%s didn't answer your challenge."],
+  deck = L["%s can't start a game right now (their deck isn't ready, or they have too many games going)."],
+  already = L["You already have a game going with %s."],
+  full = L["%s has too many games going. They need to finish one first."],
 }
 
 function H.CH(sender, nonce, proto, rules, cards, version)
   if tonumber(proto) ~= N.PROTO or tonumber(rules) ~= ns.Rules.RULES_VERSION or cards ~= N.CardSum() then
     send(sender, "NO", nonce, "version", ns.VERSION)
-    ns.Print("%s challenged you, but you have different versions of Deckhand (theirs %s, yours %s). You both need the same one.",
+    ns.Print(L["%s challenged you, but you have different versions of Deckhand (theirs %s, yours %s). You both need the same one."],
       short(sender), tostring(version), ns.VERSION)
     return
   end
   if N.GameWith(sender) then send(sender, "NO", nonce, "already", ns.VERSION) return end
   if count() >= ns.Collection.MAX_GAMES then
     send(sender, "NO", nonce, "full", ns.VERSION)
-    ns.Print("%s challenged you to Deckhand, but you have %d games going against players. Finish one first.",
+    ns.Print(L["%s challenged you to Deckhand, but you have %d games going against players. Finish one first."],
       short(sender), ns.Collection.MAX_GAMES)
     return
   end
@@ -390,14 +391,14 @@ end
 function H.CX(sender, nonce)
   if inc and same(inc.name, sender) and inc.nonce == nonce then
     inc = nil
-    game().OnChallengeGone(short(sender) .. " withdrew the challenge.")
+    game().OnChallengeGone(L["%s withdrew the challenge."]:format(short(sender)))
   end
 end
 
 function H.NO(sender, nonce, reason, version)
   if out and same(out.name, sender) and out.nonce == nonce then
     out = nil
-    ns.Print(REASONS[reason] or "%s can't play right now.", short(sender), tostring(version))
+    ns.Print(REASONS[reason] or L["%s can't play right now."], short(sender), tostring(version))
     refresh()
   end
 end
@@ -475,9 +476,9 @@ function H.PL(sender, gid, round, plan, needs)
     local shown = ns.UI.IsShown and ns.UI.IsShown() and game().Match() == m
     if not shown then
       if ns.UI.IsShown and not ns.UI.IsShown() then
-        ns.UI.Toast("pvp", short(sender) .. " has locked in. Your move.")
+        ns.UI.Toast("pvp", L["%s has locked in. Your move."]:format(short(sender)))
       else
-        ns.Print("%s has locked in. Your move (the Your games list).", short(sender))
+        ns.Print(L["%s has locked in. Your move (the Your games list)."], short(sender))
       end
     end
   end
@@ -512,7 +513,7 @@ function H.EN(sender, gid, reason)
   if reason == "concede" then
     game().PvPConceded(m)
   else
-    game().PvPAbort(m, ("%s's side of your game is gone, so it was ended without a result."):format(short(sender)))
+    game().PvPAbort(m, (L["%s's side of your game is gone, so it was ended without a result."]):format(short(sender)))
   end
 end
 
@@ -532,7 +533,7 @@ end
 function N.Tick()
   local t = now()
   if out and t - out.at > N.ANSWER_SECONDS + 5 then
-    ns.Print("%s didn't answer. They need to be online, with the same version of Deckhand.", short(out.name))
+    ns.Print(L["%s didn't answer. They need to be online, with the same version of Deckhand."], short(out.name))
     out = nil
     refresh()
   end
@@ -541,7 +542,7 @@ function N.Tick()
     inc = nil
     game().OnChallengeGone(nil)
   elseif inc and inc.accepted and t - inc.at > 30 then
-    ns.Print("%s didn't start the game.", short(inc.name))
+    ns.Print(L["%s didn't start the game."], short(inc.name))
     inc = nil
     refresh()
   end
@@ -572,7 +573,7 @@ local function filter(_, _, msg)
   if not (fmt and type(msg) == "string") then return false end
   local function bounced(name) return msg == fmt:format(name) or msg == fmt:format(short(name)) end
   if out and bounced(out.name) then
-    ns.Print("%s isn't online.", short(out.name))
+    ns.Print(L["%s isn't online."], short(out.name))
     out = nil
     refresh()
     return true

@@ -2,6 +2,7 @@
 -- Left-click a card to put it in your deck, right-click to take it out,
 -- shift-click to craft a copy with shards.
 local _, ns = ...
+local L = ns.L
 local Cards, C = ns.Cards, ns.Collection
 local UI = ns.UI
 
@@ -33,16 +34,17 @@ local pageNo = 1
 -- Filters: each button cycles through its choices.
 -- ---------------------------------------------------------------------------
 local FILTERS = {
-  { key = "own", label = "Show", width = 110, choices = {
-    { "all", "all cards" }, { "owned", "owned" }, { "missing", "missing" }, { "deck", "in deck" } } },
-  { key = "rarity", label = "Rarity", width = 126, choices = {
-    { "all", "any" }, { "common", "common" }, { "uncommon", "uncommon" }, { "rare", "rare" }, { "epic", "epic" },
-    { "legendary", "legendary" } } },
-  { key = "cost", label = "Cost", width = 80, choices = {
-    { "all", "any" }, { 1, "1" }, { 2, "2" }, { 3, "3" }, { 4, "4" }, { 5, "5" }, { 6, "6" } } },
-  { key = "kind", label = "Type", width = 124, choices = {
-    { "all", "any" }, { "unit", "units" }, { "tactic", "tactics" }, { "beast", "Beasts" }, { "murloc", "Murlocs" },
-    { "undead", "Undead" }, { "defias", "Defias" }, { "dragonkin", "Dragonkin" } } },
+  { key = "own", label = L["Show"], width = 110, choices = {
+    { "all", L["all cards"] }, { "owned", L["owned"] }, { "missing", L["missing"] }, { "deck", L["in deck"] } } },
+  { key = "rarity", label = L["Rarity"], width = 126, choices = {
+    { "all", L["any"] }, { "common", L["common"] }, { "uncommon", L["uncommon"] }, { "rare", L["rare"] }, { "epic", L["epic"] },
+    { "legendary", L["legendary"] } } },
+  { key = "cost", label = L["Cost"], width = 80, choices = {
+    { "all", L["any"] }, { 1, "1" }, { 2, "2" }, { 3, "3" }, { 4, "4" }, { 5, "5" }, { 6, "6" } } },
+  { key = "kind", label = L["Type"], width = 124, choices = {
+    { "all", L["any"] }, { "unit", L["units"] }, { "tactic", L["tactics"] }, { "beast", Cards.TRIBES.beast },
+    { "murloc", Cards.TRIBES.murloc }, { "undead", Cards.TRIBES.undead }, { "defias", Cards.TRIBES.defias },
+    { "dragonkin", Cards.TRIBES.dragonkin } } },
 }
 local filter = {}   -- key -> index into choices
 for _, f in ipairs(FILTERS) do filter[f.key] = 1 end
@@ -97,12 +99,12 @@ function B.Shown() return list() end
 local function cellExtra(card)
   local id = card.cardId
   local owned, inDeck = C.Owned(ns.db, id), C.Count(ns.db.deck, id)
-  local lines = { ("Owned %d of %d.  In your deck: %d."):format(owned, C.MaxCopies(id), inDeck) }
-  if owned > 0 then lines[#lines + 1] = "|cff40ff40Left-click: add to deck.  Right-click: take one out.|r" end
+  local lines = { L["Owned %d of %d.  In your deck: %d."]:format(owned, C.MaxCopies(id), inDeck) }
+  if owned > 0 then lines[#lines + 1] = "|cff40ff40" .. L["Left-click: add to deck.  Right-click: take one out."] .. "|r" end
   if owned < C.MaxCopies(id) then
     local cost = C.CraftCost(id)
-    lines[#lines + 1] = ("%sShift-click: craft a copy for %d shards (you have %d).|r"):format(
-      ns.db.shards >= cost and "|cff9fdfff" or "|cff808080", cost, ns.db.shards)
+    lines[#lines + 1] = (ns.db.shards >= cost and "|cff9fdfff" or "|cff808080")
+      .. L["Shift-click: craft a copy for %d shards (you have %d)."]:format(cost, ns.db.shards) .. "|r"
   end
   return lines
 end
@@ -111,9 +113,9 @@ end
 local crafting
 if StaticPopupDialogs then
   StaticPopupDialogs.DECKHAND_CRAFT = {
-    text = "Craft %s for %s shards?",
-    button1 = "Craft",
-    button2 = "Cancel",
+    text = L["Craft %s for %s shards?"],
+    button1 = L["Craft"],
+    button2 = CANCEL or L["Cancel"],
     OnAccept = function() B.CraftNow() end,
     timeout = 0,
     whileDead = true,
@@ -128,7 +130,7 @@ function B.CraftNow()
   if not id then return end
   local ok, why = C.Craft(ns.db, id)
   if ok then
-    ns.Print("Crafted %s for %d shards.", UI.CardName(id), why)
+    ns.Print(L["Crafted %s for %d shards."], UI.CardName(id), why)
     UI.Sound("rare")
   else
     UI.Error(why)
@@ -185,11 +187,11 @@ function B.Refresh()
         cell.card.art:SetDesaturated(true)
         cell.card:SetAlpha(0.45)
         local sig = c.signature and ns.OpponentById[c.signature]
-        cell.label:SetText(sig and ("|cff808080win from " .. sig.short .. "|r")
-          or C.InPacks(c.id) and "|cff808080not found yet|r" or "|cff808080not in packs|r")
+        cell.label:SetText("|cff808080" .. (sig and L["win from %s"]:format(sig.short)
+          or C.InPacks(c.id) and L["not found yet"] or L["not in packs"]) .. "|r")
       else
         cell.label:SetText(("%s%d/%d|r  %s"):format(owned >= C.MaxCopies(c.id) and "|cffffd100" or "|cffffffff",
-          owned, C.MaxCopies(c.id), inDeck > 0 and ("|cff40ff40" .. inDeck .. " in deck|r") or ""))
+          owned, C.MaxCopies(c.id), inDeck > 0 and ("|cff40ff40" .. L["%d in deck"]:format(inDeck) .. "|r") or ""))
       end
       cell:Show()
     else
@@ -205,10 +207,12 @@ function B.Refresh()
     if C.Owned(ns.db, c.id) > 0 then have = have + 1 end
     if C.IsHolo(ns.db, c.id) then holo = holo + 1 end
   end
-  ctl.progress:SetText(("Collected %d of %d cards%s    |cff9fdfff%d shards|r    Showing %d"):format(have, total,
-    holo > 0 and ("  (" .. holo .. " " .. UI.Rainbow("holographic") .. ")") or "", ns.db.shards, #all))
+  ctl.progress:SetText(L["Collected %d of %d cards"]:format(have, total)
+    .. (holo > 0 and ("  (" .. L["%d %s"]:format(holo, UI.Rainbow(L["holographic"])) .. ")") or "")
+    .. "    |cff9fdfff" .. ns.Plural(ns.db.shards, "%d shard", "%d shards"):format(ns.db.shards) .. "|r    "
+    .. L["Showing %d"]:format(#all))
   for _, f in ipairs(FILTERS) do
-    ctl.filters[f.key]:SetText(f.label .. ": " .. f.choices[filter[f.key]][2])
+    ctl.filters[f.key]:SetText(L["%s: %s"]:format(f.label, f.choices[filter[f.key]][2]))
   end
 
   -- deck list: one row per card, cheapest first
@@ -237,15 +241,14 @@ function B.Refresh()
     end
   end
   local n = #ns.db.deck
-  ctl.deckTitle:SetText(("Deck  %s%d/20|r"):format(n == 20 and "|cff40ff40" or "|cffff8040", n))
+  ctl.deckTitle:SetText(L["Deck"] .. ("  %s%d/20|r"):format(n == 20 and "|cff40ff40" or "|cffff8040", n))
   for i, b in ipairs(ctl.slots) do
     b:SetEnabled(i ~= ns.db.deckSlot)
   end
   local curve = C.CurveCounts(ns.db.deck)
   for i, rule in ipairs(C.CURVE) do
     local met = curve[i] >= rule.min
-    ctl.curve[i]:SetText(("%s%s: %d/%d|r"):format(met and "|cff40ff40" or "|cffff8040",
-      rule.unit and ("Cost " .. rule.cost .. " units") or ("Cost " .. rule.cost .. " cards"), curve[i], rule.min))
+    ctl.curve[i]:SetText(("%s%s: %d/%d|r"):format(met and "|cff40ff40" or "|cffff8040", rule.label, curve[i], rule.min))
   end
   -- cost chart
   local byCost, most = {}, 1
@@ -261,7 +264,7 @@ function B.Refresh()
     bar.count:SetText(k > 0 and k or "")
   end
   local ok, why = C.CheckDeck(ns.db)
-  ctl.deckNote:SetText(ok and "|cff40ff40Ready to play.|r" or ("|cffff8040" .. why .. "|r"))
+  ctl.deckNote:SetText(ok and ("|cff40ff40" .. L["Ready to play."] .. "|r") or ("|cffff8040" .. why .. "|r"))
 end
 
 local function deckRow(i)
@@ -290,7 +293,7 @@ local function deckRow(i)
     end
   end)
   r:SetScript("OnEnter", function(self)
-    if self.id then UI.CardTooltip(self, self.id, nil, nil, { "|cff40ff40Click: take one out of the deck.|r" }) end
+    if self.id then UI.CardTooltip(self, self.id, nil, nil, { "|cff40ff40" .. L["Click: take one out of the deck."] .. "|r" }) end
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
   return r
@@ -317,7 +320,7 @@ function B.Build(parent)
   end
   ctl.none = UI.Text(page, 12)
   ctl.none:SetPoint("CENTER", page, "TOPLEFT", GRID_W / 2, GRID_Y - 120)
-  ctl.none:SetText("No cards match these filters.")
+  ctl.none:SetText(L["No cards match these filters."])
   ctl.none:SetTextColor(0.6, 0.6, 0.6)
 
   ctl.prev = UI.Button(page, "<", 34, 22, function() pageNo = pageNo - 1; UI.Sound("pick"); B.Refresh() end)
@@ -347,20 +350,20 @@ function B.Build(parent)
       UI.Sound("pick")
       B.Refresh()
     end)
-    UI.SimpleTooltip(b, f.label, "Click for the next choice, right-click for the one before.")
+    UI.SimpleTooltip(b, f.label, L["Click for the next choice, right-click for the one before."])
     ctl.filters[f.key] = b
     x = x + f.width + 4
   end
-  local reset = UI.Button(page, "All", 60, 22, function()
+  local reset = UI.Button(page, L["All"], 60, 22, function()
     for _, f in ipairs(FILTERS) do filter[f.key] = 1 end
     pageNo = 1
     B.Refresh()
   end)
   reset:SetPoint("TOPLEFT", page, "TOPLEFT", x, FILTER_Y)
-  UI.SimpleTooltip(reset, "All", "Clear the filters and show every card.")
+  UI.SimpleTooltip(reset, L["All"], L["Clear the filters and show every card."])
   local help = UI.Text(page, 10)
   help:SetPoint("TOPLEFT", page, "TOPLEFT", 2, FILTER_Y - 30)
-  help:SetText("Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards.")
+  help:SetText(L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."])
   help:SetTextColor(0.6, 0.6, 0.6)
 
   -- deck
@@ -374,7 +377,7 @@ function B.Build(parent)
   for i = 1, C.DECK_SLOTS do
     local b = UI.Button(deckPanel, tostring(i), 24, 20, function() B.SelectDeck(i) end)
     b:SetPoint("TOPRIGHT", page, "TOPRIGHT", -4 - (C.DECK_SLOTS - i) * 26, -3)
-    UI.SimpleTooltip(b, "Deck " .. i, "Switch to this deck. Each of your decks is saved.")
+    UI.SimpleTooltip(b, L["Deck %d"]:format(i), L["Switch to this deck. Each of your decks is saved."])
     ctl.slots[i] = b
   end
   for i = 1, DECK_ROWS do deckRows[i] = deckRow(i) end
@@ -388,9 +391,9 @@ function B.Build(parent)
   curveHelp:SetPoint("TOPLEFT", page, "TOPLEFT", DECK_X, CURVE_Y)
   curveHelp:SetSize(DECK_W - 6, #C.CURVE * 13)
   curveHelp:EnableMouse(true)
-  UI.SimpleTooltip(curveHelp, "Deck curve",
-    "Every deck needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3.",
-    "Your draws in rounds 1-3 are picked from these (round 1: a 1-cost unit; round 2: cost 2 or less; round 3: cost 3 or less), so you always have something to play. All other draws are random.")
+  UI.SimpleTooltip(curveHelp, L["Deck curve"],
+    L["Every deck needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3."],
+    L["Your draws in rounds 1-3 are picked from these (round 1: a 1-cost unit; round 2: cost 2 or less; round 3: cost 3 or less), so you always have something to play. All other draws are random."])
 
   -- how many cards at each cost
   ctl.bars = {}
@@ -415,17 +418,17 @@ function B.Build(parent)
   ctl.deckNote:SetPoint("TOPLEFT", page, "TOPLEFT", DECK_X, CHART_Y - CHART_H - 30)
   ctl.deckNote:SetWidth(DECK_W - 6)
   ctl.deckNote:SetJustifyH("LEFT")
-  local starter = UI.Button(deckPanel, "Starter", 86, 22, function()
+  local starter = UI.Button(deckPanel, L["Starter"], 86, 22, function()
     C.ResetDeck(ns.db)
     B.Refresh()
   end)
   starter:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X - 1, 4)
-  UI.SimpleTooltip(starter, "Starter deck", "Replace this deck with the 20-card starter deck.")
-  local clear = UI.Button(deckPanel, "Empty", 86, 22, function()
+  UI.SimpleTooltip(starter, L["Starter deck"], L["Replace this deck with the 20-card starter deck."])
+  local clear = UI.Button(deckPanel, L["Empty"], 86, 22, function()
     C.SetDeck(ns.db, {})
     B.Refresh()
   end)
   clear:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X + 89, 4)
-  UI.SimpleTooltip(clear, "Empty deck", "Take every card out of this deck, to build one from scratch.")
+  UI.SimpleTooltip(clear, L["Empty deck"], L["Take every card out of this deck, to build one from scratch."])
   page:SetScript("OnShow", function() B.Refresh() end)
 end

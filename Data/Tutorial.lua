@@ -8,6 +8,7 @@
 -- way the coach's text says it does. Change the decks, plays or card stats and
 -- that test tells you which line has become untrue.
 local _, ns = ...
+local L = ns.L
 local R = ns.Rules
 
 local T = {}
@@ -83,6 +84,13 @@ T.ROUNDS = {
 
 T.FREE = "That's the basics. From here on I play for real. Win this one and you're ready for the circuit. " ..
   "Hover the markers between the rows to see what each lane will do; the Guide tab explains the rest."
+
+-- The coach's text in the client's language (Locales/Locale.lua).
+T.TEXT = { "say", "watch", "after" }
+for _, r in ipairs(T.ROUNDS) do
+  for _, k in ipairs(T.TEXT) do r[k] = L[r[k]] end
+end
+T.FREE = L[T.FREE]
 
 -- The game: stacked decks, you with initiative in round 1.
 function T.NewGame(names)

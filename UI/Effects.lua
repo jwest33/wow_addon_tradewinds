@@ -8,6 +8,7 @@
 -- once (skipping a replay, switching games). Durations follow the replay
 -- speed setting.
 local _, ns = ...
+local L = ns.L
 local UI = ns.UI
 
 local FX = {}
@@ -82,6 +83,10 @@ function FX.Clear()
 end
 
 function FX.Busy() return #tweens > 0 end
+
+-- Sprites, labels and ghosts waiting in the pools, and effects running (for
+-- the tests: pools only grow as far as the most effects shown at once).
+function FX.PoolSizes() return #pool.tex, #pool.text, #pool.ghost, #tweens end
 
 -- How many of each effect have been started (for the tests).
 FX.counts = {}
@@ -390,7 +395,7 @@ FX.COUNT_STEP = 0.32
 function FX.Countdown()
   if not layer then return 0 end
   count("countdown")
-  local steps = { "3", "2", "1", "Reveal!" }
+  local steps = { "3", "2", "1", L["Reveal!"] }
   for i, text in ipairs(steps) do
     local last = i == #steps
     local f

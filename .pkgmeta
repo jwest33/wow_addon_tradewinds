@@ -1,0 +1,16 @@
+# For the CurseForge / Wago packager (BigWigsMods/packager). The same list of
+# what ships is in tools/package.py, which builds the zip locally.
+package-as: Deckhand
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - tests
+  - tools
+  - PLAN.md
+  - README.md
+  - Locales/enUS.lua
+  - .gitattributes
+  - .gitignore

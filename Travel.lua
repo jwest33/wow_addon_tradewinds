@@ -54,7 +54,8 @@ end
 local function addTime()
   local earned = ns.Collection.AddTravel(ns.db, 1)
   if earned > 0 then
-    ns.Print("|cffffd100+%d card pack|r for %d minutes of travel.", earned, ns.Collection.TRAVEL_PACK_SECONDS / 60)
+    ns.Print(ns.L["|cffffd100%s|r for %d minutes of travel."],
+      ns.Plural(earned, "+%d card pack", "+%d card packs"):format(earned), ns.Collection.TRAVEL_PACK_SECONDS / 60)
     ns.UI.Refresh()
   end
 end
@@ -65,7 +66,8 @@ local function arrived(what)
   if ns.db.settings.hideOnLand and ns.UI.IsShown() then
     ns.UI.Hide()
     if ns.db.match or next(ns.db.games or {}) then
-      ns.Print("%s. Your games are saved: /deckhand to pick them up again.", what)
+      ns.Print(what == "landed" and ns.L["Landed. Your games are saved: /deckhand to pick them up again."]
+        or ns.L["Docked. Your games are saved: /deckhand to pick them up again."])
     end
   end
   ns.UI.Refresh()
@@ -75,7 +77,7 @@ local function landed()
   if not flying then return end
   flying = false
   if ticker then ticker:Cancel(); ticker = nil end
-  arrived("Landed")
+  arrived("landed")
 end
 
 local function tick()
@@ -110,7 +112,7 @@ end
 
 local function endRide()
   ride.on, ride.drift = false, 0
-  arrived("Docked")
+  arrived("docked")
 end
 
 local function watch()

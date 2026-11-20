@@ -2,6 +2,7 @@
 -- (c.text) is in the tooltip. Every card with rules text needs a line here,
 -- at most 38 characters so it fits the card's text box under a keyword line.
 local _, ns = ...
+local L = ns.L
 
 local SHORT = {
   -- core set
@@ -70,6 +71,6 @@ local SHORT = {
 
 for id, text in pairs(SHORT) do
   local c = ns.Cards.byId[id]
-  if c then c.short = text end
+  if c then c.short = L[text] end
 end
 ns.Cards.SHORT = SHORT

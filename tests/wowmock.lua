@@ -18,7 +18,8 @@ local FRAME = {
   "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor",
   -- Button
   "RegisterForClicks", "SetText", "GetText", "SetEnabled", "IsEnabled", "Enable", "Disable", "SetHighlightTexture",
-  "SetNormalTexture", "SetPushedTexture", "SetNormalFontObject", "SetHighlightFontObject", "Click",
+  "SetNormalTexture", "SetPushedTexture", "SetNormalFontObject", "SetHighlightFontObject", "SetDisabledFontObject",
+  "GetFontString", "Click",
   -- StatusBar
   "SetStatusBarTexture", "SetStatusBarColor", "SetMinMaxValues", "SetValue", "GetValue",
   -- ScrollingMessageFrame
@@ -31,7 +32,7 @@ local FRAME = {
 local TEXTURE = { "SetTexture", "GetTexture", "SetColorTexture", "SetTexCoord", "SetVertexColor", "SetDesaturated",
   "SetBlendMode", "SetDrawLayer" }
 local FONTSTRING = { "SetFont", "SetText", "GetText", "SetTextColor", "SetJustifyH", "SetJustifyV", "SetWordWrap",
-  "SetShadowOffset", "SetSpacing", "GetStringWidth", "SetFontObject" }
+  "SetShadowOffset", "SetSpacing", "GetStringWidth", "SetFontObject", "IsTruncated" }
 local ANIMGROUP = { "CreateAnimation", "Play", "Stop", "SetScript", "IsPlaying", "SetLooping" }
 local ANIM = { "SetFromAlpha", "SetToAlpha", "SetDuration", "SetStartDelay", "SetOffset", "SetOrder" }
 
@@ -110,8 +111,13 @@ function CreateFrame(kind, name, parent, template)
   function f:RegisterEvent(e) self.events[e] = true end
   function f:SetFrameLevel(n) self.level = n end
   function f:GetFrameLevel() return self.level end
-  function f:SetText(t) self.text = t end
+  function f:SetText(t)
+    self.text = t
+    if rawget(self, "Text") then self.Text.text = t end
+  end
   function f:GetText() return self.text end
+  function f:GetFontString() return rawget(self, "Text") end
+  function f:SetNormalFontObject(o) if rawget(self, "Text") then self.Text.size = o and o.size or 12 end end
   function f:SetEnabled(v) self.enabled = v and true or false end
   function f:IsEnabled() return self.enabled end
   function f:SetValue(v) self.value = v end
@@ -123,14 +129,35 @@ function CreateFrame(kind, name, parent, template)
   end
   function f:CreateFontString()
     local fs = region("FontString", self, { REGION, FONTSTRING })
-    fs.text, fs.hasFont = "", false
-    function fs:SetFont() self.hasFont = true end
+    fs.text, fs.hasFont, fs.size, fs.wrap = "", false, 12, true
+    function fs:SetFont(_, size)
+      if type(size) ~= "number" or size <= 0 then error("SetFont needs a size", 2) end
+      self.hasFont, self.size = true, size
+    end
     function fs:SetFontObject() self.hasFont = true end
     function fs:SetText(t)
       if not self.hasFont then error("SetText on a FontString without a font", 2) end
       self.text = t
     end
     function fs:GetText() return self.text end
+    function fs:SetSize(w, h) self.w, self.h, self.sized, self.hset = w, h, true, true end
+    function fs:SetHeight(h) self.h, self.hset = h, true end
+    function fs:SetWidth(w) self.w, self.sized = w, true end
+    function fs:SetWordWrap(v) self.wrap = v and true or false end
+    -- about half the font size a letter (UTF-8 letters, colour codes left out)
+    function fs:GetStringWidth()
+      local s = tostring(self.text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+      local letters = 0
+      for _ in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do letters = letters + 1 end
+      return letters * self.size * 0.5
+    end
+    -- too long for its box: one line, or as many lines as the height holds
+    function fs:IsTruncated()
+      if not self.sized then return false end
+      local lines = math.max(1, math.floor((self.h or 0) / (self.size * 1.2)))
+      if not (self.wrap and self.hset) then lines = 1 end
+      return self:GetStringWidth() > self.w * lines
+    end
     return fs
   end
   function f:AddMessage(msg) self.lines = self.lines or {}; table.insert(self.lines, msg) end
@@ -147,6 +174,7 @@ function CreateFrame(kind, name, parent, template)
   end
   if template == "UIPanelButtonTemplate" or template == "UIPanelCloseButton" then
     f.Text = f:CreateFontString()
+    f.Text.hasFont = true
   end
   if name then _G[name] = f end
   table.insert(MOCK.frames, f)
@@ -213,6 +241,8 @@ function GetTime() return MOCK.now end
 UIParent = CreateFrame("Frame", "UIParent")
 Minimap = CreateFrame("Frame", "Minimap", UIParent)
 Minimap:SetSize(140, 140)
+GameFontNormal, GameFontHighlight, GameFontDisable = { size = 12 }, { size = 12 }, { size = 12 }
+GameFontNormalSmall, GameFontHighlightSmall, GameFontDisableSmall = { size = 10 }, { size = 10 }, { size = 10 }
 GameTooltip = CreateFrame("GameTooltip", "GameTooltip", UIParent)
 GameTooltip:Hide()
 function GameTooltip:SetOwner(o) self.owner = o; self.lines = {} end

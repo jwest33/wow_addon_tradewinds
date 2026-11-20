@@ -37,17 +37,11 @@ SlashCmdList.DECKHAND("")
 check(DeckhandFrame and DeckhandFrame:IsShown(), "/deckhand opens the window")
 check(UI.tab == "play", "starts on the Play tab")
 
--- tooltips on every card (also starts portrait lookups)
+-- tooltips on every card
 do
   local probe = CreateFrame("Button", nil, UIParent)
-  UI.CardTooltip(probe, "hogger")
-  MOCK.Advance(2)
-  check(db.settings.portraits == false and (db.displays or {})[448] == nil, "portraits are off by default: nothing looked up")
-  db.settings.portraits = true
   for _, c in ipairs(Cards.list) do UI.CardTooltip(probe, c.id) end
-  MOCK.Advance(2)
-  db.settings.portraits = false
-  check(db.displays[448] == 10448, "Hogger's portrait looked up and saved")
+  check(db.settings.portraits == nil and db.displays == nil, "the portrait option and its saved lookups are gone")
   UI.CardTooltip(probe, "hogger")
   check(GameTooltip.lines[1] == "Hogger", "tooltip title")
   local missing = UI.MissingIcons()
@@ -803,6 +797,32 @@ do
     SlashCmdList.DECKHAND(cmd)
   end
   check(db.settings.speed == 3 and db.settings.toast == false, "settings commands")
+end
+
+-- a long session: many more matches don't grow the effect pools, the log
+-- or the saved data, and a board refresh stays cheap
+do
+  local FX = UI.FX
+  db.settings.speed = 1
+  SlashCmdList.DECKHAND("play")
+  playGame("dorn")
+  local tex, text, ghost = FX.PoolSizes()
+  for _ = 1, 6 do playGame("bluegill") end
+  local tex2, text2, ghost2, running = FX.PoolSizes()
+  check(tex2 <= tex + 40 and text2 <= text + 20 and ghost2 <= ghost + 8,
+    ("effect pools stay bounded (%d/%d/%d -> %d/%d/%d)"):format(tex, text, ghost, tex2, text2, ghost2))
+  check(running == 0, "no effects left running between matches")
+  G.Start("dorn")
+  for _ = 1, 3 do
+    autoPlan(); G.LockIn(); MOCK.Advance(60)
+  end
+  check(#(db.match.log or {}) <= 80, "the saved log is capped")
+  local t0 = os.clock()
+  for _ = 1, 200 do G.Refresh() end
+  local ms = (os.clock() - t0) / 200 * 1000
+  check(ms < 5, ("a board refresh takes %.2f ms in the test (under 5)"):format(ms))
+  G.EndMatch()
+  G.Continue()
 end
 
 -- the addon only creates the globals it means to

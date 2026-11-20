@@ -1,5 +1,6 @@
 -- Startup, events, rewards and slash commands.
 local ADDON, ns = ...
+local L, Plural = ns.L, ns.Plural
 ns.ADDON = ADDON
 ns.ADDON_FOLDER = ADDON
 -- The version from the .toc.
@@ -44,7 +45,7 @@ end
 function ns.GrantPacks(n, why)
   if not ns.db or n <= 0 then return end
   ns.db.packs = ns.db.packs + n
-  ns.Print("|cffffd100+%d card pack%s|r (%s). /deckhand packs to open.", n, n == 1 and "" or "s", why)
+  ns.Print(L["|cffffd100%s|r (%s). /deckhand packs to open."], Plural(n, "+%d card pack", "+%d card packs"):format(n), why)
   if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", why, n) end
   refresh()
 end
@@ -56,7 +57,7 @@ ns.On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
   DeckhandCharDB = DeckhandCharDB or {}
   ns.db = DeckhandCharDB
-  ns.endedByUpdate, ns.gamesEndedByUpdate = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
+  ns.endedByUpdate, ns.gamesEndedByUpdate, ns.matchDamaged = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
 end)
 
 ns.On("PLAYER_LOGIN", function()
@@ -64,32 +65,45 @@ ns.On("PLAYER_LOGIN", function()
   if ns.UI and ns.UI.Init then ns.UI.Init() end
   if ns.Travel then ns.Travel.Init() end
   if ns.Net then ns.Net.Init() end
-  if ns.endedByUpdate then
+  if ns.endedByUpdate or ns.matchDamaged then
     local o = ns.OpponentById[ns.endedByUpdate]
-    ns.Print("This update changed Deckhand's rules, so your match against %s was ended. It doesn't count as a win or a loss.",
-      o and o.name or "the computer")
+    if ns.matchDamaged then
+      ns.Print(L["Your saved match against %s couldn't be read, so it was ended. It doesn't count as a win or a loss."],
+        o and o.name or L["the computer"])
+    else
+      ns.Print(L["This update changed Deckhand's rules, so your match against %s was ended. It doesn't count as a win or a loss."],
+        o and o.name or L["the computer"])
+    end
   end
-  if (ns.gamesEndedByUpdate or 0) > 0 then
-    ns.Print("This update changed Deckhand's rules, so %d game%s against other players ended without a result.",
-      ns.gamesEndedByUpdate, ns.gamesEndedByUpdate == 1 and "" or "s")
+  local ended = ns.gamesEndedByUpdate or 0
+  if ended > 0 then
+    ns.Print(Plural(ended, "%d of your games against other players couldn't carry on after this update, so it ended without a result.",
+      "%d of your games against other players couldn't carry on after this update, so they ended without a result."), ended)
   end
   local m = ns.db.match
   local s = ns.db.stats
   local games = #ns.Collection.Games(ns.db)
   if games > 0 then
     local moves = ns.UI.Game.YourMoves()
-    ns.Print("You have %d game%s going against other players%s. Type /deckhand to see them.", games,
-      games == 1 and "" or "s", moves > 0 and (", and " .. moves .. " of your games wait for your move") or "")
+    ns.Print(Plural(games, "You have %d game going against another player. Type /deckhand to see it.",
+      "You have %d games going against other players. Type /deckhand to see them."), games)
+    if moves > 0 then
+      ns.Print(Plural(moves, "%d of them waits for your move.", "%d of them wait for your move."), moves)
+    end
   end
   if m then
-    ns.Print("Your %s is waiting. Type /deckhand to continue.",
-      m.tutorial and "tutorial" or ("game against " .. ns.OpponentById[m.opp].name))
+    if m.tutorial then
+      ns.Print(L["Your tutorial is waiting. Type /deckhand to continue."])
+    else
+      ns.Print(L["Your game against %s is waiting. Type /deckhand to continue."], ns.OpponentById[m.opp].name)
+    end
   elseif games > 0 then
     return
   elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
-    ns.Print("New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack.")
+    ns.Print(L["New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack."])
   elseif ns.db.packs > 0 then
-    ns.Print("You have %d unopened card pack%s. Type /deckhand to play.", ns.db.packs, ns.db.packs == 1 and "" or "s")
+    ns.Print(Plural(ns.db.packs, "You have %d unopened card pack. Type /deckhand to play.",
+      "You have %d unopened card packs. Type /deckhand to play."), ns.db.packs)
   end
 end)
 
@@ -99,10 +113,10 @@ function ns.Announce(rewards)
   if not rewards then return end
   for _, r in ipairs(rewards) do
     if r.packs then
-      ns.Print("|cffffd100+%d card pack%s|r (%s). /deckhand packs to open.", r.packs, r.packs == 1 and "" or "s", r.why)
+      ns.Print(L["|cffffd100%s|r (%s). /deckhand packs to open."], Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
       if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", r.why, r.packs) end
     elseif r.shards then
-      ns.Print("|cff9fdfff+%d shard%s|r (%s).", r.shards, r.shards == 1 and "" or "s", r.why)
+      ns.Print(L["|cff9fdfff%s|r (%s)."], Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
     end
   end
   refresh()
@@ -123,7 +137,7 @@ end)
 -- Slash commands, key binding, addon compartment
 -- ---------------------------------------------------------------------------
 BINDING_HEADER_DECKHAND = "Deckhand"
-BINDING_NAME_DECKHAND_TOGGLE = "Show/hide Deckhand"
+BINDING_NAME_DECKHAND_TOGGLE = L["Show/hide Deckhand"]
 
 function Deckhand_Toggle()
   if ns.UI and ns.UI.Toggle then ns.UI.Toggle() end
@@ -135,28 +149,28 @@ local function onOff(word, current)
   return not current
 end
 
+-- The commands themselves stay in English in every language.
 local SETTINGS = {
-  toast = { "toast", "Offer a game when a flight, boat or zeppelin ride starts" },
-  land = { "hideOnLand", "Close the window when you land or dock" },
-  combat = { "hideInCombat", "Close the window when combat starts" },
-  portraits = { "portraits", "Creature portraits in card tooltips" },
-  sound = { "sound", "Sound" },
-  chatter = { "chatter", "Opponent lines during a match" },
-  forecast = { "forecast", "Lane markers and Morale forecast while planning" },
-  minimap = { "minimap", "Minimap button" },
+  toast = { "toast", L["Offer a game when a flight, boat or zeppelin ride starts"] },
+  land = { "hideOnLand", L["Close the window when you land or dock"] },
+  combat = { "hideInCombat", L["Close the window when combat starts"] },
+  sound = { "sound", L["Sound"] },
+  chatter = { "chatter", L["Opponent lines during a match"] },
+  forecast = { "forecast", L["Lane markers and Morale forecast while planning"] },
+  minimap = { "minimap", L["Minimap button"] },
 }
 
 local HELP = {
-  "/deckhand - show or hide the game  (/deckhand play | cards | packs | guide | options opens a tab)",
-  "/deckhand tutorial - a guided match against Flightmaster Dorn",
-  "/deckhand challenge [name] - challenge another player who has Deckhand (no name: your target)",
-  "/deckhand end - end the match you're in (counts as a loss, no reward)",
-  "/deckhand speed 1-3 - how fast rounds play out",
-  "/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle",
-  "/deckhand toast | land | combat | portraits | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)",
-  "/deckhand icons - list card icons this client doesn't have (for bug reports)",
-  "/deckhand travel [log] - what Deckhand sees of your travel (log: a line a second, to check boat detection)",
-  "/deckhand rules - the rules (the Guide tab)",
+  L["/deckhand - show or hide the game  (/deckhand play | cards | packs | guide | options opens a tab)"],
+  L["/deckhand tutorial - a guided match against Flightmaster Dorn"],
+  L["/deckhand challenge [name] - challenge another player who has Deckhand (no name: your target)"],
+  L["/deckhand end - end the match you're in (counts as a loss, no reward)"],
+  L["/deckhand speed 1-3 - how fast rounds play out"],
+  L["/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle"],
+  L["/deckhand toast | land | combat | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)"],
+  L["/deckhand icons - list card icons this client doesn't have (for bug reports)"],
+  L["/deckhand travel [log] - what Deckhand sees of your travel (log: a line a second, to check boat detection)"],
+  L["/deckhand rules - the rules (the Guide tab)"],
 }
 
 SLASH_DECKHAND1 = "/deckhand"
@@ -180,36 +194,36 @@ SlashCmdList.DECKHAND = function(msg)
       ns.UI.Show("play")
       ns.UI.Game.Challenge(name)
     else
-      ns.Print("Type /deckhand challenge Name, or target the player first.")
+      ns.Print(L["Type /deckhand challenge Name, or target the player first."])
     end
   elseif cmd == "end" or cmd == "concede" then
     if ns.UI.Game.Match() then
       ns.UI.Game.AskEndMatch()
     else
-      ns.Print("Open the game you want to end first (Your games, on the Play tab).")
+      ns.Print(L["Open the game you want to end first (Your games, on the Play tab)."])
     end
   elseif cmd == "speed" then
     local n = tonumber(rest)
     if n and n >= 1 and n <= 3 then S.speed = n end
-    ns.Print("Replay speed %s.", tostring(S.speed))
+    ns.Print(L["Replay speed %s."], tostring(S.speed))
   elseif cmd == "scale" then
     local n = tonumber(rest)
     if n and n >= 0.6 and n <= 1.5 then
       S.scale = n
       ns.UI.ApplyScale()
     end
-    ns.Print("Window scale %.2f.", S.scale)
+    ns.Print(L["Window scale %.2f."], S.scale)
   elseif cmd == "reset" then
     ns.UI.ResetPosition()
-    ns.Print("Window moved back to the middle.")
+    ns.Print(L["Window moved back to the middle."])
   elseif SETTINGS[cmd] then
     local key, label = SETTINGS[cmd][1], SETTINGS[cmd][2]
     S[key] = onOff(rest, S[key])
-    ns.Print("%s: %s.", label, S[key] and "on" or "off")
+    ns.Print(L["%s: %s."], label, S[key] and L["on"] or L["off"])
     if cmd == "minimap" then ns.UI.UpdateMinimapButton() end
   elseif cmd == "icons" then
     local missing = ns.UI.MissingIcons()
-    if #missing == 0 then ns.Print("All card icons found.") end
+    if #missing == 0 then ns.Print(L["All card icons found."]) end
     for _, line in ipairs(missing) do ns.Print(line) end
   elseif cmd == "travel" then
     ns.Travel.Report(rest:lower())

@@ -2,6 +2,7 @@
 -- used on the board, in the hand, in the binder and in packs, and the card
 -- tooltip.
 local _, ns = ...
+local L = ns.L
 local R, Cards = ns.Rules, ns.Cards
 
 local UI = {}
@@ -34,14 +35,17 @@ function UI.Hex(r, g, b)
 end
 
 -- Each letter a step further round the colour wheel (holographic labels).
+-- Letters, not bytes: translations have letters of two to four bytes (UTF-8).
 function UI.Rainbow(s)
-  local out, n = {}, #s
+  local chars = {}
+  for ch in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do chars[#chars + 1] = ch end
+  local out, n = {}, #chars
   for i = 1, n do
     local h = ((i - 1) / math.max(1, n) * 0.85) * 6
     local r = math.min(1, math.max(0, math.abs(h - 3) - 1))
     local g = math.min(1, math.max(0, 2 - math.abs(h - 2)))
     local b = math.min(1, math.max(0, 2 - math.abs(h - 4)))
-    out[i] = UI.Hex(0.45 + r * 0.55, 0.45 + g * 0.55, 0.45 + b * 0.55) .. s:sub(i, i)
+    out[i] = UI.Hex(0.45 + r * 0.55, 0.45 + g * 0.55, 0.45 + b * 0.55) .. chars[i]
   end
   return table.concat(out) .. "|r"
 end
@@ -55,9 +59,24 @@ end
 function UI.Text(parent, size, flags, layer)
   local fs = parent:CreateFontString(nil, layer or "OVERLAY")
   fs:SetFont(UI.FONT, size or 11, flags or "")
+  fs.fontSize, fs.fontFlags = size or 11, flags or ""
   fs:SetTextColor(1, 1, 1)
   fs:SetShadowOffset(1, -1)
   return fs
+end
+
+-- Sets the text of a font string with a fixed box (UI.Text) and, if it
+-- doesn't fit, shrinks the font a step at a time, down to `min`. For labels
+-- whose length depends on the language.
+function UI.FitText(fs, text, min)
+  local size = fs.fontSize or 11
+  fs:SetFont(UI.FONT, size, fs.fontFlags or "")
+  fs:SetText(text)
+  min = min or math.max(6, size - 3)
+  while size > min and fs:IsTruncated() do
+    size = size - 1
+    fs:SetFont(UI.FONT, size, fs.fontFlags or "")
+  end
 end
 
 local BACKDROP = {
@@ -76,9 +95,33 @@ function UI.Backdrop(f, bg, border, thick)
   f:SetBackdropBorderColor(border[1], border[2], border[3], border[4] or 1)
 end
 
+-- A label too long for its button (some languages run long) gets the
+-- smaller button font.
+local function fitButton(b)
+  local fs = b:GetFontString()
+  if not (fs and GameFontNormalSmall) then return end
+  if b.small then
+    b.small = false
+    b:SetNormalFontObject(GameFontNormal)
+    b:SetHighlightFontObject(GameFontHighlight)
+    b:SetDisabledFontObject(GameFontDisable)
+  end
+  if (fs:GetStringWidth() or 0) > b:GetWidth() - 12 then
+    b.small = true
+    b:SetNormalFontObject(GameFontNormalSmall)
+    b:SetHighlightFontObject(GameFontHighlightSmall)
+    b:SetDisabledFontObject(GameFontDisableSmall)
+  end
+end
+
 function UI.Button(parent, text, w, h, onClick)
   local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   b:SetSize(w or 90, h or 22)
+  local setText = b.SetText
+  function b:SetText(t)
+    setText(self, t)
+    fitButton(self)
+  end
   b:SetText(text)
   if onClick then b:SetScript("OnClick", onClick) end
   return b
@@ -367,6 +410,8 @@ function UI.CreateCard(parent)
 
   b.typeText = UI.Text(b, 8)
   b.typeText:SetPoint("BOTTOM", 0, 3)
+  b.typeText:SetWidth(UI.CARD_W - 10)
+  b.typeText:SetWordWrap(false)
   b.typeText:SetTextColor(0.75, 0.72, 0.62)
 
   b.tag = UI.Text(b, 11, "OUTLINE")
@@ -401,7 +446,7 @@ function UI.CreateCard(parent)
   b.back.tex:SetTexCoord(0, 1, 0, V)
   b.back.text = UI.Text(b.back, 9)
   b.back.text:SetPoint("BOTTOM", 0, 12)
-  b.back.text:SetText("click")
+  b.back.text:SetText(L["click"])
   b.back.text:SetTextColor(0.85, 0.75, 0.5)
   b.back:EnableMouse(false)
   b.back:Hide()
@@ -441,7 +486,7 @@ local function faceText(c, kw)
 end
 UI.FaceText = faceText
 
-local TACTIC_LABEL = { enemy = "Tactic: enemy lane", friend = "Tactic: your unit", none = "Tactic" }
+local TACTIC_LABEL = { enemy = L["Tactic: enemy lane"], friend = L["Tactic: your unit"], none = L["Tactic"] }
 
 -- id: card; unit: a unit on the board (current stats) or nil; st: the game or
 -- replay view the unit is in (for attack bonuses); holo: draw it holographic.
@@ -454,7 +499,7 @@ function Card:SetCard(id, unit, st, holo)
   self.art:SetVertexColor(1, 1, 1)
   self.art:SetDesaturated(false)
   self.cost:SetText(c.cost)
-  self.name:SetText(c.name)
+  UI.FitText(self.name, c.name, 6)
   self.border = BORDER_COLOR[c.rarity]
   self.frame:SetVertexColor(self.border[1], self.border[2], self.border[3])
   self.tag:SetText("")
@@ -475,23 +520,23 @@ function Card:SetCard(id, unit, st, holo)
     elseif maxHp > c.hp then self.hp:SetTextColor(0.3, 1, 0.3)
     else self.hp:SetTextColor(1, 1, 1) end
     self.atk:Show(); self.atkBg:Show(); self.hp:Show(); self.hpBg:Show()
-    self.text:SetText(faceText(c, kw))
+    UI.FitText(self.text, faceText(c, kw), 6)
     self.typeText:SetText("")
     if unit and unit.frozen then
       self.art:SetVertexColor(0.55, 0.75, 1)
       self.frost:Show()
-      self.tag:SetText("Frozen")
+      self.tag:SetText(L["Frozen"])
       self.tag:SetTextColor(0.6, 0.85, 1)
     elseif unit and kw.stealth then
       self.art:SetVertexColor(0.6, 0.6, 0.7)
       self.veil:Show()
-      self.tag:SetText("Stealth")
+      self.tag:SetText(L["Stealth"])
       self.tag:SetTextColor(0.8, 0.7, 1)
     end
   else
     self.atk:Hide(); self.atkBg:Hide(); self.hp:Hide(); self.hpBg:Hide()
-    self.text:SetText(c.short or "")
-    self.typeText:SetText(TACTIC_LABEL[c.target] or "Tactic")
+    UI.FitText(self.text, c.short or "", 6)
+    UI.FitText(self.typeText, TACTIC_LABEL[c.target] or L["Tactic"], 6)
   end
   self:SetDim(false)
   self:SetAlpha(1)
@@ -501,7 +546,7 @@ end
 function Card:SetBack(text)
   self.cardId, self.unit = nil, nil
   self:SetHolo(false)
-  self.back.text:SetText(text or "click")
+  self.back.text:SetText(text or L["click"])
   self.back:Show()
   self:Show()
 end
@@ -566,41 +611,14 @@ function Card:ShowTooltip()
 end
 
 -- ---------------------------------------------------------------------------
--- Tooltip, with the creature's portrait on its far side when there is one
--- (the tooltip opens to the right of the card, so the portrait goes to the
--- right of the tooltip and never covers the card).
+-- Card tooltip
 -- ---------------------------------------------------------------------------
-local portrait
-
-local function portraitFrame()
-  if portrait then return portrait end
-  portrait = CreateFrame("Frame", nil, GameTooltip, UI.TEMPLATE)
-  portrait:SetSize(76, 76)
-  portrait:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", 2, 0)
-  UI.Backdrop(portrait, { 0.05, 0.05, 0.05, 0.95 }, { 0.6, 0.5, 0.3 })
-  portrait.tex = portrait:CreateTexture(nil, "ARTWORK")
-  portrait.tex:SetPoint("TOPLEFT", 3, -3)
-  portrait.tex:SetPoint("BOTTOMRIGHT", -3, 3)
-  portrait:Hide()
-  GameTooltip:HookScript("OnHide", function() portrait:Hide(); portrait.card = nil end)
-  return portrait
-end
-
-local function showPortrait(c)
-  local f = portraitFrame()
-  f:Hide()
-  f.card = c
-  if not (c.npc and ns.db and ns.db.settings.portraits and ns.Portraits) then return end
-  local shown = ns.Portraits.Apply(f.tex, c, function()
-    if f.card == c and GameTooltip:IsShown() then showPortrait(c) end
-  end)
-  if shown then f:Show() end
-end
-
 local TARGET_HINT = {
-  enemy = "Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then.",
-  friend = "Pick one of your units, or a lane you're playing a unit into this round.",
+  enemy = L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."],
+  friend = L["Pick one of your units, or a lane you're playing a unit into this round."],
 }
+local RARITY_NAME = { common = L["Common"], uncommon = L["Uncommon"], rare = L["Rare"], epic = L["Epic"], legendary = L["Legendary"] }
+UI.RARITY_NAME = RARITY_NAME
 
 function UI.CardTooltip(owner, id, unit, st, extra, holo)
   local c = Cards.byId[id]
@@ -608,10 +626,10 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
   tip:SetOwner(owner, "ANCHOR_RIGHT")
   local col = UI.RARITY_COLOR[c.rarity]
   tip:AddLine(c.name, col[1], col[2], col[3])
-  if holo then tip:AddLine(UI.Rainbow("Holographic")) end
-  local rarity = c.collectible and (c.rarity:gsub("^%l", string.upper)) or "Token"
-  local kind = c.type == "unit" and (c.tribe and (Cards.TRIBES[c.tribe] .. " unit") or "Unit") or "Tactic"
-  tip:AddDoubleLine(kind .. ", " .. rarity, c.cost .. " Supply",
+  if holo then tip:AddLine(UI.Rainbow(L["Holographic"])) end
+  local rarity = c.collectible and RARITY_NAME[c.rarity] or L["Token"]
+  local kind = c.type == "unit" and (c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"]) or L["Tactic"]
+  tip:AddDoubleLine(L["%s, %s"]:format(kind, rarity), L["%d Supply"]:format(c.cost),
     0.65, 0.65, 0.65, 0.45, 0.65, 1)
   local kw = c.kw
   if c.type == "unit" then
@@ -620,25 +638,25 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
       atk = st and R.Attack(st, unit) or unit.atk
       hp, maxHp, kw = unit.hp, unit.maxHp, unit.kw
     end
-    tip:AddLine(("Attack %d    Health %d/%d"):format(atk, math.max(0, hp), maxHp), 1, 0.85, 0.4)
+    tip:AddLine(L["Attack %d    Health %d/%d"]:format(atk, math.max(0, hp), maxHp), 1, 0.85, 0.4)
   end
   for _, k in ipairs(Cards.KeywordList(kw)) do
-    tip:AddLine(k.name .. ": |cffffffff" .. k.text .. "|r", 0.45, 0.85, 1, true)
+    tip:AddLine(L["%s: |cffffffff%s|r"]:format(k.name, k.text), 0.45, 0.85, 1, true)
   end
   if c.text then tip:AddLine(c.text, 1, 1, 1, true) end
   if c.type == "tactic" and TARGET_HINT[c.target] then tip:AddLine(TARGET_HINT[c.target], 0.6, 0.6, 0.6, true) end
   if unit then
-    if unit.frozen then tip:AddLine("Frozen: won't strike this round.", 0.6, 0.85, 1, true) end
-    if (unit.tmpAtk or 0) > 0 then tip:AddLine(("+%d attack this round."):format(unit.tmpAtk), 0.3, 1, 0.3) end
+    if unit.frozen then tip:AddLine(L["Frozen: won't strike this round."], 0.6, 0.85, 1, true) end
+    if (unit.tmpAtk or 0) > 0 then tip:AddLine(L["+%d attack this round."]:format(unit.tmpAtk), 0.3, 1, 0.3) end
   end
-  if c.flavor then tip:AddLine("\"" .. c.flavor .. "\"", 0.55, 0.55, 0.55, true) end
+  if c.flavor then tip:AddLine(L["\"%s\""]:format(c.flavor), 0.55, 0.55, 0.55, true) end
   if c.collectible and not unit then
     local o = c.signature and ns.OpponentById[c.signature]
-    local packs = c.rarity == "legendary" and "Very rarely found in packs." or "Not in packs."
+    local packs = c.rarity == "legendary" and L["Very rarely found in packs."] or L["Not in packs."]
     if o then
-      tip:AddLine(("Signature card: earn %s's second star, or craft it. %s"):format(o.short, packs), 1, 0.82, 0, true)
+      tip:AddLine(L["Signature card: earn %s's second star, or craft it. %s"]:format(o.short, packs), 1, 0.82, 0, true)
     elseif c.signature then
-      tip:AddLine("Earn every star on the circuit, or craft it. " .. packs, 1, 0.82, 0, true)
+      tip:AddLine(L["Earn every star on the circuit, or craft it. %s"]:format(packs), 1, 0.82, 0, true)
     elseif c.rarity == "legendary" then
       tip:AddLine(packs, 1, 0.82, 0, true)
     end
@@ -647,5 +665,4 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
     for _, line in ipairs(extra) do tip:AddLine(line, 0.85, 0.85, 0.85, true) end
   end
   tip:Show()
-  showPortrait(c)
 end
