@@ -1,6 +1,7 @@
 -- The Cards tab: every card (owned ones in colour), filters, and your decks.
 -- Left-click a card to put it in your deck, right-click to take it out,
--- shift-click to craft a copy with shards.
+-- shift-click to craft a copy with shards. While a trade is open, the trade
+-- (UI/Trading.lua) takes the deck panel's place and a click offers the card.
 local _, ns = ...
 local L = ns.L
 local Cards, C = ns.Cards, ns.Collection
@@ -137,6 +138,7 @@ end
 -- ---------------------------------------------------------------------------
 local function cellExtra(card)
   local id = card.cardId
+  if ns.Trade.Current() then return UI.Trading.CellExtra(id) end
   local owned, inDeck = C.Owned(ns.db, id), C.Count(ns.db.deck, id)
   local lines = { L["Owned %d of %d.  In your deck: %d."]:format(owned, C.MaxCopies(id), inDeck) }
   if owned > 0 then lines[#lines + 1] = "|cff40ff40" .. L["Left-click: add to deck.  Right-click: take one out."] .. "|r" end
@@ -189,6 +191,11 @@ function B.Craft(id)
 end
 
 local function clickCard(id, button)
+  if ns.Trade.Current() then
+    UI.Trading.Click(id, button)
+    UI.Refresh()
+    return
+  end
   if button ~= "RightButton" and IsShiftKeyDown and IsShiftKeyDown() then
     B.Craft(id)
     return
@@ -213,6 +220,7 @@ end
 -- ---------------------------------------------------------------------------
 function B.Refresh()
   if not page then return end
+  local trading = ns.Trade.Current() ~= nil
   local all = list()
   local last = lastTop(#all)
   if topRow > last then topRow = last end
@@ -228,6 +236,8 @@ function B.Refresh()
         local sig = c.signature and ns.OpponentById[c.signature]
         cell.label:SetText("|cff808080" .. (sig and L["win from %s"]:format(sig.short)
           or C.InPacks(c.id) and L["not found yet"] or L["not in packs"]) .. "|r")
+      elseif trading then
+        cell.label:SetText(UI.Trading.CellLabel(c.id))
       else
         cell.label:SetText(("%s%d/%d|r  %s"):format(owned >= C.MaxCopies(c.id) and "|cffffd100" or "|cffffffff",
           owned, C.MaxCopies(c.id), inDeck > 0 and ("|cff40ff40" .. L["%d in deck"]:format(inDeck) .. "|r") or ""))
@@ -254,6 +264,11 @@ function B.Refresh()
   for _, f in ipairs(FILTERS) do
     ctl.filters[f.key]:SetText(L["%s: %s"]:format(f.label, f.choices[filter[f.key]][2]))
   end
+  UI.FitText(ctl.help, trading and L["Left-click a card: offer it.   Right-click: take it back.   Shift-click: offer your holographic copy."]
+    or L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."], 8)
+  deckPanel:SetShown(not trading)
+  UI.Trading.Refresh()
+  ctl.trade:SetText(ns.Trade.Outgoing() and (CANCEL or L["Cancel"]) or L["Trade"])
 
   -- deck list: one row per card, cheapest first
   local counts, ids = {}, {}
@@ -481,8 +496,8 @@ function B.Build(parent)
   help:SetWidth(GRID_W - 4)
   help:SetJustifyH("LEFT")
   help:SetWordWrap(false)
-  UI.FitText(help, L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."], 8)
   help:SetTextColor(0.6, 0.6, 0.6)
+  ctl.help = help
 
   -- deck
   deckPanel = CreateFrame("Frame", nil, page, UI.TEMPLATE)
@@ -599,17 +614,25 @@ function B.Build(parent)
   note.text:SetJustifyV("MIDDLE")
   note.text:SetWordWrap(true)
   ctl.deckNote = note
-  local starter = UI.Button(deckPanel, L["Starter"], 86, 22, function()
+  local bw = math.floor((DECK_W - 10) / 3)
+  local starter = UI.Button(deckPanel, L["Starter"], bw, 22, function()
     C.ResetDeck(ns.db)
     B.Refresh()
   end)
   starter:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X - 1, 4)
   UI.SimpleTooltip(starter, L["Starter deck"], L["Replace this deck with the 20-card starter deck."])
-  local clear = UI.Button(deckPanel, L["Empty"], 86, 22, function()
+  local clear = UI.Button(deckPanel, L["Empty"], bw, 22, function()
     C.SetDeck(ns.db, {})
     B.Refresh()
   end)
-  clear:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X + 89, 4)
+  clear:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X + bw + 2, 4)
   UI.SimpleTooltip(clear, L["Empty deck"], L["Take every card out of this deck, to build one from scratch."])
+  ctl.trade = UI.Button(deckPanel, L["Trade"], bw, 22, function() UI.Trading.AskWho() end)
+  ctl.trade:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", DECK_X + 2 * bw + 5, 4)
+  UI.SimpleTooltip(ctl.trade, L["Trade cards"],
+    L["Swap cards with another player who has Tradewinds. You both put up cards, and the trade happens once you've both accepted."],
+    L["Target them first, or type their name."])
+
+  UI.Trading.Build(page, DECK_X, DECK_W)
   page:SetScript("OnShow", function() B.Refresh() end)
 end

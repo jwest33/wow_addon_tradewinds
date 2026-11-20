@@ -234,6 +234,22 @@ function C.Init(db, rules)
       db.decks[slot] = nil
     end
   end
+  -- trades (see Trade.lua): deals you sent that wait for the other side's
+  -- answer, and the deals you carried out for the side that sent them
+  local function offer(list)
+    if type(list) ~= "table" then return false end
+    for _, e in ipairs(list) do
+      if type(e) ~= "table" or not (Cards.byId[e.id] and Cards.byId[e.id].collectible) then return false end
+    end
+    return true
+  end
+  db.tradePending = type(db.tradePending) == "table" and db.tradePending or {}
+  for tid, d in pairs(db.tradePending) do
+    if not (type(tid) == "string" and type(d) == "table" and type(d.name) == "string" and offer(d.give) and offer(d.get)) then
+      db.tradePending[tid] = nil
+    end
+  end
+  db.tradesDone = type(db.tradesDone) == "table" and db.tradesDone or {}
   db.games = type(db.games) == "table" and db.games or {}
   local endedGames = 0
   for gid, m in pairs(db.games) do
@@ -499,6 +515,125 @@ function C.PlainDeck(list)
     if c and Cards.RARITY_RANK[c.rarity] >= Cards.RARITY_RANK.rare then return false end
   end
   return true
+end
+
+-- Trading -----------------------------------------------------------------------
+-- Players swap cards with each other (Trade.lua carries the deal). An offer is
+-- a list of copies, { id =, holo = true | nil }. A holographic copy is the one
+-- copy of a card that shines (see C.IsHolo), so a card has at most one; it
+-- only goes when it's asked for, or when it's the last copy left to offer.
+-- Any collectible card can be traded.
+C.TRADE_MAX = 8   -- cards each side can put up in a trade
+
+local function holoCopy(db, id)
+  return (db.holo and db.holo[id] and C.Owned(db, id) > 0) and true or false
+end
+
+-- The copies of id you have to offer: how many plain ones, and whether the
+-- holographic one is free. Copies in a deal still waiting for the other
+-- side's answer are spoken for.
+function C.Spare(db, id)
+  local holo = holoCopy(db, id)
+  local plain = C.Owned(db, id) - (holo and 1 or 0)
+  for _, d in pairs(db.tradePending or {}) do
+    for _, e in ipairs(d.give) do
+      if e.id == id then
+        if e.holo then holo = false else plain = plain - 1 end
+      end
+    end
+  end
+  return math.max(0, plain), holo
+end
+
+-- Can you give these copies? Returns false and why not.
+function C.CanGive(db, offer)
+  if #offer > C.TRADE_MAX then return false, L["A trade has room for %d cards from each side."]:format(C.TRADE_MAX) end
+  local want = {}
+  for _, e in ipairs(offer) do
+    local c = Cards.byId[e.id]
+    if not (c and c.collectible) then return false, L["That card can't be traded."] end
+    want[e.id] = want[e.id] or { plain = 0, holo = 0 }
+    if e.holo then want[e.id].holo = want[e.id].holo + 1 else want[e.id].plain = want[e.id].plain + 1 end
+  end
+  for id, w in pairs(want) do
+    local plain, holo = C.Spare(db, id)
+    if w.plain > plain or w.holo > (holo and 1 or 0) then
+      return false, L["You don't have that many copies of %s to trade."]:format(Cards.byId[id].name)
+    end
+  end
+  return true
+end
+
+-- What C.Add would make of each copy in the list (a { kind, shards } each),
+-- without changing anything.
+function C.PreviewAdd(db, list)
+  local fake = { shards = 0, collection = setmetatable({}, { __index = db.collection }),
+    holo = setmetatable({}, { __index = db.holo or {} }) }
+  local out = {}
+  for i, e in ipairs(list) do
+    local kind, shards = C.Add(fake, e.id, e.holo)
+    out[i] = { kind = kind, shards = shards }
+  end
+  return out
+end
+
+-- Takes out of every deck the copies you no longer own. Returns them, a
+-- { id, slot } each.
+function C.TrimDecks(db)
+  local out = {}
+  for slot = 1, C.DECK_SLOTS do
+    local deck = db.decks[slot]
+    if type(deck) == "table" then
+      local counts = {}
+      for _, id in ipairs(deck) do counts[id] = (counts[id] or 0) + 1 end
+      for i = #deck, 1, -1 do
+        local id = deck[i]
+        if counts[id] > C.Owned(db, id) then
+          table.remove(deck, i)
+          counts[id] = counts[id] - 1
+          out[#out + 1] = { id = id, slot = slot }
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- How many cards giving these copies away would take out of your decks.
+function C.TradeTrims(db, give)
+  local owned = {}
+  for _, e in ipairs(give) do owned[e.id] = (owned[e.id] or C.Owned(db, e.id)) - 1 end
+  local n = 0
+  for slot = 1, C.DECK_SLOTS do
+    local deck = db.decks[slot]
+    if type(deck) == "table" then
+      for id, left in pairs(owned) do n = n + math.max(0, count(deck, id) - math.max(0, left)) end
+    end
+  end
+  return n
+end
+
+-- Carries out your side of a trade: the copies in `give` leave your
+-- collection and those in `get` join it (a copy past the limit turns into
+-- shards, as in a pack). Decks lose copies you no longer own. Returns what
+-- you got (a { id, kind, shards, holo } each, like C.OpenPack) and the cards
+-- taken out of decks (C.TrimDecks).
+function C.ApplyTrade(db, give, get)
+  db.holo = db.holo or {}
+  for _, e in ipairs(give) do
+    local n = C.Owned(db, e.id)
+    if n > 0 then
+      n = n - 1
+      db.collection[e.id] = n > 0 and n or nil
+      if e.holo or n == 0 then db.holo[e.id] = nil end
+    end
+  end
+  local got = {}
+  for i, e in ipairs(get) do
+    local kind, shards = C.Add(db, e.id, e.holo)
+    got[i] = { id = e.id, kind = kind, shards = shards, holo = e.holo or nil }
+  end
+  return got, C.TrimDecks(db)
 end
 
 -- Stars and the ladder ----------------------------------------------------------

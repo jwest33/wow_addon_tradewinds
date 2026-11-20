@@ -451,6 +451,202 @@ do
   H.offline, W.offline = true, true
 end
 
+-- trading cards -------------------------------------------------------------------------------
+do
+  local function T(c) return c.ns.Trade end
+  local function U(c) return c.ns.UI.Trading end
+  local function click(c, id, button, shift)
+    c.MOCK.shift = shift
+    c.ns.UI.Binder.Click(id, button or "LeftButton")
+    c.MOCK.shift = false
+  end
+  local function owned(c, id) return c.C.Owned(c.db(), id) end
+  local function open()
+    check(U(A).Ask("Bob"), "Alice asks Bob to trade")
+    pump()
+    U(B).Answer(true)
+    pump()
+    return T(A).Current() and T(B).Current() and T(A).Current().tid == T(B).Current().tid
+  end
+  local Cards = A.ns.Cards
+  local rare, epic = A.C.PackPool("rare")[1], A.C.PackPool("epic")[1]
+  A.db().collection[rare], A.db().collection[epic] = 1, nil
+  B.db().collection[rare], B.db().collection[epic] = nil, 2
+  for _, c in ipairs({ A, B }) do
+    for _, id in ipairs({ "wolf", "boar", "kobold", "murloc" }) do c.db().collection[id] = 2 end
+    c.db().holo = {}
+    c.C.ResetDeck(c.db())
+  end
+
+  -- asked and declined
+  check(U(A).Ask("Bob"), "Alice asks Bob to trade")
+  check(not U(A).Ask("Bob") and A.MOCK.errors[#A.MOCK.errors]:find("already waiting"), "one request at a time")
+  pump()
+  check(B.MOCK.popup and B.MOCK.popup.name == "TRADEWINDS_TRADE" and B.MOCK.popup.arg == "Alice", "Bob is asked, with Alice's name")
+  U(B).Answer(false)
+  pump()
+  check(T(A).Outgoing() == nil and chatHas(A, "Bob declined your trade request"), "declined: Alice is told")
+  check(not U(A).Ask("alice") and A.MOCK.errors[#A.MOCK.errors]:find("yourself"), "you can't trade with yourself")
+
+  -- a trade: Alice's rare for two of Bob's epics, then one epic and a wolf
+  check(open(), "the trade opens on both sides")
+  local va = U(A).View()
+  check(A.ns.UI.tab == "cards" and va.shown and va.title == "Trade with Bob", "Alice sees it in the Cards tab")
+  check(not va.canAccept and not T(A).Accept(), "nothing to accept while both sides are empty")
+  click(A, rare)
+  pump()
+  local vb = U(B).View()
+  check(#T(B).Current().theirs == 1 and vb.get[1] == Cards.byId[rare].name .. " [New]", "Alice offers her rare; Bob sees it, new to him")
+  click(A, rare)
+  check(#T(A).Current().mine == 1 and A.MOCK.errors[#A.MOCK.errors]:find("every copy"), "she can't offer a copy she hasn't got")
+  click(B, epic)
+  click(B, epic)
+  pump()
+  check(U(A).View().get[1] == Cards.byId[epic].name .. " x2 [New]", "Bob offers two epics")
+  check(T(A).Accept(), "Alice accepts")
+  pump()
+  check(U(A).View().me == "You have accepted" and U(B).View().them == "Alice has accepted", "both see that Alice has accepted")
+  click(B, epic, "RightButton")
+  click(B, "wolf")
+  pump()
+  check(T(A).Current().accepted == nil and U(A).View().me == "You haven't accepted yet", "Bob's change takes Alice's acceptance back")
+  check(U(B).View().note:find("takes 1 card out of your decks", 1, true), "Bob is told the wolf leaves his deck")
+  local rows = table.concat(U(A).View().get, " / ")
+  check(rows:find("Young Wolf [+1 shard]", 1, true) and rows:find(Cards.byId[epic].name .. " [New]", 1, true),
+    "Alice sees one epic, new to her, and a wolf that would be a shard (" .. rows .. ")")
+  local shardsA, tid = A.db().shards, T(A).Current().tid
+  check(T(B).Accept(), "Bob accepts")
+  pump()
+  check(U(A).View().them == "Bob has accepted" and U(A).View().note:find("Accept to trade", 1, true), "Alice is told Bob has accepted")
+  check(T(A).Accept(), "and accepts too")
+  pump()
+  check(T(A).Current() == nil and T(B).Current() == nil and not U(A).View().shown, "the trade is done and closes on both sides")
+  check(owned(A, rare) == 0 and owned(B, rare) == 1, "the rare changed hands")
+  check(owned(A, epic) == 1 and owned(B, epic) == 1, "and one epic")
+  check(owned(B, "wolf") == 1 and owned(A, "wolf") == 2 and A.db().shards == shardsA + 1, "the wolf, past Alice's limit, became a shard")
+  check(#B.db().deck == 19 and B.C.Count(B.db().deck, "wolf") == 1, "Bob's deck lost the wolf he gave away")
+  check(chatHas(A, "Trade with Bob done") and chatHas(B, "Taken out of your decks"), "both are told what happened")
+  check(next(A.db().tradePending) == nil and B.db().tradesDone[tid], "nothing left waiting")
+  B.C.ResetDeck(B.db())
+  B.db().collection.wolf = 2
+
+  -- a holographic copy; the answer to the deal is lost, so it goes again
+  A.db().holo.boar = true
+  check(open(), "a second trade opens")
+  click(A, "boar")
+  check(not T(A).Current().mine[1].holo, "a click offers a plain copy first")
+  click(A, "boar", nil, true)
+  check(T(A).Current().mine[2].holo, "shift-click offers the holographic one")
+  click(A, "boar", "RightButton")
+  check(#T(A).Current().mine == 1 and T(A).Current().mine[1].holo, "right-click takes the plain one back first")
+  pump()
+  check(U(B).View().get[1] == "Mottled Boar [Holo]", "Bob is told his boar would turn holographic (" .. tostring(U(B).View().get[1]) .. ")")
+  check(T(B).Accept(), "Bob accepts a gift")
+  pump()
+  drop = function(msg) return msg:find("^TK;") end
+  T(A).Accept()
+  pump()
+  drop = nil
+  check(B.C.IsHolo(B.db(), "boar") and owned(B, "boar") == 2 and T(B).Current() == nil, "Bob's boar is holographic now")
+  check(owned(A, "boar") == 2 and next(A.db().tradePending) ~= nil, "Alice hasn't heard back, so her side waits")
+  check(U(A).View().shown and not U(A).View().canCancel, "her trade shows, and can't be cancelled now")
+  local plain, holo = A.C.Spare(A.db(), "boar")
+  check(plain == 1 and not holo, "the holographic boar is spoken for meanwhile")
+  advance(6)
+  check(owned(A, "boar") == 1 and not A.C.IsHolo(A.db(), "boar") and next(A.db().tradePending) == nil,
+    "the deal went again, Bob answered again, and Alice's side is done")
+  check(owned(B, "boar") == 2 and T(A).Current() == nil, "Bob's side was done only once")
+
+  -- Alice's deal is lost and she reloads: it goes again from her saved data
+  check(open(), "a third trade opens")
+  click(A, "kobold")
+  pump()
+  T(B).Accept()
+  pump()
+  drop = function(msg) return msg:find("^TD;") end
+  T(A).Accept()
+  pump()
+  drop = nil
+  local saved = A.db()
+  check(next(saved.tradePending) ~= nil and T(B).Current(), "the deal is in Alice's saved data; Bob's trade is still open")
+  local shardsB = B.db().shards
+  A.offline = true
+  A = client("Alice", saved)
+  pump()
+  check(owned(A, "kobold") == 1 and B.db().shards == shardsB + 1 and T(B).Current() == nil and next(A.db().tradePending) == nil,
+    "after the reload the deal went through on both sides")
+
+  -- Bob cancels while the deal is on its way: no cards change hands
+  check(open(), "a fourth trade opens")
+  click(A, "murloc")
+  pump()
+  T(B).Accept()
+  pump()
+  drop = function(msg) return msg:find("^TD;") end
+  T(A).Accept()
+  pump()
+  drop = nil
+  check(T(B).Cancel(), "Bob cancels")
+  pump()
+  check(T(A).Current() and T(A).Current().committing, "Alice waits for the answer to her deal")
+  advance(6)
+  check(T(A).Current() == nil and next(A.db().tradePending) == nil and owned(A, "murloc") == 2 and owned(B, "murloc") == 2,
+    "the deal was refused: nothing changed")
+  check(chatHas(A, "side of the trade is gone"), "and Alice is told")
+
+  -- Bob reloads with a trade open: Alice's closes
+  check(open(), "a fifth trade opens")
+  local savedB = B.db()
+  B.offline = true
+  B = client("Bob", savedB)
+  pump()
+  check(T(A).Current() == nil and chatHas(A, "Bob cancelled the trade"), "Bob reloads: Alice's trade closes")
+
+  -- room for eight cards; busy; cancelled
+  check(open(), "a sixth trade opens")
+  local ids = {}
+  for id, n in pairs(A.db().collection) do if n > 0 then ids[#ids + 1] = id end end
+  table.sort(ids)
+  for i = 1, 9 do click(A, ids[i]) end
+  check(#T(A).Current().mine == 8 and A.MOCK.errors[#A.MOCK.errors]:find("room for 8"), "at most eight cards a side")
+  local Cc = client("Carol")
+  check(U(Cc).Ask("Alice"), "Carol asks Alice")
+  pump()
+  check(chatHas(Cc, "Alice is busy with another trade"), "Alice is busy")
+  check(T(A).Cancel(), "Alice cancels")
+  pump()
+  check(T(B).Current() == nil and chatHas(B, "Alice cancelled the trade") and owned(A, ids[1]) > 0, "Bob's trade closes; nothing moved")
+
+  -- an unanswered request; another version; offline
+  check(U(A).Ask("Bob"), "Alice asks again")
+  pump()
+  advance(T(B).ANSWER_SECONDS + 2)
+  check(T(A).Outgoing() == nil and chatHas(A, "Bob didn't answer your trade request") and B.MOCK.popup == nil,
+    "an unanswered request declines by itself")
+  T(B).PROTO = 99
+  U(A).Ask("Bob")
+  pump()
+  check(T(A).Outgoing() == nil and chatHas(A, "different version") and chatHas(B, "wants to trade cards, but"),
+    "a different trade version: both are told")
+  T(B).PROTO = 1
+  B.offline = true
+  U(A).Ask("Bob")
+  local hide = false
+  for _, fn in ipairs(A.MOCK.filters.CHAT_MSG_SYSTEM or {}) do
+    hide = fn(nil, "CHAT_MSG_SYSTEM", A.env.ERR_CHAT_PLAYER_NOT_FOUND_S:format("Bob")) or hide
+  end
+  check(hide and T(A).Outgoing() == nil and chatHas(A, "Bob isn't online"), "Bob is offline: the bounce is hidden and Alice is told")
+  B.offline = false
+  A.MOCK.targetName = "Bob"
+  A.env.SlashCmdList.TRADEWINDS("trade")
+  pump()
+  check(T(B).Incoming() == "Alice", "/tradewinds trade uses your target")
+  U(B).Answer(false)
+  pump()
+  A.MOCK.targetName = nil
+  clients.Carol = nil
+end
+
 -- every message fits, and a full deck does with room to spare
 do
   local longest, bad = 0, 0

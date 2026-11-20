@@ -65,6 +65,7 @@ ns.On("PLAYER_LOGIN", function()
   if ns.UI and ns.UI.Init then ns.UI.Init() end
   if ns.Travel then ns.Travel.Init() end
   if ns.Net then ns.Net.Init() end
+  if ns.Trade then ns.Trade.Init() end
   if ns.endedByUpdate or ns.matchDamaged then
     local o = ns.OpponentById[ns.endedByUpdate]
     if ns.matchDamaged then
@@ -164,6 +165,7 @@ local HELP = {
   L["/tradewinds - show or hide the game  (/tradewinds play | cards | packs | guide | options opens a tab)"],
   L["/tradewinds tutorial - a guided match against Flightmaster Dorn"],
   L["/tradewinds challenge [name] - challenge another player who has Tradewinds (no name: your target)"],
+  L["/tradewinds trade [name] - trade cards with another player who has Tradewinds (no name: your target)"],
   L["/tradewinds end - end the match you're in (counts as a loss, no reward)"],
   L["/tradewinds speed 1-3 - how fast rounds play out"],
   L["/tradewinds scale 0.6-1.5 - window size;  /tradewinds reset - window back to the middle"],
@@ -195,6 +197,13 @@ SlashCmdList.TRADEWINDS = function(msg)
       ns.UI.Game.Challenge(name)
     else
       ns.Print(L["Type /tradewinds challenge Name, or target the player first."])
+    end
+  elseif cmd == "trade" then
+    local name = rest ~= "" and rest or (UnitIsPlayer and UnitIsPlayer("target") and UnitName("target")) or nil
+    if name then
+      ns.UI.Trading.Ask(name)
+    else
+      ns.Print(L["Type /tradewinds trade Name, or target the player first."])
     end
   elseif cmd == "end" or cmd == "concede" then
     if ns.UI.Game.Match() then

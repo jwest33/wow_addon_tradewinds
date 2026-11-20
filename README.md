@@ -210,6 +210,31 @@ It's meant for friends: plans travel in the open, so it isn't cheat-proof.
 Whispers only reach players you could whisper anyway (same faction, same or
 connected realm).
 
+### Trading cards
+
+Trade cards with a friend who has Tradewinds: **Trade** under the deck in the
+Cards tab (target them first and their name is filled in), or
+`/tradewinds trade Name`. They get a popup to accept or decline.
+
+- While the trade is open, the deck panel shows it instead: what you give,
+  what they give, and who has accepted. Click your cards in the binder to
+  offer them (up to 8 a side); right-click takes one back. One side can put
+  up nothing, to give a gift.
+- What you'd get is marked: **New** for a card you don't have, **+N shards**
+  for a copy past your limit (it turns into shards, as in a pack), **Holo**
+  when it would make your copy holographic.
+- A click offers a plain copy. Your holographic copy only goes if you
+  shift-click it, or when it's the last copy you have left to offer.
+- The trade happens once you've both accepted. Any change to either offer
+  takes both acceptances back, so nobody accepts one deal and gets another.
+- A card you give away that's in one of your decks comes out of that deck
+  (the panel warns you first, and the chat lists them afterwards).
+- Nothing is lost if a message goes missing or someone reloads: the side
+  that didn't ask carries out the deal first, and the side that asked does
+  its half once it hears back. That deal is saved and sent again (also after
+  a reload or logout) until it's answered, and a side that no longer has
+  the trade open says no, so nothing changes on either side.
+
 ### The computer
 
 It plays honestly. Each round it lists the plans it could play, plays each
@@ -272,6 +297,8 @@ corrections are welcome. To fix or add one, see Translating below.
   deck and doesn't count on the circuit.
 - `/tradewinds challenge [name]`: challenge another player (no name: your
   target).
+- `/tradewinds trade [name]`: trade cards with another player (no name: your
+  target).
 - `/tradewinds end`: end the match you're in (the same as the **End match**
   button; it asks first, counts as a loss and earns nothing). You never
   *have* to end a match: it's saved after every round.
@@ -295,6 +322,8 @@ corrections are welcome. To fix or add one, see Translating below.
   fingerprint the two compare after every round.
 - `Net.lua`: player against player over addon whispers (challenge, decks,
   plans, checksums, concede, resends). The message format is at the top.
+- `Trade.lua`: trading cards, over the same whispers; `UI/Trading.lua` is
+  the trade panel in the Cards tab.
 - `Engine/Cards.lua`, `Engine/CardsRoads.lua`: the two card sets.
   `Engine/AI.lua`: the computer opponent.
 - `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs,

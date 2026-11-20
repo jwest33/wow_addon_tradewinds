@@ -93,6 +93,7 @@ local function winningText()
     "",
     heading(L["Collecting"]),
     L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."],
+    L["You can also trade cards with friends who have Tradewinds: the Trade button in the Cards tab."],
   }, "\n")
 end
 

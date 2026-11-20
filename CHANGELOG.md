@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.15.0
+
+- **Trade cards with your friends.** Click **Trade** under your deck in the
+  Cards tab (or `/tradewinds trade Name`). While the trade is open, the deck
+  panel shows what each of you gives and who has accepted; click your cards
+  in the binder to offer them, up to 8 a side (or nothing, for a gift).
+  Cards you'd get are marked New, +N shards (past your limit) or Holo. The
+  trade happens once you've both accepted, and any change takes both
+  acceptances back.
+- Trades are safe against lost messages, reloads and logouts: a deal that
+  hasn't been answered is saved and sent again until it is, and no cards
+  change hands unless both sides carry it out.
+- Cards you trade away come out of your decks; the panel warns you first.
+- Your holographic copy of a card only goes if you shift-click it, or when
+  it's the last copy you have to offer.
+- New files (`Trade.lua`, `UI/Trading.lua`): restart the game, a /reload
+  isn't enough.
+
 ## 0.14.0
 
 - **The addon is now called Tradewinds** (it was Deckhand: another WoW

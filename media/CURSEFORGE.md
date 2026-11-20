@@ -66,6 +66,8 @@ miles you travel.
 - **Rare holographic cards**: they play the same, they just shine.
 - **Games against friends and guildmates**, several at once, played whenever
   you're both online. Plans are sent quietly over addon whispers.
+- **Trade cards with friends**: both put up cards, both accept, done. Safe
+  against lost messages and disconnects.
 - **Saved after every round.** Land, log off, pick it up on the next trip.
 - **Ten languages**: English, German, French, Spanish, Italian, Brazilian
   Portuguese, Russian, Korean, and Simplified and Traditional Chinese.
@@ -81,10 +83,11 @@ a guided first game. The Guide tab explains every rule with diagrams.
 | `/tradewinds tutorial` | Play the guided first match again |
 | `/tradewinds rules` | Open the Guide |
 | `/tradewinds challenge Name` | Challenge a friend (or target them first) |
+| `/tradewinds trade Name` | Trade cards with a friend (or target them first) |
 | `/tradewinds scale 1.2` | Make the window bigger or smaller |
 | `/tradewinds reset` | Move the window back to the middle |
 
-Both players need the same version of Tradewinds to play each other.
+Both players need the same version of Tradewinds to play or trade with each other.
 
 *Tradewinds is a fan-made addon and isn't affiliated with or endorsed by
 Blizzard Entertainment.*

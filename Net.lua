@@ -31,6 +31,7 @@
 --   SU;game;round;checksum               the game after that round
 --   HI;game;round                        back after a reload: please resend
 --   EN;game;reason                       concede | gone (no such game here)
+-- Trades use the same channel with their own messages (T...), see Trade.lua.
 local _, ns = ...
 local L = ns.L
 
@@ -67,6 +68,7 @@ local function send(target, ...)
   local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
   if api then pcall(api, N.PREFIX, msg, "WHISPER", target) end
 end
+N.Send = send
 
 -- ---------------------------------------------------------------------------
 -- Cards and plans on the wire
@@ -88,6 +90,16 @@ local function codes()
     local code = DIGITS:sub(a, a) .. DIGITS:sub(b, b)
     codeOf[id], idOf[code] = code, id
   end
+end
+
+function N.CodeOf(id)
+  codes()
+  return codeOf[id]
+end
+
+function N.IdOf(code)
+  codes()
+  return idOf[code]
 end
 
 function N.EncodeDeck(list)
@@ -356,6 +368,9 @@ end
 -- ---------------------------------------------------------------------------
 local H = {}
 
+-- Another module's messages (Trade.lua): handler(sender, field, field...).
+function N.Handle(kind, fn) H[kind] = fn end
+
 local REASONS = {
   busy = L["%s is busy answering another challenge. Try again in a minute."],
   declined = L["%s declined your challenge."],
@@ -588,6 +603,7 @@ local function filter(_, _, msg)
       return true
     end
   end
+  if ns.Trade and ns.Trade.Bounced(bounced) then return true end
   return false
 end
 
