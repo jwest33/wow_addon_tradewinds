@@ -1,8 +1,49 @@
 # Changelog
 
+## 0.14.0
+
+- **The addon is now called Tradewinds** (it was Deckhand: another WoW
+  Forever card game already has that name). The command is `/tradewinds`,
+  and it has a logo and its own icon. To keep progress from Deckhand: with
+  the game closed, rename
+  `WTF\Account\<account>\<realm>\<character>\SavedVariables\Deckhand.lua`
+  to `Tradewinds.lua`, and inside it change `DeckhandCharDB` to
+  `TradewindsCharDB`.
+- A new card face, bigger and easier to read:
+  - Every card names its type on a line under its name ("Beast unit",
+    "Tactic: enemy lane"), so you no longer need the tooltip to tell.
+  - Units and tactics have different frames: units are bronze and
+    parchment; tactics are indigo, silver and pale vellum.
+  - Larger text (names 11, rules 10, type 9; it shrinks only when it has
+    to), full-colour cost, attack and health badges, and a rarity gem.
+  - A unit with no rules text shows its flavour line instead of an empty box.
+  - The card's icon is shown whole, in a small frame in the middle of the
+    picture, instead of cropped and stretched (the game's icons are small
+    and looked blocky stretched).
+  - Selected and hovered cards glow; tags like "dies" sit on a dark bar.
+- Cards are bigger everywhere: 112 x 156 on the board and in your hand (was
+  92 x 128), 5 to a row in the Cards tab, larger in packs.
+- The board is laid out around the bigger cards: the log moved to the right
+  column under the controls, and your hand sits under the lanes. A full hand
+  of seven uses the whole width. The tutorial's coach is now a tall box on
+  the right.
+- The Cards tab's deck panel is redone: each card in the deck is a strip
+  (bronze for units, indigo for tactics) with its cost gem, icon and name;
+  then how many units and tactics and the average cost; the three curve rules
+  as green or orange chips; a cost chart that splits units from tactics, with
+  a line at each rule's minimum; and a green "ready" or orange "what's
+  missing" banner.
+- The mouse wheel scrolls the Cards tab a row at a time; the arrows still
+  turn a whole page.
+- The round is shown big at the top right, beside your Supply ("Round 3/8",
+  turning orange near the end); the line under the opponent's panel now says
+  how many rounds are left after this one.
+- New textures: the first time after updating, restart the game rather than
+  using /reload.
+
 ## 0.13.0
 
-- Deckhand now speaks German, French, Spanish (Spain and Latin America),
+- Tradewinds now speaks German, French, Spanish (Spain and Latin America),
   Italian, Brazilian Portuguese, Russian, Korean and Chinese (simplified and
   traditional), following the game client's language. Card names, spells,
   creatures and places use the client's official names where there are some.
@@ -37,7 +78,7 @@
 
 ## 0.9.0
 
-- Play against friends and guildmates who have Deckhand: challenges over
+- Play against friends and guildmates who have Tradewinds: challenges over
   whispers, no time limit, plans sent when you lock in.
 
 ## 0.8.0

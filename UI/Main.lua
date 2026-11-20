@@ -55,7 +55,7 @@ local function tabButton(def, i)
 end
 
 local function create()
-  main = CreateFrame("Frame", "DeckhandFrame", UIParent, UI.TEMPLATE)
+  main = CreateFrame("Frame", "TradewindsFrame", UIParent, UI.TEMPLATE)
   main:SetSize(W, H)
   main:SetFrameStrata("HIGH")
   main:SetToplevel(true)
@@ -75,10 +75,10 @@ local function create()
   local icon = main:CreateTexture(nil, "ARTWORK")
   icon:SetSize(20, 20)
   icon:SetPoint("TOPLEFT", 10, -7)
-  icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
+  icon:SetTexture(UI.ART .. "Icon")
   local title = UI.Text(main, 16)
   title:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-  title:SetText("Deckhand")
+  title:SetText("Tradewinds")
   title:SetTextColor(1, 0.82, 0)
 
   local close = CreateFrame("Button", nil, main, "UIPanelCloseButton")
@@ -108,7 +108,7 @@ local function create()
     GameTooltip:Hide()
     if UI.Game.OnHide then UI.Game.OnHide() end
   end)
-  if UISpecialFrames then table.insert(UISpecialFrames, "DeckhandFrame") end
+  if UISpecialFrames then table.insert(UISpecialFrames, "TradewindsFrame") end
   main:Hide()
 end
 
@@ -177,7 +177,7 @@ end
 local toast, toastToken = nil, 0
 
 local function makeToast()
-  toast = CreateFrame("Frame", "DeckhandToast", UIParent, UI.TEMPLATE)
+  toast = CreateFrame("Frame", "TradewindsToast", UIParent, UI.TEMPLATE)
   toast:SetSize(300, 46)
   toast:SetPoint("TOP", UIParent, "TOP", 0, -110)
   toast:SetFrameStrata("DIALOG")
@@ -185,7 +185,7 @@ local function makeToast()
   toast.icon = toast:CreateTexture(nil, "ARTWORK")
   toast.icon:SetSize(32, 32)
   toast.icon:SetPoint("LEFT", 8, 0)
-  toast.icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
+  toast.icon:SetTexture(UI.ART .. "Icon")
   toast.title = UI.Text(toast, 12)
   toast.title:SetPoint("TOPLEFT", toast.icon, "TOPRIGHT", 8, 0)
   toast.title:SetTextColor(1, 0.82, 0)
@@ -217,12 +217,12 @@ function UI.Toast(kind, why, n)
   if UI.IsShown() then return end
   if not toast then makeToast() end
   if kind == "pvp" then
-    toast.title:SetText("Deckhand")
+    toast.title:SetText("Tradewinds")
     toast.text:SetText(why or L["Your opponent is waiting."])
     toast.go:SetText(L["Play"])
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
   elseif kind == "flight" or kind == "boat" then
-    toast.title:SetText("Deckhand")
+    toast.title:SetText("Tradewinds")
     if kind == "flight" then
       toast.text:SetText(UI.AnyGame() and L["Your game is waiting. Play while you fly?"] or L["Deal a hand while you fly?"])
     else
@@ -256,7 +256,7 @@ local function placeMinimap()
 end
 
 local function makeMinimap()
-  mm = CreateFrame("Button", "DeckhandMinimapButton", Minimap)
+  mm = CreateFrame("Button", "TradewindsMinimapButton", Minimap)
   mm:SetSize(31, 31)
   mm:SetFrameStrata("MEDIUM")
   mm:SetFrameLevel(8)
@@ -269,7 +269,7 @@ local function makeMinimap()
   local icon = mm:CreateTexture(nil, "ARTWORK")
   icon:SetSize(18, 18)
   icon:SetPoint("CENTER")
-  icon:SetTexture(UI.Icon({ "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" }))
+  icon:SetTexture(UI.ART .. "Icon")
   local border = mm:CreateTexture(nil, "OVERLAY")
   border:SetSize(53, 53)
   border:SetPoint("TOPLEFT")
@@ -290,7 +290,7 @@ local function makeMinimap()
   mm:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
   mm:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("Deckhand")
+    GameTooltip:AddLine("Tradewinds")
     if UI.AnyGame() then
       local moves = UI.Game.YourMoves()
       GameTooltip:AddLine(moves > 0 and ns.Plural(moves, "%d of your games waits for your move.", "%d of your games wait for your move."):format(moves)

@@ -16,7 +16,7 @@ local TOGGLES = {
   { "toast", L["Offer a game when travelling"], L["Show a small prompt when a flight, boat or zeppelin ride starts."] },
   { "hideOnLand", L["Close on arrival"], L["Close the window when you land or dock. Your game is saved."] },
   { "hideInCombat", L["Close in combat"], L["Close the window when combat starts."] },
-  { "minimap", L["Minimap button"], L["Show the Deckhand button on the minimap."] },
+  { "minimap", L["Minimap button"], L["Show the Tradewinds button on the minimap."] },
 }
 
 function O.Set(key, value)
@@ -116,7 +116,7 @@ function O.Build(parent)
   local foot = UI.Text(page, 10)
   foot:SetPoint("BOTTOMLEFT", 6, 6)
   foot:SetTextColor(0.6, 0.6, 0.6)
-  foot:SetText((L["Deckhand %s.  /deckhand help lists the chat commands."]):format(tostring(ns.VERSION)))
+  foot:SetText((L["Tradewinds %s.  /tradewinds help lists the chat commands."]):format(tostring(ns.VERSION)))
 
   page:SetScript("OnShow", function() O.Refresh() end)
 end

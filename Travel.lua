@@ -14,7 +14,7 @@
 -- up and down, so only sideways movement counts. A crossing between
 -- continents has a loading screen; the jump in position is skipped. The ride
 -- ends when you've stayed put for a while, or after a long run (you walked off
--- at the dock). Not yet checked in game: `/deckhand travel log` prints what
+-- at the dock). Not yet checked in game: `/tradewinds travel log` prints what
 -- the client reports every second, to check it on a real crossing.
 local _, ns = ...
 
@@ -66,8 +66,8 @@ local function arrived(what)
   if ns.db.settings.hideOnLand and ns.UI.IsShown() then
     ns.UI.Hide()
     if ns.db.match or next(ns.db.games or {}) then
-      ns.Print(what == "landed" and ns.L["Landed. Your games are saved: /deckhand to pick them up again."]
-        or ns.L["Docked. Your games are saved: /deckhand to pick them up again."])
+      ns.Print(what == "landed" and ns.L["Landed. Your games are saved: /tradewinds to pick them up again."]
+        or ns.L["Docked. Your games are saved: /tradewinds to pick them up again."])
     end
   end
   ns.UI.Refresh()
@@ -147,12 +147,12 @@ function T.IsFlying() return flying end
 function T.IsRiding() return ride.on end
 function T.IsTravelling() return flying or ride.on end
 
--- /deckhand travel [log]: what the client reports, for checking boat
+-- /tradewinds travel [log]: what the client reports, for checking boat
 -- detection in game.
 function T.Report(arg)
   if arg == "log" then
     ride.log = not ride.log
-    ns.Print("Travel log %s.", ride.log and "on: one line a second (/deckhand travel log again to stop)" or "off")
+    ns.Print("Travel log %s.", ride.log and "on: one line a second (/tradewinds travel log again to stop)" or "off")
     return
   end
   local x, y, inst = position()

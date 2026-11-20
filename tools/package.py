@@ -1,4 +1,4 @@
-"""Builds the release zip: dist/Deckhand-<version>.zip, holding a Deckhand/
+"""Builds the release zip: dist/Tradewinds-<version>.zip, holding a Tradewinds/
 folder with only what the game loads (the .toc, every file it lists,
 Bindings.xml, Art/, and the licence and changelog if present).
 
@@ -16,7 +16,7 @@ import sys
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-NAME = "Deckhand"
+NAME = "Tradewinds"
 EXTRA = ["Bindings.xml", "LICENSE", "LICENSE.txt", "CHANGELOG.md"]
 
 

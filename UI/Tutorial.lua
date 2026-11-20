@@ -1,4 +1,4 @@
--- The tutorial's coach: Dorn's text in a box over the log, an arrow and a
+-- The tutorial's coach: Dorn's text in a box down the right, an arrow and a
 -- glowing ring on what to click next, and the Next button between rounds.
 -- The script and its checks are in Data/Tutorial.lua; UI/Game.lua asks this
 -- file whether you may plan yet (Gate) and calls Refresh after every redraw.
@@ -70,7 +70,7 @@ local function point(target, below)
 end
 
 local function say(text, button)
-  coach.text:SetText(text or "")
+  UI.FitText(coach.text, text or "", 9)
   if button then
     coach.next:SetText(button)
     coach.next:Show()
@@ -133,32 +133,35 @@ function TU.Refresh(m, s)
   point(target, below)
 end
 
--- The coach box covers the log and the hint line above it (top: y, height h).
-function TU.Build(board, y, width, h)
+-- The coach box: a tall box down the right of the board, over the log
+-- (x, y: its top left on the board; w x h).
+function TU.Build(board, x, y, w, h)
   coach = CreateFrame("Frame", nil, board, UI.TEMPLATE)
-  coach:SetPoint("TOPLEFT", board, "TOPLEFT", 0, y)
-  coach:SetSize(width, h)
+  coach:SetPoint("TOPLEFT", board, "TOPLEFT", x, y)
+  coach:SetSize(w, h)
   coach:SetFrameLevel(board:GetFrameLevel() + 20)
   UI.Backdrop(coach, { 0.07, 0.06, 0.045, 1 }, { 1, 0.82, 0 }, true)
   coach:EnableMouse(true)
   local o = ns.OpponentById[T.OPP]
   local icon = coach:CreateTexture(nil, "ARTWORK")
-  icon:SetSize(44, 44)
-  icon:SetPoint("LEFT", 10, 4)
+  icon:SetSize(40, 40)
+  icon:SetPoint("TOPLEFT", 10, -10)
   icon:SetTexture(UI.Icon(o.icon))
-  local name = UI.Text(coach, 9)
-  name:SetPoint("TOP", icon, "BOTTOM", 0, -3)
+  local name = UI.Text(coach, 12)
+  name:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+  name:SetPoint("RIGHT", coach, "RIGHT", -8, 0)
+  name:SetJustifyH("LEFT")
   name:SetText(o.short)
   name:SetTextColor(1, 0.82, 0)
   coach.text = UI.Text(coach, 11)
-  coach.text:SetPoint("TOPLEFT", coach, "TOPLEFT", 68, -9)
-  coach.text:SetPoint("BOTTOMRIGHT", coach, "BOTTOMRIGHT", -110, 9)
+  coach.text:SetPoint("TOPLEFT", coach, "TOPLEFT", 10, -58)
+  coach.text:SetPoint("BOTTOMRIGHT", coach, "BOTTOMRIGHT", -10, 44)
   coach.text:SetJustifyH("LEFT")
-  coach.text:SetJustifyV("MIDDLE")
+  coach.text:SetJustifyV("TOP")
   coach.text:SetSpacing(2)
   coach.text:SetTextColor(0.93, 0.9, 0.82)
-  coach.next = UI.Button(coach, L["Next"], 90, 26, function() TU.Next() end)
-  coach.next:SetPoint("RIGHT", -10, 0)
+  coach.next = UI.Button(coach, L["Next"], w - 40, 26, function() TU.Next() end)
+  coach.next:SetPoint("BOTTOM", 0, 12)
   coach:Hide()
   TU.coach = coach
 

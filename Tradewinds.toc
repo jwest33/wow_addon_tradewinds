@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Deckhand
+## Title: Tradewinds
 ## Notes: A Warcraft card game for flights and boat rides. Earn packs while you travel, build a deck, beat the tavern regulars.
 ## Notes-deDE: Ein Warcraft-Kartenspiel für Flüge und Schiffsreisen. Verdiene auf Reisen Kartenpacks, baue ein Deck und besiege die Stammgäste der Taverne.
 ## Notes-frFR: Un jeu de cartes Warcraft pour les vols et les traversées en bateau. Gagnez des paquets de cartes en voyageant, construisez un deck et battez les habitués de la taverne.
@@ -11,10 +11,10 @@
 ## Notes-koKR: 비행과 배 여행 중에 즐기는 워크래프트 카드 게임. 여행하며 카드 팩을 모으고, 덱을 짜서 선술집 단골들을 이겨 보세요.
 ## Notes-zhCN: 在飞行和乘船途中游玩的魔兽卡牌游戏。旅途中赚取卡包，组建套牌，击败酒馆的常客。
 ## Notes-zhTW: 在飛行與搭船途中遊玩的魔獸卡牌遊戲。旅途中賺取卡包，組建牌組，擊敗酒館的常客。
-## Version: 0.13.0
-## IconTexture: Interface\Icons\INV_Misc_Ticket_Darkmoon_01
-## SavedVariablesPerCharacter: DeckhandCharDB
-## AddonCompartmentFunc: Deckhand_Toggle
+## Version: 0.14.0
+## IconTexture: Interface\AddOns\Tradewinds\Art\Icon
+## SavedVariablesPerCharacter: TradewindsCharDB
+## AddonCompartmentFunc: Tradewinds_Toggle
 
 Locales\Locale.lua
 Locales\deDE.lua

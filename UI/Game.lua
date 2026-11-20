@@ -6,9 +6,9 @@
 --
 -- You are always player 1 and your opponent player 2, against another player
 -- too (each side runs the game as its own player 1). Your match against the
--- computer lives in DeckhandCharDB.match and your games against players in
--- DeckhandCharDB.games, so they survive /reload and logging out; the board
--- shows one of them at a time (DeckhandCharDB.active, see M below).
+-- computer lives in TradewindsCharDB.match and your games against players in
+-- TradewindsCharDB.games, so they survive /reload and logging out; the board
+-- shows one of them at a time (TradewindsCharDB.active, see M below).
 local _, ns = ...
 local L = ns.L
 local R, Cards, AI, C = ns.Rules, ns.Cards, ns.AI, ns.Collection
@@ -18,19 +18,22 @@ local G = {}
 UI.Game = G
 
 local ME, OPP = 1, 2
--- The page is 784 x 556: a panel per player on the left, four lanes, the
--- controls on the right, then your hand and the log underneath.
+-- The page is 784 x 556: a panel per player on the left, four lanes, and
+-- your hand underneath them; down the right, the controls and then the log
+-- (or, in the tutorial, the coach).
 local PAGE_W = 784
 local SW, SH = UI.CARD_W + 4, UI.CARD_H + 4
-local PANEL_W = 120
-local LX, LGAP = 132, 8
-local ROW_Y = { [OPP] = -2, [ME] = -176 }
-local HAND_Y = -320
-local RIGHT_X = 556
-local RIGHT_W = 224
-local LOG_Y = -474
+local PANEL_W = 112
+local LX, LGAP = 120, 6
+local ROW_Y = { [OPP] = -2, [ME] = -204 }
+local HAND_Y = -372
+local HAND_LIFT = 6  -- the card you've picked rises a little
+local RIGHT_X = 612
+local RIGHT_W = 172
+local LEFT_W = RIGHT_X - 8 -- the panels and lanes: your hand fits under them when it can
+local LOG_Y, LOG_H = ROW_Y[ME], 128
 local BEAT = 0.5
-local MID_Y = -155 -- middle of the band between the two rows
+local MID_Y = -183 -- middle of the band between the two rows
 
 local function laneX(l) return LX + (l - 1) * (SW + LGAP) end
 
@@ -130,12 +133,12 @@ end
 
 local function buildLog(parent)
   logFrame = CreateFrame("Frame", nil, parent, UI.TEMPLATE)
-  logFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, LOG_Y)
-  logFrame:SetSize(PAGE_W, 80)
+  logFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", RIGHT_X, LOG_Y)
+  logFrame:SetSize(RIGHT_W, LOG_H)
   UI.Backdrop(logFrame, { 0.03, 0.025, 0.02, 0.8 }, { 0.4, 0.33, 0.2, 0.8 })
   local msgs = CreateFrame("ScrollingMessageFrame", nil, logFrame)
-  msgs:SetPoint("TOPLEFT", 8, -5)
-  msgs:SetPoint("BOTTOMRIGHT", -8, 5)
+  msgs:SetPoint("TOPLEFT", 6, -5)
+  msgs:SetPoint("BOTTOMRIGHT", -6, 5)
   msgs:SetFont(UI.FONT, 10, "")
   msgs:SetJustifyH("LEFT")
   msgs:SetFading(false)
@@ -585,8 +588,17 @@ local function renderHand()
     if not planned[h] then list[#list + 1] = h end
   end
   local n = #list
-  local w = n * UI.CARD_W + math.max(0, n - 1) * 5
-  local x0 = (PAGE_W - w) / 2
+  -- Under the panels and lanes if it fits there (always in the tutorial:
+  -- the coach has the right-hand side), otherwise across the whole page,
+  -- and smaller only if even that's too narrow.
+  local W = UI.CARD_W
+  local width = (tutorialMatch() or n * W + (n - 1) * 5 <= LEFT_W) and LEFT_W or PAGE_W
+  local scale, gap = 1, 5
+  if n > 1 and n * W + (n - 1) * gap > width then
+    gap = math.max(2, (width - n * W) / (n - 1))
+    scale = math.min(1, (width - (n - 1) * gap) / (n * W))
+  end
+  local x0 = (width - (n * W * scale + (n - 1) * gap)) / 2
   local left = planning and supplyLeft(st) or 0
   for i = 1, R.HAND_MAX do
     local b = handCards[i]
@@ -594,8 +606,11 @@ local function renderHand()
     if h then
       b.h = h
       b:SetCard(hand[h], nil, nil, C.IsHolo(ns.db, hand[h]))
+      b:SetBaseScale(scale)
       b:ClearAllPoints()
-      b:SetPoint("TOPLEFT", board, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 5), HAND_Y + ((planning and sel == h) and 10 or 0))
+      -- a scaled frame's offsets are in its own (scaled) units
+      local y = HAND_Y + ((planning and sel == h) and HAND_LIFT or 0)
+      b:SetPoint("TOPLEFT", board, "TOPLEFT", (x0 + (i - 1) * (W * scale + gap)) / scale, y / scale)
       b:SetSelected(planning and sel == h)
       b:SetDim(not planning or (sel ~= h and Cards.byId[hand[h]].cost > left)
         or (tm and sel ~= h and not ns.Tutorial.Allowed(st, plan, hand[h])) and true or false)
@@ -643,12 +658,15 @@ local function renderControls()
   local st = shown()
   local S = view or st
   local left = R.MAX_ROUNDS - S.round
+  ctl.roundNo:SetText(("%d/%d"):format(S.round, R.MAX_ROUNDS))
   if left == 0 then
-    ctl.round:SetText(L["Final round"])
+    UI.FitText(ctl.round, L["Final round"], 9)
     ctl.round:SetTextColor(1, 0.5, 0.2)
+    ctl.roundNo:SetTextColor(1, 0.5, 0.2)
   else
-    ctl.round:SetText((L["Round %d of %d (%d left)"]):format(S.round, R.MAX_ROUNDS, left))
+    UI.FitText(ctl.round, ns.Plural(left, "%d round left after this.", "%d rounds left after this."):format(left), 9)
     if left <= 2 then ctl.round:SetTextColor(1, 0.65, 0.25) else ctl.round:SetTextColor(1, 0.82, 0) end
+    if left <= 2 then ctl.roundNo:SetTextColor(1, 0.65, 0.25) else ctl.roundNo:SetTextColor(1, 0.82, 0) end
   end
   ctl.init:SetText(S.init == ME and L["You have initiative"] or L["%s has initiative"]:format(oppName()))
   local planning = isPlanning()
@@ -1403,9 +1421,9 @@ local function playRound(m, mine, theirs)
       busy = false
       G.Refresh()
     end
-    UI.Error(L["Deckhand hit an error playing that round. Your match is unchanged."])
+    UI.Error(L["Tradewinds hit an error playing that round. Your match is unchanged."])
     ns.Print(L["Error playing the round (please report it): %s"], tostring(err))
-    if m.pvp then ns.Net.Abort(m, L["Deckhand hit an error playing that round, so the game was ended without a result."]) end
+    if m.pvp then ns.Net.Abort(m, L["Tradewinds hit an error playing that round, so the game was ended without a result."]) end
     return
   end
   local events = nxt.events
@@ -1597,7 +1615,7 @@ end
 -- Ending a match early. It asks first and counts as a loss. It works at any
 -- moment, even while a round is playing out or the opponent is thinking.
 if StaticPopupDialogs then
-  StaticPopupDialogs.DECKHAND_END_MATCH = {
+  StaticPopupDialogs.TRADEWINDS_END_MATCH = {
     text = L["End your match against %s?\nIt counts as a loss and earns nothing."],
     button1 = L["End match"],
     button2 = L["Keep playing"],
@@ -1607,7 +1625,7 @@ if StaticPopupDialogs then
     hideOnEscape = true,
     preferredIndex = 3,
   }
-  StaticPopupDialogs.DECKHAND_END_TUTORIAL = {
+  StaticPopupDialogs.TRADEWINDS_END_TUTORIAL = {
     text = L["Leave the tutorial?\nYou can start it again from the Play tab."],
     button1 = L["Leave"],
     button2 = L["Keep going"],
@@ -1621,7 +1639,7 @@ end
 
 function G.AskEndMatch()
   if not current() then return end
-  local which = tutorialMatch() and "DECKHAND_END_TUTORIAL" or "DECKHAND_END_MATCH"
+  local which = tutorialMatch() and "TRADEWINDS_END_TUTORIAL" or "TRADEWINDS_END_MATCH"
   if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs[which] then
     StaticPopup_Show(which, opponent().name)
   else
@@ -1788,22 +1806,22 @@ function G.AskChallenge()
     ns.Net.Cancel()
     return
   end
-  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.DECKHAND_CHALLENGE_WHO then
-    StaticPopup_Show("DECKHAND_CHALLENGE_WHO")
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.TRADEWINDS_CHALLENGE_WHO then
+    StaticPopup_Show("TRADEWINDS_CHALLENGE_WHO")
   end
 end
 
 function G.OnChallenge(name)
-  ns.Print(L["%s challenges you to a game of Deckhand."], name)
+  ns.Print(L["%s challenges you to a game of Tradewinds."], name)
   UI.Sound("challenge")
-  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.DECKHAND_CHALLENGE then
-    StaticPopup_Show("DECKHAND_CHALLENGE", name)
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.TRADEWINDS_CHALLENGE then
+    StaticPopup_Show("TRADEWINDS_CHALLENGE", name)
   end
   G.Refresh()
 end
 
 function G.OnChallengeGone(why)
-  if StaticPopup_Hide then StaticPopup_Hide("DECKHAND_CHALLENGE") end
+  if StaticPopup_Hide then StaticPopup_Hide("TRADEWINDS_CHALLENGE") end
   if why then ns.Print(why) end
   G.Refresh()
 end
@@ -1820,8 +1838,8 @@ function G.AnswerChallenge(accept)
 end
 
 if StaticPopupDialogs then
-  StaticPopupDialogs.DECKHAND_CHALLENGE = {
-    text = L["%s challenges you to a game of Deckhand."],
+  StaticPopupDialogs.TRADEWINDS_CHALLENGE = {
+    text = L["%s challenges you to a game of Tradewinds."],
     button1 = L["Accept"],
     button2 = L["Decline"],
     OnAccept = function() G.AnswerChallenge(true) end,
@@ -1835,8 +1853,8 @@ if StaticPopupDialogs then
     local eb = popup.editBox or popup.EditBox
     return eb and eb:GetText() or ""
   end
-  StaticPopupDialogs.DECKHAND_CHALLENGE_WHO = {
-    text = L["Challenge which player? They need Deckhand too."],
+  StaticPopupDialogs.TRADEWINDS_CHALLENGE_WHO = {
+    text = L["Challenge which player? They need Tradewinds too."],
     button1 = L["Challenge"],
     button2 = CANCEL or L["Cancel"],
     hasEditBox = true,
@@ -2193,7 +2211,7 @@ local function buildLobby()
   lobby.challenge = UI.Button(lobby, L["Challenge a player"], 150, 22, function() G.AskChallenge() end)
   lobby.challenge:SetPoint("BOTTOMRIGHT", -4, 4)
   UI.SimpleTooltip(lobby.challenge, L["Challenge a player"],
-    L["Play a friend or guildmate who has Deckhand (the same version). Target them first, or type their name."],
+    L["Play a friend or guildmate who has Tradewinds (the same version). Target them first, or type their name."],
     L["Wins count for the daily task and the first win of the day once the game reaches round 4."])
   lobby.gamesBtn = UI.Button(lobby, L["Your games"], 190, 22, function() G.ShowGames(lobbyView ~= "games") end)
   lobby.gamesBtn:SetPoint("RIGHT", lobby.challenge, "LEFT", -6, 0)
@@ -2236,7 +2254,7 @@ local function buildLobby()
   icon:SetTexture(UI.Icon(ns.OpponentById[ns.Tutorial.OPP].icon))
   local wt = UI.Text(w, 16)
   wt:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -4)
-  wt:SetText(L["Welcome to Deckhand"])
+  wt:SetText(L["Welcome to Tradewinds"])
   wt:SetTextColor(1, 0.82, 0)
   local wb = UI.Text(w, 12)
   wb:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -12)
@@ -2436,6 +2454,9 @@ local function buildBoard()
   -- middle band
   ctl.round = UI.Text(board, 12)
   ctl.round:SetPoint("TOPLEFT", board, "TOPLEFT", 6, ROW_Y[OPP] - SH - 6)
+  ctl.round:SetWidth(PANEL_W - 4)
+  ctl.round:SetJustifyH("LEFT")
+  ctl.round:SetWordWrap(false)
   ctl.round:SetTextColor(1, 0.82, 0)
   ctl.init = UI.Text(board, 10)
   ctl.init:SetPoint("TOPLEFT", ctl.round, "BOTTOMLEFT", 0, -3)
@@ -2494,28 +2515,42 @@ local function buildBoard()
   kt:Hide()
   ctl.kwTip = kt
 
-  -- right column
+  -- right column: the round and your Supply side by side, big
+  local half = RIGHT_W / 2 - 2
+  local rl = UI.Text(board, 11)
+  rl:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -4)
+  rl:SetWidth(half)
+  rl:SetJustifyH("LEFT")
+  rl:SetWordWrap(false)
+  UI.FitText(rl, L["Round"], 8)
+  rl:SetTextColor(0.8, 0.8, 0.8)
+  ctl.roundNo = UI.Text(board, 30, "OUTLINE")
+  ctl.roundNo:SetPoint("TOPLEFT", rl, "BOTTOMLEFT", 0, -3)
+  ctl.roundNo:SetTextColor(1, 0.82, 0)
   local sl = UI.Text(board, 11)
-  sl:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -4)
-  sl:SetText(L["Supply left"])
+  sl:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 2, -4)
+  sl:SetWidth(half)
+  sl:SetJustifyH("LEFT")
+  sl:SetWordWrap(false)
+  UI.FitText(sl, L["Supply left"], 8)
   sl:SetTextColor(0.8, 0.8, 0.8)
   ctl.supply = UI.Text(board, 30, "OUTLINE")
   ctl.supply:SetPoint("TOPLEFT", sl, "BOTTOMLEFT", 0, -3)
   ctl.supply:SetTextColor(0.45, 0.7, 1)
   local supplyHelp = CreateFrame("Frame", nil, board)
   supplyHelp:SetPoint("TOPLEFT", sl, "TOPLEFT")
-  supplyHelp:SetSize(100, 50)
+  supplyHelp:SetSize(half, 50)
   supplyHelp:EnableMouse(true)
   UI.SimpleTooltip(supplyHelp, L["Supply"], L["What you can spend this round: 1 in round 1, 2 in round 2 and so on, up to 6. Unspent supply is lost."])
 
   ctl.freeLabel = UI.Text(board, 10)
-  ctl.freeLabel:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + 106, -4)
+  ctl.freeLabel:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -54)
   ctl.freeLabel:SetText(L["Also casting:"])
   ctl.freeLabel:SetTextColor(0.8, 0.8, 0.8)
   ctl.free = {}
   for i = 1, 4 do
     local b = badge(board, 26)
-    b:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + 106 + (i - 1) * 29, -20)
+    b:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + (i - 1) * 29, -68)
     b:SetScript("OnClick", function(self)
       if not planning() then return end
       for k = #plan, 1, -1 do
@@ -2528,11 +2563,11 @@ local function buildBoard()
   end
 
   ctl.lock = UI.Button(board, L["Lock In"], RIGHT_W, 34, function() G.LockIn() end)
-  ctl.lock:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -62)
+  ctl.lock:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -100)
   ctl.clear = UI.Button(board, L["Clear"], RIGHT_W / 2 - 3, 22, function() G.ClearPlan() end)
-  ctl.clear:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -102)
+  ctl.clear:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X, -140)
   ctl.replay = UI.Button(board, L["Replay"], RIGHT_W / 2 - 3, 22, function() G.Replay() end)
-  ctl.replay:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, -102)
+  ctl.replay:SetPoint("TOPLEFT", board, "TOPLEFT", RIGHT_X + RIGHT_W / 2 + 3, -140)
   UI.SimpleTooltip(ctl.replay, L["Replay"], L["Shows the last round again."])
 
   ctl.back = UI.Button(board, L["All games"], RIGHT_W / 2 - 3, 22, function() G.Back() end)
@@ -2558,7 +2593,10 @@ local function buildBoard()
   end
 
   ctl.hint = UI.Text(board, 11)
-  ctl.hint:SetPoint("TOP", board, "TOPLEFT", PAGE_W / 2, HAND_Y - UI.CARD_H - 6)
+  ctl.hint:SetPoint("TOP", board, "TOPLEFT", LEFT_W / 2, HAND_Y - UI.CARD_H - 3)
+  ctl.hint:SetWidth(LEFT_W - 8)
+  ctl.hint:SetJustifyH("CENTER")
+  ctl.hint:SetWordWrap(true)
   ctl.hint:SetTextColor(0.9, 0.9, 0.9)
 
   -- the opponent's lines, under their panel
@@ -2580,12 +2618,12 @@ local function buildBoard()
 
   -- the tactic being cast, over the lanes
   local bn = CreateFrame("Frame", nil, board, UI.TEMPLATE)
-  bn:SetSize(320, 142)
+  bn:SetSize(344, UI.CARD_H + 20)
   bn:SetPoint("CENTER", board, "TOPLEFT", LX + (4 * SW + 3 * LGAP) / 2, MID_Y)
   bn:SetFrameLevel(board:GetFrameLevel() + 30)
   UI.Backdrop(bn, { 0.05, 0.04, 0.08, 0.96 }, { 0.75, 0.5, 1 }, true)
   bn.card = UI.CreateCard(bn)
-  bn.card:SetPoint("LEFT", 8, 0)
+  bn.card:SetPoint("LEFT", 10, 0)
   bn.card:EnableMouse(false)
   bn.who = UI.Text(bn, 12)
   bn.who:SetPoint("TOPLEFT", bn.card, "TOPRIGHT", 12, -24)
@@ -2594,6 +2632,10 @@ local function buildBoard()
   bn.what:SetPoint("TOPLEFT", bn.who, "BOTTOMLEFT", 0, -6)
   bn.where = UI.Text(bn, 11)
   bn.where:SetPoint("TOPLEFT", bn.what, "BOTTOMLEFT", 0, -6)
+  for _, fs in ipairs({ bn.who, bn.what, bn.where }) do
+    fs:SetWidth(344 - UI.CARD_W - 34)
+    fs:SetJustifyH("LEFT")
+  end
   bn.where:SetTextColor(0.7, 0.7, 0.7)
   bn:Hide()
   ctl.banner = bn
@@ -2641,6 +2683,7 @@ G.api = {
   slot = function(p, l) return slots[p][l] end,
   marker = function(l) return markers[l] end,
   roundText = function() return ctl.round:GetText() end,
+  roundNumber = function() return ctl.roundNo:GetText() end,
   lock = function() return ctl.lock end,
 }
 
@@ -2649,6 +2692,6 @@ function G.Build(parent)
   buildLobby()
   buildBoard()
   buildLog(board)
-  if UI.Tutorial then UI.Tutorial.Build(board, LOG_Y + 22, PAGE_W, 102) end
+  if UI.Tutorial then UI.Tutorial.Build(board, RIGHT_X - 4, ROW_Y[ME], RIGHT_W + 4, 556 + ROW_Y[ME] - 6) end
   page:SetScript("OnShow", function() G.Refresh() end)
 end

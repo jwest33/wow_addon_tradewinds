@@ -7,7 +7,7 @@ ns.ADDON_FOLDER = ADDON
 local getMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
 ns.VERSION = (getMetadata and getMetadata(ADDON, "Version")) or "dev"
 
-local PREFIX = "|cff66ccffDeckhand|r: "
+local PREFIX = "|cff66ccffTradewinds|r: "
 function ns.Print(fmt, ...)
   local msg = select("#", ...) > 0 and fmt:format(...) or tostring(fmt)
   DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. msg)
@@ -45,7 +45,7 @@ end
 function ns.GrantPacks(n, why)
   if not ns.db or n <= 0 then return end
   ns.db.packs = ns.db.packs + n
-  ns.Print(L["|cffffd100%s|r (%s). /deckhand packs to open."], Plural(n, "+%d card pack", "+%d card packs"):format(n), why)
+  ns.Print(L["|cffffd100%s|r (%s). /tradewinds packs to open."], Plural(n, "+%d card pack", "+%d card packs"):format(n), why)
   if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", why, n) end
   refresh()
 end
@@ -55,8 +55,8 @@ end
 -- ---------------------------------------------------------------------------
 ns.On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
-  DeckhandCharDB = DeckhandCharDB or {}
-  ns.db = DeckhandCharDB
+  TradewindsCharDB = TradewindsCharDB or {}
+  ns.db = TradewindsCharDB
   ns.endedByUpdate, ns.gamesEndedByUpdate, ns.matchDamaged = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
 end)
 
@@ -71,7 +71,7 @@ ns.On("PLAYER_LOGIN", function()
       ns.Print(L["Your saved match against %s couldn't be read, so it was ended. It doesn't count as a win or a loss."],
         o and o.name or L["the computer"])
     else
-      ns.Print(L["This update changed Deckhand's rules, so your match against %s was ended. It doesn't count as a win or a loss."],
+      ns.Print(L["This update changed Tradewinds's rules, so your match against %s was ended. It doesn't count as a win or a loss."],
         o and o.name or L["the computer"])
     end
   end
@@ -85,25 +85,25 @@ ns.On("PLAYER_LOGIN", function()
   local games = #ns.Collection.Games(ns.db)
   if games > 0 then
     local moves = ns.UI.Game.YourMoves()
-    ns.Print(Plural(games, "You have %d game going against another player. Type /deckhand to see it.",
-      "You have %d games going against other players. Type /deckhand to see them."), games)
+    ns.Print(Plural(games, "You have %d game going against another player. Type /tradewinds to see it.",
+      "You have %d games going against other players. Type /tradewinds to see them."), games)
     if moves > 0 then
       ns.Print(Plural(moves, "%d of them waits for your move.", "%d of them wait for your move."), moves)
     end
   end
   if m then
     if m.tutorial then
-      ns.Print(L["Your tutorial is waiting. Type /deckhand to continue."])
+      ns.Print(L["Your tutorial is waiting. Type /tradewinds to continue."])
     else
-      ns.Print(L["Your game against %s is waiting. Type /deckhand to continue."], ns.OpponentById[m.opp].name)
+      ns.Print(L["Your game against %s is waiting. Type /tradewinds to continue."], ns.OpponentById[m.opp].name)
     end
   elseif games > 0 then
     return
   elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
-    ns.Print(L["New to Deckhand? Type /deckhand tutorial for a short guided match. It earns a card pack."])
+    ns.Print(L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."])
   elseif ns.db.packs > 0 then
-    ns.Print(Plural(ns.db.packs, "You have %d unopened card pack. Type /deckhand to play.",
-      "You have %d unopened card packs. Type /deckhand to play."), ns.db.packs)
+    ns.Print(Plural(ns.db.packs, "You have %d unopened card pack. Type /tradewinds to play.",
+      "You have %d unopened card packs. Type /tradewinds to play."), ns.db.packs)
   end
 end)
 
@@ -113,7 +113,7 @@ function ns.Announce(rewards)
   if not rewards then return end
   for _, r in ipairs(rewards) do
     if r.packs then
-      ns.Print(L["|cffffd100%s|r (%s). /deckhand packs to open."], Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
+      ns.Print(L["|cffffd100%s|r (%s). /tradewinds packs to open."], Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
       if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", r.why, r.packs) end
     elseif r.shards then
       ns.Print(L["|cff9fdfff%s|r (%s)."], Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
@@ -136,10 +136,10 @@ end)
 -- ---------------------------------------------------------------------------
 -- Slash commands, key binding, addon compartment
 -- ---------------------------------------------------------------------------
-BINDING_HEADER_DECKHAND = "Deckhand"
-BINDING_NAME_DECKHAND_TOGGLE = L["Show/hide Deckhand"]
+BINDING_HEADER_TRADEWINDS = "Tradewinds"
+BINDING_NAME_TRADEWINDS_TOGGLE = L["Show/hide Tradewinds"]
 
-function Deckhand_Toggle()
+function Tradewinds_Toggle()
   if ns.UI and ns.UI.Toggle then ns.UI.Toggle() end
 end
 
@@ -161,26 +161,26 @@ local SETTINGS = {
 }
 
 local HELP = {
-  L["/deckhand - show or hide the game  (/deckhand play | cards | packs | guide | options opens a tab)"],
-  L["/deckhand tutorial - a guided match against Flightmaster Dorn"],
-  L["/deckhand challenge [name] - challenge another player who has Deckhand (no name: your target)"],
-  L["/deckhand end - end the match you're in (counts as a loss, no reward)"],
-  L["/deckhand speed 1-3 - how fast rounds play out"],
-  L["/deckhand scale 0.6-1.5 - window size;  /deckhand reset - window back to the middle"],
-  L["/deckhand toast | land | combat | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)"],
-  L["/deckhand icons - list card icons this client doesn't have (for bug reports)"],
-  L["/deckhand travel [log] - what Deckhand sees of your travel (log: a line a second, to check boat detection)"],
-  L["/deckhand rules - the rules (the Guide tab)"],
+  L["/tradewinds - show or hide the game  (/tradewinds play | cards | packs | guide | options opens a tab)"],
+  L["/tradewinds tutorial - a guided match against Flightmaster Dorn"],
+  L["/tradewinds challenge [name] - challenge another player who has Tradewinds (no name: your target)"],
+  L["/tradewinds end - end the match you're in (counts as a loss, no reward)"],
+  L["/tradewinds speed 1-3 - how fast rounds play out"],
+  L["/tradewinds scale 0.6-1.5 - window size;  /tradewinds reset - window back to the middle"],
+  L["/tradewinds toast | land | combat | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)"],
+  L["/tradewinds icons - list card icons this client doesn't have (for bug reports)"],
+  L["/tradewinds travel [log] - what Tradewinds sees of your travel (log: a line a second, to check boat detection)"],
+  L["/tradewinds rules - the rules (the Guide tab)"],
 }
 
-SLASH_DECKHAND1 = "/deckhand"
-SlashCmdList.DECKHAND = function(msg)
+SLASH_TRADEWINDS1 = "/tradewinds"
+SlashCmdList.TRADEWINDS = function(msg)
   if not ns.db then return end
   local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
   cmd = cmd:lower()
   local S = ns.db.settings
   if cmd == "" then
-    Deckhand_Toggle()
+    Tradewinds_Toggle()
   elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "options" or cmd == "guide" then
     ns.UI.Show(cmd)
   elseif cmd == "rules" then
@@ -194,7 +194,7 @@ SlashCmdList.DECKHAND = function(msg)
       ns.UI.Show("play")
       ns.UI.Game.Challenge(name)
     else
-      ns.Print(L["Type /deckhand challenge Name, or target the player first."])
+      ns.Print(L["Type /tradewinds challenge Name, or target the player first."])
     end
   elseif cmd == "end" or cmd == "concede" then
     if ns.UI.Game.Match() then

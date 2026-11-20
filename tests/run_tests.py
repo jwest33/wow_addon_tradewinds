@@ -1,4 +1,4 @@
-"""Runs the Deckhand tests in Lua 5.1 (the version WoW uses).
+"""Runs the Tradewinds tests in Lua 5.1 (the version WoW uses).
 
     pip install lupa
     python tests/run_tests.py           # engine, UI, PvP and translations

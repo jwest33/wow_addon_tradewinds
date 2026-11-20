@@ -18,7 +18,7 @@ local clients = {}   -- by name
 local drop = nil     -- function(msg, from, to) -> true to lose a message
 
 -- A client: fresh mock and addon in their own global table. saved: the
--- DeckhandCharDB to start from (a /reload), or nil for a new character.
+-- TradewindsCharDB to start from (a /reload), or nil for a new character.
 local function client(name, saved, locale)
   local env = setmetatable({}, { __index = _G })
   env._G = env
@@ -32,22 +32,22 @@ local function client(name, saved, locale)
   local M = env.MOCK
   M.playerName = name
   M.now = clients[name] and clients[name].MOCK.now or M.now
-  env.DeckhandCharDB = saved
+  env.TradewindsCharDB = saved
   local ns = {}
-  for line in io.lines(ROOT .. "/Deckhand.toc") do
+  for line in io.lines(ROOT .. "/Tradewinds.toc") do
     local file = line:match("^%s*([^#].-%.lua)%s*$")
-    if file then run((file:gsub("\\", "/")), "Deckhand", ns) end
+    if file then run((file:gsub("\\", "/")), "Tradewinds", ns) end
   end
   M.onSend = function(prefix, msg, chatType, target)
     if chatType ~= "WHISPER" then return end
     if drop and drop(msg, name, target) then return end
     network[#network + 1] = { to = target:match("^[^%-]+"), from = name .. "-Realm", prefix = prefix, msg = msg }
   end
-  M.Fire("ADDON_LOADED", "Deckhand")
+  M.Fire("ADDON_LOADED", "Tradewinds")
   M.Fire("PLAYER_LOGIN")
   M.Fire("PLAYER_ENTERING_WORLD")
   local c = { name = name, env = env, MOCK = M, ns = ns, G = ns.UI.Game, R = ns.Rules, C = ns.Collection }
-  c.db = function() return env.DeckhandCharDB end
+  c.db = function() return env.TradewindsCharDB end
   clients[name] = c
   return c
 end
@@ -105,14 +105,14 @@ local function chatHas(c, text)
 end
 
 local A, B = client("Alice"), client("Bob")
-check(A.MOCK.prefix == "Deckhand" and B.MOCK.prefix == "Deckhand", "both clients register the addon message prefix")
+check(A.MOCK.prefix == "Tradewinds" and B.MOCK.prefix == "Tradewinds", "both clients register the addon message prefix")
 
 -- a challenge declined -------------------------------------------------------------
 do
   check(A.G.Challenge("Bob"), "Alice challenges Bob")
   check(not A.G.Challenge("Bob"), "only one challenge at a time")
   pump()
-  check(B.MOCK.popup and B.MOCK.popup.name == "DECKHAND_CHALLENGE" and B.MOCK.popup.arg == "Alice",
+  check(B.MOCK.popup and B.MOCK.popup.name == "TRADEWINDS_CHALLENGE" and B.MOCK.popup.arg == "Alice",
     "Bob is asked, with Alice's name")
   B.G.AnswerChallenge(false)
   pump()
@@ -126,7 +126,7 @@ do
   A.ns.Net.Cancel()
   pump()
   check(B.ns.Net.Incoming() == nil and B.MOCK.popup == nil and chatHas(B, "withdrew"), "a withdrawn challenge closes Bob's popup")
-  A.G.Challenge("Carol")   -- nobody by that name runs Deckhand here
+  A.G.Challenge("Carol")   -- nobody by that name runs Tradewinds here
   advance(A.ns.Net.ANSWER_SECONDS + 6)
   check(A.ns.Net.Outgoing() == nil and chatHas(A, "Carol didn't answer"), "no answer: the challenge times out")
   A.G.Challenge("Bob")
@@ -227,7 +227,7 @@ do
       advance(1)
       check(B.G.Match() and B.G.Match().st.round == 6, "Bob, back from the reload, has played round 5")
       check(B.G.Match().shown == false, "with the window closed, round 5 waits to be shown")
-      B.env.SlashCmdList.DECKHAND("")
+      B.env.SlashCmdList.TRADEWINDS("")
       advance(40)
       check(B.G.Match() == nil or B.G.Match().shown == true, "and is shown when Bob opens the window")
       rounds = rounds + 1
@@ -420,12 +420,12 @@ do
   clients.Carol = nil
 end
 
--- /deckhand challenge with a target -------------------------------------------------------
+-- /tradewinds challenge with a target -------------------------------------------------------
 do
   A.MOCK.targetName = "Bob"
-  A.env.SlashCmdList.DECKHAND("challenge")
+  A.env.SlashCmdList.TRADEWINDS("challenge")
   pump()
-  check(B.ns.Net.Incoming() == "Alice", "/deckhand challenge uses your target")
+  check(B.ns.Net.Incoming() == "Alice", "/tradewinds challenge uses your target")
   B.G.AnswerChallenge(false)
   pump()
 end
@@ -457,7 +457,7 @@ do
   for _, c in pairs(clients) do
     for _, s in ipairs(c.MOCK.sent) do
       longest = math.max(longest, #s.msg)
-      if #s.msg > 255 or s.prefix ~= "Deckhand" or s.msg:find("|", 1, true) then bad = bad + 1 end
+      if #s.msg > 255 or s.prefix ~= "Tradewinds" or s.msg:find("|", 1, true) then bad = bad + 1 end
     end
   end
   check(bad == 0, ("every message is under 255 bytes, with no | in it (longest %d)"):format(longest))

@@ -14,11 +14,11 @@ end
 
 local ns = {}
 local used = {}
-for line in io.lines(ROOT .. "/Deckhand.toc") do
+for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
     file = file:gsub("\\", "/")
-    assert(loadfile(ROOT .. "/" .. file))("Deckhand", ns)
+    assert(loadfile(ROOT .. "/" .. file))("Tradewinds", ns)
     if file == "Locales/Locale.lua" then
       setmetatable(ns.L, { __index = function(_, k) used[k] = true; return k end })
     end
@@ -29,12 +29,12 @@ local R, Cards, C, UI = ns.Rules, ns.Cards, ns.Collection, ns.UI
 local G = UI.Game
 math.randomseed(777)
 
-MOCK.Fire("ADDON_LOADED", "Deckhand")
+MOCK.Fire("ADDON_LOADED", "Tradewinds")
 MOCK.Fire("PLAYER_LOGIN")
 MOCK.Advance(3)
-local db = DeckhandCharDB
-SlashCmdList.DECKHAND("")
-SlashCmdList.DECKHAND("help")
+local db = TradewindsCharDB
+SlashCmdList.TRADEWINDS("")
+SlashCmdList.TRADEWINDS("help")
 
 -- every tab, Guide section and card
 for _, tab in ipairs({ "play", "cards", "packs", "guide", "options" }) do UI.Show(tab) end
@@ -116,7 +116,7 @@ check(#MOCK.errors >= 0, "ran")
 local template = {}
 local T = {}
 local fake = { NewLocale = function() return T end }
-assert(loadfile(ROOT .. "/Locales/enUS.lua"))("Deckhand", fake)
+assert(loadfile(ROOT .. "/Locales/enUS.lua"))("Tradewinds", fake)
 local stray = {}
 for k in pairs(used) do
   if T[k] == nil then stray[#stray + 1] = k end

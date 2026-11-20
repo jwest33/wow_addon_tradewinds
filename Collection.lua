@@ -1,5 +1,5 @@
 -- Collection, deck, packs, crafting, stars, daily tasks and rewards.
--- Everything works on the saved per-character table (DeckhandCharDB) passed
+-- Everything works on the saved per-character table (TradewindsCharDB) passed
 -- in as `db`, and takes its random numbers from `rnd`, so it can be tested
 -- outside the game.
 --

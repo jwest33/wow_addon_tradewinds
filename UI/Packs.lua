@@ -8,6 +8,9 @@ local UI = ns.UI
 local P = {}
 UI.Packs = P
 
+local CARD_SCALE = 1.2
+local SLOT_Y = -76
+
 local page
 local ctl = {}
 local slots = {}
@@ -185,12 +188,15 @@ function P.Build(parent)
   end)
   ctl.buy:SetPoint("TOPLEFT", page, "TOPLEFT", 600, -14)
 
-  local x0 = (784 - (C.PACK_SIZE * (UI.CARD_W + 24) - 24)) / 2
+  -- the pack's cards, a little bigger than anywhere else
+  local cw, ch = UI.CARD_W * CARD_SCALE, UI.CARD_H * CARD_SCALE
+  local x0 = (784 - (C.PACK_SIZE * (cw + 28) - 28)) / 2
   for i = 1, C.PACK_SIZE do
     local s = CreateFrame("Frame", nil, page)
-    s:SetSize(UI.CARD_W, UI.CARD_H + 18)
-    s:SetPoint("TOPLEFT", page, "TOPLEFT", x0 + (i - 1) * (UI.CARD_W + 24), -84)
+    s:SetSize(cw, ch + 18)
+    s:SetPoint("TOPLEFT", page, "TOPLEFT", x0 + (i - 1) * (cw + 28), SLOT_Y)
     s.card = UI.CreateCard(s)
+    s.card:SetBaseScale(CARD_SCALE)
     s.card:SetPoint("TOP")
     s.card:SetScript("OnClick", function() reveal(i) end)
     s.label = UI.Text(s, 10)
@@ -203,11 +209,11 @@ function P.Build(parent)
   ctl.empty:SetText(L["Open a pack to see what's inside. Click each card to turn it over."])
   ctl.empty:SetTextColor(0.6, 0.6, 0.6)
   ctl.revealAll = UI.Button(page, L["Reveal all"], 100, 22, revealAll)
-  ctl.revealAll:SetPoint("TOP", page, "TOP", 0, -240)
+  ctl.revealAll:SetPoint("TOP", page, "TOP", 0, SLOT_Y - ch - 24)
 
   local bar = CreateFrame("StatusBar", nil, page, UI.TEMPLATE)
   bar:SetSize(520, 16)
-  bar:SetPoint("TOP", page, "TOP", 0, -278)
+  bar:SetPoint("TOP", page, "TOP", 0, SLOT_Y - ch - 56)
   bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
   bar:SetStatusBarColor(0.3, 0.6, 1)
   bar:SetMinMaxValues(0, 1)
@@ -217,8 +223,8 @@ function P.Build(parent)
   ctl.barText:SetPoint("TOP", bar, "BOTTOM", 0, -4)
 
   local earn = UI.Text(page, 10)
-  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 132, -330)
-  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -132, -330)
+  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 132, SLOT_Y - ch - 100)
+  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -132, SLOT_Y - ch - 100)
   earn:SetJustifyH("LEFT")
   earn:SetSpacing(3)
   earn:SetTextColor(0.75, 0.75, 0.75)

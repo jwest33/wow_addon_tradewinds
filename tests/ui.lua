@@ -13,28 +13,28 @@ local globalsBefore = {}
 for k in pairs(_G) do globalsBefore[k] = true end
 
 local ns = {}
-for line in io.lines(ROOT .. "/Deckhand.toc") do
+for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
     file = file:gsub("\\", "/")
-    assert(loadfile(ROOT .. "/" .. file))("Deckhand", ns)
+    assert(loadfile(ROOT .. "/" .. file))("Tradewinds", ns)
   end
 end
 local R, Cards, C, UI = ns.Rules, ns.Cards, ns.Collection, ns.UI
 local G = UI.Game
 math.randomseed(12345)
 
-MOCK.Fire("ADDON_LOADED", "Deckhand")
+MOCK.Fire("ADDON_LOADED", "Tradewinds")
 MOCK.Fire("PLAYER_LOGIN")
 MOCK.Fire("PLAYER_ENTERING_WORLD")
 MOCK.Advance(3)
-local db = DeckhandCharDB
+local db = TradewindsCharDB
 check(db and #db.deck == 20 and db.packs == C.STARTER_PACKS and db.schema == C.SCHEMA, "fresh character set up")
-check(DeckhandMinimapButton ~= nil and DeckhandMinimapButton:IsShown(), "minimap button")
+check(TradewindsMinimapButton ~= nil and TradewindsMinimapButton:IsShown(), "minimap button")
 
 -- open the window
-SlashCmdList.DECKHAND("")
-check(DeckhandFrame and DeckhandFrame:IsShown(), "/deckhand opens the window")
+SlashCmdList.TRADEWINDS("")
+check(TradewindsFrame and TradewindsFrame:IsShown(), "/tradewinds opens the window")
 check(UI.tab == "play", "starts on the Play tab")
 
 -- tooltips on every card
@@ -173,8 +173,8 @@ do
   G.Start("sally")
   local st = db.match.st
   UI.Hide()
-  SlashCmdList.DECKHAND("")
-  check(db.match.st == st and DeckhandFrame:IsShown(), "game still there when reopened")
+  SlashCmdList.TRADEWINDS("")
+  check(db.match.st == st and TradewindsFrame:IsShown(), "game still there when reopened")
   G.EndMatch(); G.Continue()
 end
 
@@ -196,10 +196,10 @@ do
   check(f.dies[2][2] and f.dies[1][2], "murlocs trade: both marked to die")
   check(not f.dies[1][1], "grunt survives")
   check(st.players[2].morale == R.START_MORALE and #st.players[1].hand == 2, "the forecast doesn't touch the real game")
-  SlashCmdList.DECKHAND("forecast off")
+  SlashCmdList.TRADEWINDS("forecast off")
   G.Refresh()
   check(G.Forecast() == nil, "no forecast when it's off")
-  SlashCmdList.DECKHAND("forecast on")
+  SlashCmdList.TRADEWINDS("forecast on")
   G.EndMatch(); G.Continue()
 end
 
@@ -235,7 +235,7 @@ do
   local losses = db.stats.losses
   MOCK.popup = nil
   G.AskEndMatch()
-  check(MOCK.popup and MOCK.popup.name == "DECKHAND_END_MATCH" and MOCK.popup.arg == "Sally Mudwhistle", "End match asks first")
+  check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_END_MATCH" and MOCK.popup.arg == "Sally Mudwhistle", "End match asks first")
   check(db.match ~= nil, "nothing ends before you confirm")
   autoPlan()
   G.LockIn()
@@ -243,14 +243,14 @@ do
   StaticPopupDialogs[MOCK.popup.name].OnAccept()
   check(db.match == nil and db.stats.losses == losses + 1, "confirmed mid-replay: match over, counted as a loss")
   MOCK.Advance(60)                   -- the rest of the replay must not come back
-  check(db.match == nil and LayoverFrame == nil and DeckhandFrame:IsShown(), "no leftovers from the replay")
+  check(db.match == nil and LayoverFrame == nil and TradewindsFrame:IsShown(), "no leftovers from the replay")
   G.Continue()
-  SlashCmdList.DECKHAND("end")
-  check(MOCK.chat[#MOCK.chat]:find("Open the game you want to end first"), "/deckhand end with no match on the board")
+  SlashCmdList.TRADEWINDS("end")
+  check(MOCK.chat[#MOCK.chat]:find("Open the game you want to end first"), "/tradewinds end with no match on the board")
   G.Start("dorn")
-  SlashCmdList.DECKHAND("end")
+  SlashCmdList.TRADEWINDS("end")
   StaticPopupDialogs[MOCK.popup.name].OnAccept()
-  check(db.match == nil, "/deckhand end ends it")
+  check(db.match == nil, "/tradewinds end ends it")
   G.Continue()
 end
 
@@ -274,7 +274,7 @@ do
   local legacy = { match = { opp = "dorn", st = {} }, collection = db.collection, deck = db.deck }
   check(C.Init(legacy, R.RULES_VERSION) == "dorn" and legacy.match == nil, "a damaged match is ended too")
   G.Refresh()
-  check(DeckhandFrame:IsShown(), "the board goes back to the opponent list")
+  check(TradewindsFrame:IsShown(), "the board goes back to the opponent list")
 end
 
 -- a game whose last round finished while the replay was cut short (/reload)
@@ -387,7 +387,7 @@ do
   G.StartTutorial()
   MOCK.popup = nil
   G.AskEndMatch()
-  check(MOCK.popup and MOCK.popup.name == "DECKHAND_END_TUTORIAL", "leaving the tutorial asks first")
+  check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_END_TUTORIAL", "leaving the tutorial asks first")
   StaticPopupDialogs[MOCK.popup.name].OnAccept()
   check(db.match == nil and db.packs == packs + C.TUTORIAL_PACKS and db.stats.losses == s0[2], "leaving it: no pack, no loss")
   G.Continue()
@@ -447,8 +447,8 @@ end
 
 -- the guide
 do
-  SlashCmdList.DECKHAND("rules")
-  check(UI.tab == "guide", "/deckhand rules opens the Guide")
+  SlashCmdList.TRADEWINDS("rules")
+  check(UI.tab == "guide", "/tradewinds rules opens the Guide")
   for _, key in ipairs({ "basics", "round", "kw1", "kw2", "cards", "winning" }) do
     UI.Guide.Show(key)
     check(UI.Guide.Shown() == key, "guide section " .. key)
@@ -481,6 +481,37 @@ do
   UI.Refresh()
 end
 
+-- the card face: its type on every card, a different frame for tactics
+do
+  local plain = function(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+  local cf = UI.CreateCard(UIParent)
+  cf:SetCard("kobold")
+  check(cf.typeText:GetText() == "Unit" and cf.base:GetTexture():find("CardUnit$"), "a unit says so and has a unit's frame")
+  check(cf.atk:IsShown() and cf.hp:IsShown() and cf.gem:IsShown(), "with its attack, health and rarity gem")
+  check(cf.text:GetText() == "\"You no take candle!\"", "a unit with no rules shows its flavour line")
+  cf:SetCard("cub")
+  check(cf.typeText:GetText() == "Beast unit", "a tribe's unit names the tribe")
+  cf:SetCard("fireball")
+  check(cf.typeText:GetText() == "Tactic: enemy lane" and cf.base:GetTexture():find("CardTactic$"),
+    "a tactic says what it targets and has a tactic's frame")
+  check(not cf.atk:IsShown() and not cf.hpBg:IsShown(), "and no attack or health")
+  check(plain(cf.text:GetText()) == Cards.byId.fireball.short, "its rules text is on the card")
+  cf:SetCard("footpad")
+  check(cf.atk:IsShown() and cf.base:GetTexture():find("CardUnit$"), "back to a unit: the stats come back")
+  check(plain(cf.text:GetText()):find("Stealth"), "keywords are on the card")
+  cf:SetTag("dies", 1, 0.3, 0.3)
+  check(cf.tagBg:IsShown(), "a tag has a dark bar behind it")
+  cf:SetCard("footpad")
+  check(not cf.tagBg:IsShown() and cf.tag:GetText() == "", "and a new card clears it")
+  cf:SetSelected(true)
+  check(cf.sel:IsShown(), "a selected card glows")
+  cf:SetSelected(false)
+  cf:SetDim(true)
+  check(cf.shade:IsShown() and not cf.sel:IsShown(), "an unplayable card is shaded")
+  cf:SetBaseScale(0.9)
+  check(cf.baseScale == 0.9, "a page can set the card's size")
+end
+
 -- options tab
 do
   UI.SelectTab("options")
@@ -491,7 +522,7 @@ do
   UI.Options.Set("scale", 1.2)
   check(db.settings.scale == 1.2, "window size")
   UI.Options.Set("scale", 1)
-  SlashCmdList.DECKHAND("options")
+  SlashCmdList.TRADEWINDS("options")
 end
 
 -- the last round is saved with the match: Replay shows it again, and a
@@ -575,6 +606,24 @@ do
   ice.frozen = nil
   G.Refresh()
   check(not s1.frost:IsShown(), "and the ice goes when it thaws")
+  -- the hand: full size when it fits, a little smaller when even the whole
+  -- page is too narrow
+  do
+    local hand = st.players[1].hand
+    local saved = {}
+    for i, id in ipairs(hand) do saved[i] = id end
+    for i = #hand, 1, -1 do hand[i] = nil end
+    for i = 1, 7 do hand[i] = i == 1 and "kobold" or "fireball" end
+    G.Refresh()
+    local k = G.api.handFrame("kobold")
+    check(k and k.baseScale < 1 and k.baseScale > 0.95, ("seven cards fit the page (scale %.3f)"):format(k and k.baseScale or 0))
+    for i = 7, 4, -1 do hand[i] = nil end
+    G.Refresh()
+    check(G.api.handFrame("kobold").baseScale == 1, "three are full size")
+    for i = #hand, 1, -1 do hand[i] = nil end
+    for i, id in ipairs(saved) do hand[i] = id end
+    G.Refresh()
+  end
   -- a fresh round counts down first; the Replay button doesn't
   check((FX.counts.countdown or 0) - (before.countdown or 0) == 1, "a new round counts down: 3, 2, 1, Reveal!")
   local cd0 = FX.counts.countdown
@@ -608,7 +657,8 @@ do
   -- rounds left
   st.round = R.MAX_ROUNDS - 1
   G.Refresh()
-  check(G.api.roundText():find("1 left"), "the round counter says how many are left")
+  check(G.api.roundText():find("1 round left"), "the round counter says how many are left")
+  check(G.api.roundNumber() == ("%d/%d"):format(R.MAX_ROUNDS - 1, R.MAX_ROUNDS), "and the big counter shows the round")
   st.round = R.MAX_ROUNDS
   G.Refresh()
   check(G.api.roundText() == "Final round", "and calls the last one")
@@ -669,10 +719,10 @@ do
   check(MOCK.popup == nil and MOCK.errors[#MOCK.errors]:find("costs 150 shards"), "crafting needs the shards")
   db.shards = C.CRAFT_COST.epic + 3
   UI.Binder.Click("kazzak", "LeftButton")
-  check(MOCK.popup and MOCK.popup.name == "DECKHAND_CRAFT" and db.collection.kazzak == nil, "crafting asks first")
-  StaticPopupDialogs.DECKHAND_CRAFT.OnAccept()
+  check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_CRAFT" and db.collection.kazzak == nil, "crafting asks first")
+  StaticPopupDialogs.TRADEWINDS_CRAFT.OnAccept()
   check(db.collection.kazzak == 1 and db.shards == 3, "confirmed: the card is made and the shards spent")
-  StaticPopupDialogs.DECKHAND_CRAFT.OnAccept()
+  StaticPopupDialogs.TRADEWINDS_CRAFT.OnAccept()
   check(db.collection.kazzak == 1 and db.shards == 3, "confirming twice makes one card")
   MOCK.shift = false
 
@@ -697,6 +747,32 @@ do
   for _ in pairs(inDeck) do kinds = kinds + 1 end
   check(#UI.Binder.Shown() == kinds, "filter: in your deck")
   UI.Binder.SetFilter("own", "all")
+
+  -- scrolling: the wheel moves a row, the arrows a page, and it stops at the end
+  check(UI.Binder.TopRow() == 0, "the list starts at the top")
+  UI.Binder.Scroll(1)
+  check(UI.Binder.TopRow() == 1, "a notch of the wheel scrolls one row")
+  UI.Binder.Scroll(-5)
+  check(UI.Binder.TopRow() == 0, "and not above the top")
+  UI.Binder.Scroll(1000)
+  local rows = math.ceil(#Cards.collectible / 5)
+  check(UI.Binder.TopRow() == rows - 3, ("and not past the last row (%d of %d)"):format(UI.Binder.TopRow(), rows))
+  UI.Binder.SetFilter("own", "all")
+  check(UI.Binder.TopRow() == 0, "a new filter goes back to the top")
+
+  -- the deck panel shows a strip per card, the curve and whether it's ready
+  UI.Binder.Refresh()
+  local dv = UI.Binder.DeckView()
+  local distinct, nu = {}, 0
+  for _, id in ipairs(db.deck) do
+    distinct[id] = true
+    if Cards.byId[id].type == "unit" then nu = nu + 1 end
+  end
+  local nd = 0
+  for _ in pairs(distinct) do nd = nd + 1 end
+  check(dv.count == "20/20" and dv.note == "Ready to play.", "a full deck is ready: " .. tostring(dv.note))
+  check(dv.rows == nd, ("a strip per different card (%d)"):format(dv.rows))
+  check(dv.units == ("%d units"):format(nu) and dv.tactics == ("%d tactics"):format(20 - nu), "units and tactics counted")
 
   -- deck slots
   local first = db.deck
@@ -730,13 +806,13 @@ do
   MOCK.speed = 30
   MOCK.Fire("PLAYER_CONTROL_LOST")
   MOCK.Advance(1)
-  check(DeckhandToast and DeckhandToast:IsShown(), "flight toast")
-  SlashCmdList.DECKHAND("")
+  check(TradewindsToast and TradewindsToast:IsShown(), "flight toast")
+  SlashCmdList.TRADEWINDS("")
   MOCK.Advance(C.TRAVEL_PACK_SECONDS + 5)
   check(db.packs == packs + 1, "a pack for 20 minutes in the air")
   MOCK.speed = 7               -- landed, but UnitOnTaxi still says yes (seen on the live client)
   MOCK.Advance(2)
-  check(not ns.Travel.IsFlying() and not DeckhandFrame:IsShown(), "landing detected by speed, window closed")
+  check(not ns.Travel.IsFlying() and not TradewindsFrame:IsShown(), "landing detected by speed, window closed")
   MOCK.onTaxi = false
 end
 
@@ -761,23 +837,23 @@ do
   check(not T.IsRiding(), "walking isn't a ride")
   MOCK.speed = 0
   sail(T.RIDE_START + 1, 8)
-  check(T.IsRiding() and DeckhandToast:IsShown(), "carried along while standing still: a ride, and the toast")
+  check(T.IsRiding() and TradewindsToast:IsShown(), "carried along while standing still: a ride, and the toast")
   MOCK.posX, MOCK.inst = 5000, 1   -- a loading screen between continents
   MOCK.Advance(1)
   sail(3, 8)
   check(T.IsRiding(), "the ride carries on after a loading screen")
-  SlashCmdList.DECKHAND("")
+  SlashCmdList.TRADEWINDS("")
   sail(C.TRAVEL_PACK_SECONDS, 8)
   check(db.packs == packs + 1, "a pack for 20 minutes on board")
   sail(T.RIDE_STOP + 1, 0)
-  check(not T.IsRiding() and not DeckhandFrame:IsShown(), "docked: the ride ends and the window closes")
-  SlashCmdList.DECKHAND("travel log")
+  check(not T.IsRiding() and not TradewindsFrame:IsShown(), "docked: the ride ends and the window closes")
+  SlashCmdList.TRADEWINDS("travel log")
   MOCK.chat = {}
   MOCK.Advance(2)
   check(#MOCK.chat == 2 and MOCK.chat[1]:find("travel: speed 0.0, moved 0.0 yd"), "the travel log prints a line a second")
-  SlashCmdList.DECKHAND("travel log")
-  SlashCmdList.DECKHAND("travel")
-  check(MOCK.chat[#MOCK.chat]:find("not travelling"), "/deckhand travel")
+  SlashCmdList.TRADEWINDS("travel log")
+  SlashCmdList.TRADEWINDS("travel")
+  check(MOCK.chat[#MOCK.chat]:find("not travelling"), "/tradewinds travel")
   MOCK.posX = nil
 end
 
@@ -790,11 +866,11 @@ do
   check(db.packs == packs and db.shards == shards + C.REWARD.level + C.REWARD.flightPath, "a level and a new flight path give shards")
   MOCK.Fire("PLAYER_LEVEL_UP", 30)
   check(db.packs == packs + 1 and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath, "every tenth level gives a pack too")
-  SlashCmdList.DECKHAND("")
+  SlashCmdList.TRADEWINDS("")
   MOCK.Fire("PLAYER_REGEN_DISABLED")
-  check(not DeckhandFrame:IsShown(), "combat closes the window")
+  check(not TradewindsFrame:IsShown(), "combat closes the window")
   for _, cmd in ipairs({ "help", "rules", "icons", "speed 3", "scale 0.9", "reset", "toast off", "minimap off", "minimap on", "packs", "cards", "play" }) do
-    SlashCmdList.DECKHAND(cmd)
+    SlashCmdList.TRADEWINDS(cmd)
   end
   check(db.settings.speed == 3 and db.settings.toast == false, "settings commands")
 end
@@ -804,7 +880,7 @@ end
 do
   local FX = UI.FX
   db.settings.speed = 1
-  SlashCmdList.DECKHAND("play")
+  SlashCmdList.TRADEWINDS("play")
   playGame("dorn")
   local tex, text, ghost = FX.PoolSizes()
   for _ = 1, 6 do playGame("bluegill") end
@@ -827,9 +903,9 @@ end
 
 -- the addon only creates the globals it means to
 do
-  local allowed = { DeckhandCharDB = true, Deckhand_Toggle = true, SLASH_DECKHAND1 = true,
-    BINDING_HEADER_DECKHAND = true, BINDING_NAME_DECKHAND_TOGGLE = true, DeckhandFrame = true,
-    DeckhandToast = true, DeckhandMinimapButton = true }
+  local allowed = { TradewindsCharDB = true, Tradewinds_Toggle = true, SLASH_TRADEWINDS1 = true,
+    BINDING_HEADER_TRADEWINDS = true, BINDING_NAME_TRADEWINDS_TOGGLE = true, TradewindsFrame = true,
+    TradewindsToast = true, TradewindsMinimapButton = true }
   local leaked = {}
   for k in pairs(_G) do
     if not globalsBefore[k] and not allowed[k] then leaked[#leaked + 1] = tostring(k) end

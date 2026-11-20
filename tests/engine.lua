@@ -11,11 +11,11 @@ end
 local ns = {}
 local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
-for line in io.lines(ROOT .. "/Deckhand.toc") do
+for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
     file = file:gsub("\\", "/")
-    if ENGINE[file] then assert(loadfile(ROOT .. "/" .. file))("Deckhand", ns) end
+    if ENGINE[file] then assert(loadfile(ROOT .. "/" .. file))("Tradewinds", ns) end
   end
 end
 local R, Cards, AI, C = ns.Rules, ns.Cards, ns.AI, ns.Collection

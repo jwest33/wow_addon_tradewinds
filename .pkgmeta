@@ -1,6 +1,6 @@
 # For the CurseForge / Wago packager (BigWigsMods/packager). The same list of
 # what ships is in tools/package.py, which builds the zip locally.
-package-as: Deckhand
+package-as: Tradewinds
 
 manual-changelog:
   filename: CHANGELOG.md
@@ -9,6 +9,7 @@ manual-changelog:
 ignore:
   - tests
   - tools
+  - media
   - PLAN.md
   - README.md
   - Locales/enUS.lua

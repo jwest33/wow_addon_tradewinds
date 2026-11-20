@@ -9,7 +9,7 @@ local UI = {}
 ns.UI = UI
 
 UI.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-UI.CARD_W, UI.CARD_H = 92, 128
+UI.CARD_W, UI.CARD_H = 112, 156
 UI.TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
 UI.ART = "Interface\\AddOns\\" .. ns.ADDON_FOLDER .. "\\Art\\"   -- textures made by tools/gen_art.py
 
@@ -211,7 +211,7 @@ function UI.CardIcon(id)
   return UI.Icon(Cards.byId[id].icon)
 end
 
--- For /deckhand icons: cards whose preferred icon isn't on this client.
+-- For /tradewinds icons: cards whose preferred icon isn't on this client.
 function UI.MissingIcons()
   local out = {}
   if not GetFileIDFromPath then return { "This client can't check icons (no GetFileIDFromPath)." } end
@@ -323,31 +323,72 @@ function UI.AttachShake(owner)
 end
 
 -- ---------------------------------------------------------------------------
--- Card frame. The frame art is three layers: the icon, the card body with a
--- window over the icon (Art/CardBase), and a grey border tinted by rarity
--- (Art/CardBorder). Positions come from the texture's layout (tools/gen_art.py)
--- scaled by K.
+-- Card frame. Back to front: the icon (through a hole in the body), the body
+-- (Art/CardUnit or Art/CardTactic: bronze and parchment for units, indigo
+-- and vellum for tactics; the picture's glow and the icon's frame are part
+-- of it), the rim (Art/CardRim, grey, tinted by
+-- rarity), then the gems, the stats and the text. Positions are the
+-- textures' layout in texture pixels (tools/gen_art.py), scaled by K.
+--
+-- The icon is shown whole and square, at about the size the game shows its
+-- own: the game's icons are small pictures and look blocky stretched.
+--
+-- The card is UI.CARD_W x UI.CARD_H at scale 1. A page that wants it bigger
+-- or smaller calls card:SetBaseScale(s) and makes its cell s times the size.
 -- ---------------------------------------------------------------------------
 local Card = {}
 local K = UI.CARD_W / 256      -- texture pixels to screen units
-local V = 358 / 512            -- the card fills the top of its 256x512 texture
-local ART_BOX = { 16, 16, 240, 166 }
-local NAME_BOX = { 10, 158, 246, 214 }
-local TEXT_BOX = { 16, 220, 240, 320 }
+local V = 357 / 512            -- the card fills the top of its 256x512 texture
+local ART_BOX = { 14, 14, 242, 146 }   -- the picture
+local ICON_BOX = { 78, 25, 178, 125 }  -- the icon in its frame, in the middle of the picture
+local NAME_BOX = { 8, 136, 248, 170 }
+local TYPE_BOX = { 20, 170, 236, 195 }
+local TEXT_BOX = { unit = { 16, 199, 240, 310 }, tactic = { 16, 199, 240, 332 } }
+local TEXT_INSET = { unit = { 7, 4, 7, 26 }, tactic = { 7, 4, 7, 6 } }   -- the text stays clear of the stats
+local GEM_Y = { unit = 333, tactic = 342 }
+local GLOW_PAD, GLOW_V = 22 * K, 342 / 512   -- Art/CardGlow: the card plus 22 texture pixels all round
+local STAT = 30                -- stat badge size
+local GEM = 13                 -- rarity gem size
 UI.CARD_V = V
--- Where the art sits on the card (x, y from the top left, width, height).
-UI.CARD_ART = { ART_BOX[1] * K, ART_BOX[2] * K, (ART_BOX[3] - ART_BOX[1]) * K, (ART_BOX[4] - ART_BOX[2]) * K }
-local KEYWORD_COLOR = "|cff1c3f7a"
+-- Where the icon sits on the card (x, y from the top left, width, height).
+UI.CARD_ART = { ICON_BOX[1] * K, ICON_BOX[2] * K, (ICON_BOX[3] - ICON_BOX[1]) * K, (ICON_BOX[4] - ICON_BOX[2]) * K }
+UI.ICON_COORDS = { 0.08, 0.92, 0.08, 0.92 }   -- an icon without its own border
 
-local function badge(b, file, point, x, y, r, g, bl)
+-- Colours that depend on the kind of card: the body, the type line's text,
+-- keywords, rules text and the flavour line on a card with no rules.
+local KIND = {
+  unit = { body = "CardUnit", type = { 1, 0.93, 0.77 }, kw = "|cff183a78", rules = { 0.16, 0.11, 0.06 },
+    flavor = { 0.47, 0.38, 0.26 } },
+  tactic = { body = "CardTactic", type = { 0.91, 0.92, 1 }, kw = "|cff3c2882", rules = { 0.12, 0.10, 0.2 },
+    flavor = { 0.36, 0.34, 0.5 } },
+}
+
+local function place(fs, card, box, inset)
+  inset = inset or { 0, 0, 0, 0 }
+  fs:ClearAllPoints()
+  fs:SetPoint("TOPLEFT", card, "TOPLEFT", (box[1] + inset[1]) * K, -(box[2] + inset[2]) * K)
+  fs:SetSize((box[3] - box[1] - inset[1] - inset[3]) * K, (box[4] - box[2] - inset[2] - inset[4]) * K)
+end
+
+local function stat(b, file, point, x, y)
   local t = b:CreateTexture(nil, "OVERLAY", nil, 1)
   t:SetTexture(UI.ART .. file)
-  t:SetSize(25, 25)
+  t:SetSize(STAT, STAT)
   t:SetPoint("CENTER", b, point, x, y)
-  t:SetVertexColor(r, g, bl)
-  local fs = UI.Text(b, 13, "OUTLINE")
-  fs:SetPoint("CENTER", t, "CENTER", 0, 0)
+  local fs = UI.Text(b, 16, "OUTLINE")
+  fs:SetPoint("CENTER", t, "CENTER", 0, 0.5)
   return t, fs
+end
+
+-- The card's own glow, behind it (selected) or over it (under the mouse).
+local function glow(b, layer, sub)
+  local t = b:CreateTexture(nil, layer, nil, sub)
+  t:SetPoint("TOPLEFT", -GLOW_PAD, GLOW_PAD)
+  t:SetPoint("BOTTOMRIGHT", GLOW_PAD, -GLOW_PAD)
+  t:SetTexture(UI.ART .. "CardGlow")
+  t:SetTexCoord(0, 1, 0, GLOW_V)
+  t:SetBlendMode("ADD")
+  return t
 end
 
 function UI.CreateCard(parent)
@@ -355,12 +396,17 @@ function UI.CreateCard(parent)
   b:SetSize(UI.CARD_W, UI.CARD_H)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-  b.art = b:CreateTexture(nil, "BACKGROUND")
-  b.art:SetPoint("TOPLEFT", ART_BOX[1] * K, -ART_BOX[2] * K)
-  b.art:SetSize((ART_BOX[3] - ART_BOX[1]) * K, (ART_BOX[4] - ART_BOX[2]) * K)
-  b.art:SetTexCoord(0.08, 0.92, 0.22, 0.78)
+  -- selected: a gold glow round the card
+  b.sel = glow(b, "BACKGROUND", -8)
+  b.sel:SetVertexColor(1, 0.8, 0.2)
+  b.sel:Hide()
 
-  -- holographic foil over the art, and a prismatic ring over the border
+  b.art = b:CreateTexture(nil, "BACKGROUND")
+  b.art:SetPoint("TOPLEFT", UI.CARD_ART[1], -UI.CARD_ART[2])
+  b.art:SetSize(UI.CARD_ART[3], UI.CARD_ART[4])
+  b.art:SetTexCoord(unpack(UI.ICON_COORDS))
+
+  -- holographic foil over the art, and a prismatic ring over the rim
   -- (shown on holographic cards only; UI.HoloTick animates them)
   b.foil = b:CreateTexture(nil, "BACKGROUND", nil, 1)
   b.foil:SetAllPoints(b.art)
@@ -371,13 +417,13 @@ function UI.CreateCard(parent)
 
   b.base = b:CreateTexture(nil, "BORDER")
   b.base:SetAllPoints()
-  b.base:SetTexture(UI.ART .. "CardBase")
+  b.base:SetTexture(UI.ART .. "CardUnit")
   b.base:SetTexCoord(0, 1, 0, V)
 
-  b.frame = b:CreateTexture(nil, "ARTWORK")
-  b.frame:SetAllPoints()
-  b.frame:SetTexture(UI.ART .. "CardBorder")
-  b.frame:SetTexCoord(0, 1, 0, V)
+  b.rim = b:CreateTexture(nil, "ARTWORK")
+  b.rim:SetAllPoints()
+  b.rim:SetTexture(UI.ART .. "CardRim")
+  b.rim:SetTexCoord(0, 1, 0, V)
 
   b.ring = b:CreateTexture(nil, "ARTWORK", nil, 1)
   b.ring:SetAllPoints()
@@ -386,36 +432,43 @@ function UI.CreateCard(parent)
   b.ring:SetBlendMode("ADD")
   b.ring:Hide()
 
-  b.name = UI.Text(b, 8)
-  b.name:SetPoint("CENTER", b, "TOP", 0, -(NAME_BOX[2] + NAME_BOX[4]) / 2 * K)
-  b.name:SetSize((NAME_BOX[3] - NAME_BOX[1] - 8) * K, (NAME_BOX[4] - NAME_BOX[2]) * K)
+  b.name = UI.Text(b, 11)
+  place(b.name, b, NAME_BOX, { 8, 1, 8, 1 })
   b.name:SetJustifyH("CENTER")
   b.name:SetJustifyV("MIDDLE")
   b.name:SetWordWrap(true)
-  b.name:SetTextColor(0.98, 0.94, 0.84)
+  b.name:SetTextColor(0.99, 0.96, 0.87)
 
-  -- keywords and the card's short rules text, on the parchment
-  b.text = UI.Text(b, 8)
-  b.text:SetPoint("CENTER", b, "TOP", 0, -(TEXT_BOX[2] + TEXT_BOX[4]) / 2 * K)
-  b.text:SetSize((TEXT_BOX[3] - TEXT_BOX[1] - 10) * K, (TEXT_BOX[4] - TEXT_BOX[2] - 6) * K)
+  -- "Beast unit", "Tactic: enemy lane"
+  b.typeText = UI.Text(b, 9)
+  place(b.typeText, b, TYPE_BOX, { 5, 0, 5, 1 })
+  b.typeText:SetJustifyH("CENTER")
+  b.typeText:SetJustifyV("MIDDLE")
+  b.typeText:SetWordWrap(false)
+
+  -- keywords and the card's short rules text, in the box
+  b.text = UI.Text(b, 10)
   b.text:SetJustifyH("CENTER")
   b.text:SetJustifyV("MIDDLE")
   b.text:SetWordWrap(true)
-  b.text:SetTextColor(0.18, 0.13, 0.08)
   b.text:SetShadowOffset(0, 0)
 
-  b.costBg, b.cost = badge(b, "Gem", "TOPLEFT", 8, -8, 0.24, 0.47, 1)
-  b.atkBg, b.atk = badge(b, "BadgeAttack", "BOTTOMLEFT", 8, 8, 1, 0.59, 0.16)
-  b.hpBg, b.hp = badge(b, "BadgeHealth", "BOTTOMRIGHT", -8, 8, 0.88, 0.2, 0.2)
+  b.gem = b:CreateTexture(nil, "OVERLAY", nil, 1)
+  b.gem:SetTexture(UI.ART .. "RarityGem")
+  b.gem:SetSize(GEM, GEM)
 
-  b.typeText = UI.Text(b, 8)
-  b.typeText:SetPoint("BOTTOM", 0, 3)
-  b.typeText:SetWidth(UI.CARD_W - 10)
-  b.typeText:SetWordWrap(false)
-  b.typeText:SetTextColor(0.75, 0.72, 0.62)
+  b.costBg, b.cost = stat(b, "StatCost", "TOPLEFT", 14, -14)
+  b.atkBg, b.atk = stat(b, "StatAttack", "BOTTOMLEFT", 15, 16)
+  b.hpBg, b.hp = stat(b, "StatHealth", "BOTTOMRIGHT", -15, 16)
 
+  -- a word over the art ("Frozen", "dies"), on a dark bar so it reads
+  b.tagBg = b:CreateTexture(nil, "OVERLAY", nil, 3)
+  b.tagBg:SetTexture(UI.ART .. "Pill")
+  b.tagBg:SetVertexColor(0, 0, 0, 0.75)
+  b.tagBg:Hide()
   b.tag = UI.Text(b, 11, "OUTLINE")
-  b.tag:SetPoint("TOP", b.art, "TOP", 0, -3)
+  b.tag:SetPoint("CENTER", b, "TOPLEFT", UI.CARD_W / 2, -(ART_BOX[2] * K + 10))
+  b.tagBg:SetPoint("CENTER", b.tag, "CENTER", 0, 0)
 
   -- frozen: ice over the card; stealthed: a dark veil over the art
   b.frost = b:CreateTexture(nil, "OVERLAY", nil, 2)
@@ -430,11 +483,16 @@ function UI.CreateCard(parent)
   b.veil:SetColorTexture(0.12, 0.05, 0.2, 0.55)
   b.veil:Hide()
 
-  b.dim = b:CreateTexture(nil, "OVERLAY", nil, 7)
-  b.dim:SetPoint("TOPLEFT", 2, -2)
-  b.dim:SetPoint("BOTTOMRIGHT", -2, 2)
+  -- can't be played: a shade over everything, the text included
+  b.shade = CreateFrame("Frame", nil, b)
+  b.shade:SetPoint("TOPLEFT", 2, -2)
+  b.shade:SetPoint("BOTTOMRIGHT", -2, 2)
+  b.shade:SetFrameLevel(b:GetFrameLevel() + 2)
+  b.shade:EnableMouse(false)
+  b.dim = b.shade:CreateTexture(nil, "OVERLAY")
+  b.dim:SetAllPoints()
   b.dim:SetColorTexture(0, 0, 0, 0.55)
-  b.dim:Hide()
+  b.shade:Hide()
 
   -- card back (unopened pack cards)
   b.back = CreateFrame("Frame", nil, b)
@@ -444,49 +502,65 @@ function UI.CreateCard(parent)
   b.back.tex:SetAllPoints()
   b.back.tex:SetTexture(UI.ART .. "CardBack")
   b.back.tex:SetTexCoord(0, 1, 0, V)
-  b.back.text = UI.Text(b.back, 9)
-  b.back.text:SetPoint("BOTTOM", 0, 12)
+  b.back.text = UI.Text(b.back, 10)
+  b.back.text:SetPoint("BOTTOM", 0, 14)
   b.back.text:SetText(L["click"])
   b.back.text:SetTextColor(0.85, 0.75, 0.5)
   b.back:EnableMouse(false)
   b.back:Hide()
 
-  -- under the mouse: the card's own border lights up gold (textures in the
-  -- HIGHLIGHT layer are only drawn while the mouse is over the frame)
-  b.glow = b:CreateTexture(nil, "HIGHLIGHT")
-  b.glow:SetAllPoints()
-  b.glow:SetTexture(UI.ART .. "CardBorder")
-  b.glow:SetTexCoord(0, 1, 0, V)
-  b.glow:SetVertexColor(1, 0.8, 0.25)
-  b.glow:SetBlendMode("ADD")
-  b.wash = b:CreateTexture(nil, "HIGHLIGHT")
-  b.wash:SetPoint("TOPLEFT", 4, -4)
-  b.wash:SetPoint("BOTTOMRIGHT", -4, 4)
-  b.wash:SetColorTexture(1, 0.9, 0.6, 0.10)
-  b.wash:SetBlendMode("ADD")
+  -- under the mouse: a gold glow round the card (textures in the HIGHLIGHT
+  -- layer are only drawn while the mouse is over the frame)
+  b.glow = glow(b, "HIGHLIGHT")
+  b.glow:SetVertexColor(1, 0.85, 0.4, 0.75)
   UI.AttachFlash(b)
   UI.AttachFloat(b)
   UI.AttachLunge(b)
   UI.AttachShake(b)
 
   for k, v in pairs(Card) do b[k] = v end
+  b.baseScale = 1
   b:SetScript("OnEnter", b.ShowTooltip)
   b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   return b
 end
 
--- What's printed on the card: its keywords, then its short rules text.
+-- What's printed in the box: its keywords, then its short rules text. A unit
+-- with neither shows its flavour line instead.
 local function faceText(c, kw)
+  local look = KIND[c.type] or KIND.unit
   local names = {}
   for _, k in ipairs(Cards.KeywordList(kw)) do names[#names + 1] = k.name end
   local parts = {}
-  if #names > 0 then parts[1] = KEYWORD_COLOR .. table.concat(names, ", ") .. "|r" end
+  if #names > 0 then parts[1] = look.kw .. table.concat(names, ", ") .. "|r" end
   if c.short then parts[#parts + 1] = c.short end
   return table.concat(parts, "\n")
 end
 UI.FaceText = faceText
 
 local TACTIC_LABEL = { enemy = L["Tactic: enemy lane"], friend = L["Tactic: your unit"], none = L["Tactic"] }
+
+-- The type line: "Beast unit", "Unit", "Tactic: enemy lane".
+function UI.TypeLine(c)
+  if c.type == "unit" then
+    return c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"]
+  end
+  return TACTIC_LABEL[c.target] or L["Tactic"]
+end
+
+-- Body, box and colours for a unit or a tactic.
+function Card:SetKind(kind)
+  if self.kind == kind then return end
+  self.kind = kind
+  local look = KIND[kind]
+  self.base:SetTexture(UI.ART .. look.body)
+  self.typeText:SetTextColor(look.type[1], look.type[2], look.type[3])
+  place(self.text, self, TEXT_BOX[kind], TEXT_INSET[kind])
+  self.gem:ClearAllPoints()
+  self.gem:SetPoint("CENTER", self, "TOPLEFT", UI.CARD_W / 2, -GEM_Y[kind] * K)
+  local unit = kind == "unit"
+  self.atk:SetShown(unit); self.atkBg:SetShown(unit); self.hp:SetShown(unit); self.hpBg:SetShown(unit)
+end
 
 -- id: card; unit: a unit on the board (current stats) or nil; st: the game or
 -- replay view the unit is in (for attack bonuses); holo: draw it holographic.
@@ -495,18 +569,24 @@ function Card:SetCard(id, unit, st, holo)
   self.cardId, self.unit, self.st = id, unit, st
   self.back:Hide()
   self:SetHolo(holo)
+  self:SetKind(c.type == "unit" and "unit" or "tactic")
+  local look = KIND[self.kind]
   self.art:SetTexture(UI.CardIcon(id))
   self.art:SetVertexColor(1, 1, 1)
   self.art:SetDesaturated(false)
   self.cost:SetText(c.cost)
-  UI.FitText(self.name, c.name, 6)
+  UI.FitText(self.name, c.name, 7)
+  UI.FitText(self.typeText, UI.TypeLine(c), 6)
   self.border = BORDER_COLOR[c.rarity]
-  self.frame:SetVertexColor(self.border[1], self.border[2], self.border[3])
-  self.tag:SetText("")
+  self.rim:SetVertexColor(self.border[1], self.border[2], self.border[3])
+  local rc = UI.RARITY_COLOR[c.rarity]
+  self.gem:SetVertexColor(rc[1], rc[2], rc[3])
+  self:SetTag(nil)
   self.frost:Hide()
   self.veil:Hide()
+  local kw = c.kw
   if c.type == "unit" then
-    local atk, hp, maxHp, kw = c.atk, c.hp, c.hp, c.kw
+    local atk, hp, maxHp = c.atk, c.hp, c.hp
     if unit then
       atk = st and R.Attack(st, unit) or unit.atk
       hp, maxHp, kw = unit.hp, unit.maxHp, unit.kw
@@ -519,24 +599,23 @@ function Card:SetCard(id, unit, st, holo)
     if hp < maxHp then self.hp:SetTextColor(1, 0.75, 0.2)
     elseif maxHp > c.hp then self.hp:SetTextColor(0.3, 1, 0.3)
     else self.hp:SetTextColor(1, 1, 1) end
-    self.atk:Show(); self.atkBg:Show(); self.hp:Show(); self.hpBg:Show()
-    UI.FitText(self.text, faceText(c, kw), 6)
-    self.typeText:SetText("")
     if unit and unit.frozen then
       self.art:SetVertexColor(0.55, 0.75, 1)
       self.frost:Show()
-      self.tag:SetText(L["Frozen"])
-      self.tag:SetTextColor(0.6, 0.85, 1)
+      self:SetTag(L["Frozen"], 0.6, 0.85, 1)
     elseif unit and kw.stealth then
       self.art:SetVertexColor(0.6, 0.6, 0.7)
       self.veil:Show()
-      self.tag:SetText(L["Stealth"])
-      self.tag:SetTextColor(0.8, 0.7, 1)
+      self:SetTag(L["Stealth"], 0.8, 0.7, 1)
     end
+  end
+  local text = faceText(c, kw)
+  if text == "" and c.flavor then
+    self.text:SetTextColor(look.flavor[1], look.flavor[2], look.flavor[3])
+    UI.FitText(self.text, L["\"%s\""]:format(c.flavor), 7)
   else
-    self.atk:Hide(); self.atkBg:Hide(); self.hp:Hide(); self.hpBg:Hide()
-    UI.FitText(self.text, c.short or "", 6)
-    UI.FitText(self.typeText, TACTIC_LABEL[c.target] or L["Tactic"], 6)
+    self.text:SetTextColor(look.rules[1], look.rules[2], look.rules[3])
+    UI.FitText(self.text, text, 7)
   end
   self:SetDim(false)
   self:SetAlpha(1)
@@ -546,9 +625,17 @@ end
 function Card:SetBack(text)
   self.cardId, self.unit = nil, nil
   self:SetHolo(false)
+  self:SetSelected(false)
   self.back.text:SetText(text or L["click"])
   self.back:Show()
   self:Show()
+end
+
+-- The card's size on its page (1 is UI.CARD_W x UI.CARD_H). Effects that
+-- pop the card (FX.Arrive) scale it relative to this.
+function Card:SetBaseScale(s)
+  self.baseScale = s or 1
+  self:SetScale(self.baseScale)
 end
 
 -- Holographic cards: the foil slides across the art and the ring brightens
@@ -591,18 +678,23 @@ function Card:SetHolo(on)
 end
 
 function Card:SetDim(on)
-  self.dim:SetShown(on and true or false)
+  self.shade:SetShown(on and true or false)
 end
 
--- Gold border when selected, back to the rarity colour otherwise.
+-- A gold glow round the card while it's selected.
 function Card:SetSelected(on)
-  local col = on and { 1, 0.86, 0.2 } or self.border or BORDER_COLOR.common
-  self.frame:SetVertexColor(col[1], col[2], col[3])
+  self.sel:SetShown(on and true or false)
 end
 
 function Card:SetTag(text, r, g, b)
   self.tag:SetText(text or "")
   self.tag:SetTextColor(r or 1, g or 1, b or 1)
+  if text and text ~= "" then
+    self.tagBg:SetSize((self.tag:GetStringWidth() or 0) + 14, 17)
+    self.tagBg:Show()
+  else
+    self.tagBg:Hide()
+  end
 end
 
 function Card:ShowTooltip()

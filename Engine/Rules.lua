@@ -1,4 +1,4 @@
--- Deckhand rules engine.
+-- Tradewinds rules engine.
 --
 -- Pure Lua 5.1 with no WoW API calls, so the same code runs in the client, in
 -- the tests (tests/run_tests.py) and, later, on both ends of a PvP match: give
@@ -55,7 +55,7 @@ for i, k in ipairs(R.KEYWORDS) do k.order = i; R.KEYWORD[k.key] = k end
 
 local function card(id)
   local c = ns.Cards and ns.Cards.byId[id]
-  if not c then error("Deckhand: unknown card " .. tostring(id), 2) end
+  if not c then error("Tradewinds: unknown card " .. tostring(id), 2) end
   return c
 end
 R.Card = card
@@ -659,10 +659,10 @@ end
 -- Play one round. plans = { plan1, plan2 }. opts.noAdvance stops before the
 -- next round starts (the AI evaluates the board right after combat).
 function R.Resolve(st, plans, opts)
-  if st.winner then error("Deckhand: the game is over", 2) end
+  if st.winner then error("Tradewinds: the game is over", 2) end
   for p = 1, 2 do
     local ok, err = R.CheckPlan(st, p, plans[p] or {})
-    if not ok then error("Deckhand: bad plan for player " .. p .. ": " .. tostring(err), 2) end
+    if not ok then error("Tradewinds: bad plan for player " .. p .. ": " .. tostring(err), 2) end
   end
   local a, b = order(st)
 

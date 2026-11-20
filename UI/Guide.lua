@@ -70,7 +70,7 @@ local CARD_TEXT = table.concat({
   L["|cffffffffTactic|r  no target needed."],
   "",
   heading(L["Tribes"]),
-  L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is in its tooltip, and the Cards tab can filter by tribe."],
+  L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."],
   "",
   heading(L["Summoned units"]),
   L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."],

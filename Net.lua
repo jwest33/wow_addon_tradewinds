@@ -37,7 +37,7 @@ local L = ns.L
 local N = {}
 ns.Net = N
 
-N.PREFIX = "Deckhand"
+N.PREFIX = "Tradewinds"
 N.PROTO = 2
 N.ANSWER_SECONDS = 60         -- how long a challenge waits for an answer
 N.RESEND = { 5, 15, 45, 120 } -- seconds between resends of an unanswered plan
@@ -359,7 +359,7 @@ local H = {}
 local REASONS = {
   busy = L["%s is busy answering another challenge. Try again in a minute."],
   declined = L["%s declined your challenge."],
-  version = L["%s has a different version of Deckhand (%s). You both need the same one."],
+  version = L["%s has a different version of Tradewinds (%s). You both need the same one."],
   timeout = L["%s didn't answer your challenge."],
   deck = L["%s can't start a game right now (their deck isn't ready, or they have too many games going)."],
   already = L["You already have a game going with %s."],
@@ -369,14 +369,14 @@ local REASONS = {
 function H.CH(sender, nonce, proto, rules, cards, version)
   if tonumber(proto) ~= N.PROTO or tonumber(rules) ~= ns.Rules.RULES_VERSION or cards ~= N.CardSum() then
     send(sender, "NO", nonce, "version", ns.VERSION)
-    ns.Print(L["%s challenged you, but you have different versions of Deckhand (theirs %s, yours %s). You both need the same one."],
+    ns.Print(L["%s challenged you, but you have different versions of Tradewinds (theirs %s, yours %s). You both need the same one."],
       short(sender), tostring(version), ns.VERSION)
     return
   end
   if N.GameWith(sender) then send(sender, "NO", nonce, "already", ns.VERSION) return end
   if count() >= ns.Collection.MAX_GAMES then
     send(sender, "NO", nonce, "full", ns.VERSION)
-    ns.Print(L["%s challenged you to Deckhand, but you have %d games going against players. Finish one first."],
+    ns.Print(L["%s challenged you to Tradewinds, but you have %d games going against players. Finish one first."],
       short(sender), ns.Collection.MAX_GAMES)
     return
   end
@@ -533,7 +533,7 @@ end
 function N.Tick()
   local t = now()
   if out and t - out.at > N.ANSWER_SECONDS + 5 then
-    ns.Print(L["%s didn't answer. They need to be online, with the same version of Deckhand."], short(out.name))
+    ns.Print(L["%s didn't answer. They need to be online, with the same version of Tradewinds."], short(out.name))
     out = nil
     refresh()
   end

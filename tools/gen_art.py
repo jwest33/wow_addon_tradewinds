@@ -1,16 +1,17 @@
-"""Generates Deckhand's textures into Art/ (32-bit TGA, power-of-two sizes).
+"""Generates Tradewinds's textures into Art/ (32-bit TGA, power-of-two sizes).
 
     pip install pillow numpy
     python tools/gen_art.py              # write Art/*.tga
-    python tools/gen_art.py mock.png     # also write a preview sheet
+    python tools/gen_art.py mock.png     # also write a preview sheet of cards
 
-Everything is drawn at 4x and scaled down, so edges are smooth. Border, gem
-and badge textures are grey on purpose: the addon tints them (rarity colour,
-cost blue, attack orange, health red) with SetVertexColor.
+Everything is drawn at 4x and scaled down, so edges are smooth. The card's
+rim, the rarity gem and the star are grey on purpose: the addon tints them
+with SetVertexColor. The stat badges and the card bodies are in full colour.
 
-The card occupies the top 256x358 of its 256x512 texture: use
-SetTexCoord(0, 1, 0, 358/512).
+The card occupies the top 256x357 of its 256x512 texture: use
+SetTexCoord(0, 1, 0, 357/512).
 """
+import math
 import pathlib
 import sys
 
@@ -18,7 +19,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 S = 4
-CW, CH = 256, 358
+CW, CH = 256, 357
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "Art"
 rng = np.random.default_rng(7)
@@ -97,39 +98,215 @@ def finish(img, w, h, name, canvas=None):
 
 
 # ---------------------------------------------------------------------------
-# Keep these in step with the layout numbers in UI/Widgets.lua.
-ART = [16, 16, 240, 166]      # transparent window the icon shows through
-NAME = [10, 158, 246, 214]    # two lines of name
-TEXT = [16, 220, 240, 320]    # keywords and rules text
+# The card face. Keep these in step with the layout numbers in UI/Widgets.lua.
+# Card pixels: the card is 256 x 357 at the top of a 256 x 512 texture and is
+# 112 x 156 on screen (UI.CARD_W, UI.CARD_H).
+#
+# Four layers, back to front: the icon (through its hole), the body (CardUnit
+# or CardTactic: everything but the rim, the picture's glow and the icon's
+# frame included), the rim (CardRim, grey, tinted by rarity), then the gems
+# and the text.
+ART = [14, 14, 242, 146]       # the picture: a glow in the body's colours
+ICON = [78, 25, 178, 125]      # the icon, whole and square, framed in its middle
+NAME = [8, 136, 248, 170]      # name banner, over the art's bottom edge
+TYPE = [20, 170, 236, 195]     # type line: "Beast unit", "Tactic: enemy lane"
+TEXT = {"unit": [16, 199, 240, 310], "tactic": [16, 199, 240, 332]}   # rules box
+GEM_Y = {"unit": 333, "tactic": 342}                                  # rarity gem
+GLOW_PAD = 22                  # CardGlow: the card plus this much on every side
+
+# Units: warm wood and bronze, parchment. Tactics: deep indigo and silver,
+# cool vellum. The shapes are the same on both, in the body's own colours.
+PAL = {
+    "unit": dict(
+        body=((70, 54, 40), (34, 26, 19)), edge=(206, 168, 100), edge2=(120, 88, 46),
+        banner=((54, 42, 31), (26, 20, 14)), plate=((112, 84, 48), (70, 51, 28)),
+        box=((240, 230, 204), (218, 202, 166)), boxedge=(108, 80, 46), shade=(90, 66, 40),
+        glow=(132, 96, 58), dark=(26, 19, 13)),
+    "tactic": dict(
+        body=((52, 50, 98), (22, 20, 50)), edge=(176, 190, 236), edge2=(88, 92, 150),
+        banner=((44, 38, 86), (20, 17, 44)), plate=((84, 70, 156), (50, 41, 104)),
+        box=((232, 232, 244), (206, 204, 228)), boxedge=(86, 80, 140), shade=(60, 56, 110),
+        glow=(90, 82, 180), dark=(15, 13, 38)),
+}
 
 
-def card_base():
+def grow(box, d):
+    return [box[0] - d, box[1] - d, box[2] + d, box[3] + d]
+
+
+def window(kind, box):
+    return rmask(CW, CH, box, 6)
+
+
+def inner_shadow(hole, px, strength):
+    """A darkening just inside the edge of `hole` (an L mask at S scale)."""
+    blur = ImageChops.invert(hole).filter(ImageFilter.GaussianBlur(px * S))
+    a = np.asarray(blur, "float32") / 255 * np.asarray(hole, "float32") / 255
+    a = np.clip(a * 2.0, 0, 1) * strength
+    return Image.fromarray((a * 255).astype("uint8"), "L")
+
+
+def overlay(img, rgb, alpha):
+    layer = Image.new("RGBA", img.size, tuple(rgb) + (0,))
+    layer.putalpha(alpha)
+    return Image.alpha_composite(img, layer)
+
+
+def backdrop(kind):
+    """The picture behind the icon: a soft glow from the middle, in the
+    body's colours (rays of light on a tactic)."""
+    p = PAL[kind]
+    yy, xx = np.mgrid[0:CH * S, 0:CW * S].astype("float32") / S
+    cx, cy = (ICON[0] + ICON[2]) / 2, (ICON[1] + ICON[3]) / 2
+    t = np.clip(np.hypot((xx - cx) / 1.3, yy - cy) / 105, 0, 1) ** 0.85
+    glow, dark = np.array(p["glow"], "float32"), np.array(p["dark"], "float32")
+    rgb = glow[None, None, :] * (1 - t[:, :, None]) + dark[None, None, :] * t[:, :, None]
+    if kind == "tactic":
+        rays = (np.cos(np.arctan2(yy - cy, xx - cx) * 14) * 0.5 + 0.5) ** 5 * (1 - t) * 26
+        rgb = rgb + rays[:, :, None] * np.array([0.75, 0.75, 1.0], "float32")[None, None, :]
+    return grain(Image.fromarray(np.clip(rgb, 0, 255).astype("uint8"), "RGB"), 5)
+
+
+def card_body(kind):
+    p = PAL[kind]
     img = new(CW, CH)
-    body = grain(vgrad(CW, CH, (50, 41, 32), (24, 20, 16)), 7)
-    put(img, body, rmask(CW, CH, [5, 5, CW - 5, CH - 5], 11))
-    cut(img, rmask(CW, CH, ART, 4))
-    stroke(img, CW, CH, [ART[0] - 2, ART[1] - 2, ART[2] + 2, ART[3] + 2], 6, (14, 11, 8), 2)
-    # name banner, over the bottom edge of the art
-    put(img, grain(vgrad(CW, CH, (86, 66, 40), (46, 35, 22), NAME[1], NAME[3]), 5), rmask(CW, CH, NAME, 3))
-    stroke(img, CW, CH, NAME, 3, (168, 134, 66), 1.5)
-    stroke(img, CW, CH, [NAME[0] + 1.5, NAME[1] + 1.5, NAME[2] - 1.5, NAME[3] - 1.5], 2, (30, 22, 14), 1)
-    # rules box: parchment
-    parch = grain(grain(vgrad(CW, CH, (222, 204, 166), (190, 168, 128), TEXT[1], TEXT[3]), 10, blur=3), 5)
-    put(img, parch, rmask(CW, CH, TEXT, 5))
-    stroke(img, CW, CH, TEXT, 5, (84, 64, 40), 1.5)
-    stroke(img, CW, CH, [TEXT[0] + 1.5, TEXT[1] + 1.5, TEXT[2] - 1.5, TEXT[3] - 1.5], 4, (236, 222, 190), 1)
-    return finish(img, CW, CH, "CardBase", (256, 512))
+    body = vgrad(CW, CH, *p["body"])
+    body = grain(grain(body, 7, stretch=(1, 18 * S)), 3) if kind == "unit" else grain(grain(body, 5, blur=6), 3)
+    put(img, body, rmask(CW, CH, [3, 3, CW - 3, CH - 3], 13))
+    if kind == "tactic":   # faint arcane circles behind the panels
+        d = ImageDraw.Draw(img)
+        for r, wdt in ((150, 1.2), (128, 0.8)):
+            cx, cy = CW / 2, 250
+            d.ellipse([(cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S], outline=(84, 82, 150, 255),
+                      width=int(wdt * S))
+    # the picture: a metal edge, a dark line, the glow, shaded at its edges
+    win = window(kind, ART)
+    put(img, vgrad(CW, CH, p["edge"], p["edge2"], ART[1], ART[3]), minus(window(kind, grow(ART, 3)), win))
+    put(img, flat(CW, CH, (12, 9, 7)), minus(window(kind, grow(ART, 1)), win))
+    put(img, backdrop(kind), win)
+    img = overlay(img, (0, 0, 0), inner_shadow(win, 4, 0.7))
+    # the icon's frame, casting a shadow on the glow, and the hole the icon
+    # shows through
+    shadow = ImageChops.offset(rmask(CW, CH, grow(ICON, 5), 6), 0, 2 * S).filter(ImageFilter.GaussianBlur(4 * S))
+    img = overlay(img, (0, 0, 0), ImageChops.multiply(shadow, Image.new("L", shadow.size, 170)))
+    put(img, flat(CW, CH, (12, 9, 7)), rmask(CW, CH, grow(ICON, 5), 5))
+    put(img, vgrad(CW, CH, p["edge"], p["edge2"], ICON[1] - 4, ICON[3] + 4), rmask(CW, CH, grow(ICON, 4), 4))
+    stroke(img, CW, CH, grow(ICON, 4), 4, tuple(min(255, v + 40) for v in p["edge"]), 0.8)
+    put(img, flat(CW, CH, (12, 9, 7)), rmask(CW, CH, grow(ICON, 1.2), 2.5))
+    hole = rmask(CW, CH, ICON, 2)
+    cut(img, hole)
+    img = overlay(img, (0, 0, 0), inner_shadow(hole, 3, 0.45))
+    # name banner across the bottom of the art
+    put(img, vgrad(CW, CH, *p["banner"], NAME[1], NAME[3]), rmask(CW, CH, NAME, 3))
+    stroke(img, CW, CH, NAME, 3, p["edge"], 2)
+    stroke(img, CW, CH, grow(NAME, -2), 2, (10, 8, 6), 1)
+    shine = minus(rmask(CW, CH, grow(NAME, -3), 2), rmask(CW, CH, [NAME[0] + 3, NAME[1] + 4.5, NAME[2] - 3, NAME[3]], 2))
+    put(img, flat(CW, CH, (255, 255, 255)), ImageChops.multiply(shine, Image.new("L", shine.size, 40)))
+    # type line, hanging under the banner
+    tb = [TYPE[0], TYPE[1] - 6, TYPE[2], TYPE[3]]
+    above = rmask(CW, CH, [0, 0, CW, TYPE[1] - 0.5], 0)
+    put(img, flat(CW, CH, (10, 8, 6)), minus(rmask(CW, CH, tb, 7), above))
+    inner = minus(rmask(CW, CH, grow(tb, -1.5), 5.5), rmask(CW, CH, [0, 0, CW, TYPE[1] + 0.5], 0))
+    put(img, grain(vgrad(CW, CH, *p["plate"], TYPE[1], TYPE[3]), 3), inner)
+    put(img, flat(CW, CH, p["edge"]), minus(rmask(CW, CH, grow(tb, -1.5), 5.5), rmask(CW, CH, grow(tb, -2.7), 4.3)))
+    put(img, flat(CW, CH, p["edge"]), rmask(CW, CH, [NAME[0] + 2, NAME[3] - 1.2, NAME[2] - 2, NAME[3] + 0.6], 0))
+    # rules box
+    t = TEXT[kind]
+    put(img, grain(grain(vgrad(CW, CH, *p["box"], t[1], t[3]), 8, blur=3), 4), rmask(CW, CH, t, 6))
+    img = overlay(img, p["shade"], inner_shadow(rmask(CW, CH, t, 6), 5, 0.35))
+    stroke(img, CW, CH, t, 6, p["boxedge"], 1.5)
+    return finish(img, CW, CH, "CardUnit" if kind == "unit" else "CardTactic", (256, 512))
 
 
-def card_border():
+def card_rim():
+    """The card's outer rim: grey, the addon tints it with the rarity colour."""
     img = new(CW, CH)
-    full = [0, 0, CW, CH]
-    stroke(img, CW, CH, full, 16, (22, 22, 22), 10)
-    ring = minus(rmask(CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 14.5), rmask(CW, CH, [8.5, 8.5, CW - 8.5, CH - 8.5], 8))
-    put(img, grain(vgrad(CW, CH, (255, 255, 255), (150, 150, 150)), 5), ring)
-    stroke(img, CW, CH, [4, 4, CW - 4, CH - 4], 12, (120, 120, 120), 1.2)   # groove
-    stroke(img, CW, CH, [2, 2, CW - 2, CH - 2], 14, (255, 255, 255), 1)     # highlight
-    return finish(img, CW, CH, "CardBorder", (256, 512))
+    outer = rmask(CW, CH, [0, 0, CW, CH], 15)
+    put(img, flat(CW, CH, (14, 14, 14)), minus(outer, rmask(CW, CH, [8, 8, CW - 8, CH - 8], 9)))
+    ring = minus(rmask(CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 13.5), rmask(CW, CH, [6.5, 6.5, CW - 6.5, CH - 6.5], 10))
+    put(img, grain(vgrad(CW, CH, (255, 255, 255), (168, 168, 168)), 4), ring)
+    stroke(img, CW, CH, [4, 4, CW - 4, CH - 4], 11.5, (132, 132, 132), 1)     # groove
+    stroke(img, CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 13.5, (255, 255, 255), 0.8)
+    return finish(img, CW, CH, "CardRim", (256, 512))
+
+
+def card_glow():
+    """A soft white glow round the card's outline, for ADD blending (hover,
+    selected). It covers the card plus GLOW_PAD on every side, squeezed to
+    256 wide at the top of a 256x512 texture."""
+    pad = GLOW_PAD
+    w, h = CW + 2 * pad, CH + 2 * pad
+    m = Image.new("L", (w * S, h * S), 0)
+    ImageDraw.Draw(m).rounded_rectangle([pad * S, pad * S, (w - pad) * S, (h - pad) * S], 15 * S, fill=255)
+    band = ImageChops.subtract(m.filter(ImageFilter.MaxFilter(9)), m.filter(ImageFilter.MinFilter(9)))
+    a = (np.asarray(band.filter(ImageFilter.GaussianBlur(9 * S)), "float32") / 255 * 3.6
+         + np.asarray(band.filter(ImageFilter.GaussianBlur(1 * S)), "float32") / 255 * 0.5)
+    inside = np.asarray(m.filter(ImageFilter.MinFilter(41)).filter(ImageFilter.GaussianBlur(4 * S)), "float32") / 255
+    a = np.clip(a, 0, 1) * (1 - inside * 0.9)
+    img = Image.new("RGBA", (w * S, h * S), (255, 255, 255, 0))
+    img.putalpha(Image.fromarray((a * 255).astype("uint8"), "L"))
+    gh = int(round(h * 256 / w))
+    return finish(img, 256, gh, "CardGlow", (256, 512))
+
+
+def shape_mask(n, kind, scale=1.0):
+    m = Image.new("L", (n * S, n * S), 0)
+    d = ImageDraw.Draw(m)
+    c = n / 2
+
+    def P(pts):
+        return [((c + (x - c) * scale) * S, (c + (y - c) * scale) * S) for x, y in pts]
+    if kind == "circle":
+        r = (n / 2 - 2) * scale
+        d.ellipse([(c - r) * S, (c - r) * S, (c + r) * S, (c + r) * S], fill=255)
+    elif kind == "hex":
+        d.polygon(P([(c, 2), (c + 28, 16), (c + 28, 48), (c, 62), (c - 28, 48), (c - 28, 16)]), fill=255)
+    elif kind == "shield":
+        pts = [(6, 6), (58, 6), (58, 30)]
+        for i in range(1, 12):
+            t = i / 12
+            pts.append((58 - 26 * t ** 0.9, 30 + 30 * math.sin(t * math.pi / 2)))
+        pts.append((32, 61))
+        for i in range(11, 0, -1):
+            t = i / 12
+            pts.append((6 + 26 * t ** 0.9, 30 + 30 * math.sin(t * math.pi / 2)))
+        d.polygon(P(pts), fill=255)
+    elif kind == "diamond":
+        d.polygon(P([(c, 2), (n - 3, c), (c, n - 2), (3, c)]), fill=255)
+    return m
+
+
+def jewel(name, kind, col, rim=(226, 190, 112), facets=0):
+    """A stat badge in full colour (64x64): dark outline, a metal rim and a
+    shaded, glossy face, cut into facets if asked."""
+    n = 64
+    img = new(n, n)
+    put(img, flat(n, n, (12, 10, 8)), shape_mask(n, kind, 1.0))
+    put(img, vgrad(n, n, rim, tuple(int(v * 0.45) for v in rim)), shape_mask(n, kind, 0.9))
+    inner = shape_mask(n, kind, 0.76)
+    yy, xx = np.mgrid[0:n * S, 0:n * S].astype("float32") / S
+    c = n / 2
+    shade = np.clip(1.28 - np.hypot(xx - c * 0.8, yy - c * 0.62) / n * 1.35, 0.42, 1.35)
+    if facets:
+        ang = np.arctan2(yy - c, xx - c)
+        sector = np.floor((ang + math.pi) / (2 * math.pi / facets)).astype(int)
+        shade = shade * np.where(sector % 2 == 0, 1.08, 0.9)
+        shade = np.where(np.hypot(xx - c, yy - c) < n * 0.17, shade * 1.12, shade)
+    rgb = np.array(col, "float32")[None, None, :] * shade[:, :, None]
+    put(img, Image.fromarray(np.clip(rgb, 0, 255).astype("uint8"), "RGB"), inner)
+    gloss = Image.new("L", (n * S, n * S), 0)
+    ImageDraw.Draw(gloss).ellipse([n * 0.18 * S, n * 0.1 * S, n * 0.82 * S, n * 0.52 * S], fill=70)
+    img = overlay(img, (255, 255, 255), ImageChops.multiply(gloss.filter(ImageFilter.GaussianBlur(3 * S)), inner))
+    return finish(img, n, n, name)
+
+
+def pill():
+    """A soft-edged rounded bar (the dark backing behind a card's tag)."""
+    w, h = 128, 32
+    img = new(w, h)
+    m = rmask(w, h, [1, 1, w - 1, h - 1], 12).filter(ImageFilter.GaussianBlur(1.2 * S))
+    put(img, flat(w, h, (255, 255, 255)), m)
+    return finish(img, w, h, "Pill")
 
 
 def anchor(d, cx, cy, col):
@@ -170,6 +347,18 @@ def card_back():
     return finish(img, CW, CH, "CardBack", (256, 512))
 
 
+def card_art():
+    """Every texture of the card face. Returns them for the preview sheet."""
+    return {
+        "unit": card_body("unit"), "tactic": card_body("tactic"), "rim": card_rim(), "glow": card_glow(),
+        "back": card_back(), "pill": pill(),
+        "cost": jewel("StatCost", "circle", (52, 112, 236), facets=8),
+        "atk": jewel("StatAttack", "hex", (236, 162, 42)),
+        "hp": jewel("StatHealth", "shield", (214, 44, 40)),
+        "gem": jewel("RarityGem", "diamond", (240, 240, 240), rim=(200, 200, 200), facets=4),
+    }
+
+
 def badge(name, pts=None):
     """A grey, tintable 64x64 badge: a circle, or the polygon `pts`."""
     n = 64
@@ -193,7 +382,6 @@ def badge(name, pts=None):
 
 def star():
     """A grey, tintable five-pointed star (ladder stars)."""
-    import math
     pts = []
     for i in range(10):
         r = 29 if i % 2 == 0 else 12.5
@@ -258,10 +446,10 @@ def holo_foil():
 
 
 def holo_ring():
-    """A prismatic ring over the card's border (same layout as CardBorder),
+    """A prismatic ring over the card's rim (same layout as CardRim),
     drawn with ADD blending on holographic cards."""
     img = new(CW, CH)
-    ring = minus(rmask(CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 14.5), rmask(CW, CH, [8.5, 8.5, CW - 8.5, CH - 8.5], 8))
+    ring = minus(rmask(CW, CH, [1.5, 1.5, CW - 1.5, CH - 1.5], 13.5), rmask(CW, CH, [6.5, 6.5, CW - 6.5, CH - 6.5], 10))
     y, x = np.mgrid[0:CH * S, 0:CW * S].astype("float32") / S
     rgb = hues((x + y) / 260.0) * 0.75 + 0.1
     put(img, Image.fromarray((np.clip(rgb, 0, 1) * 255).astype("uint8"), "RGB"), ring)
@@ -458,14 +646,6 @@ def diagrams():
 
 
 # ---------------------------------------------------------------------------
-def tint(img, col):
-    r, g, b, a = img.split()
-
-    def f(ch, c):
-        return ch.point(lambda v: v * c // 255)
-    return Image.merge("RGBA", (f(r, col[0]), f(g, col[1]), f(b, col[2]), a))
-
-
 def font(size, bold=True):
     for name in (("arialbd.ttf", "georgiab.ttf") if bold else ("arial.ttf",)):
         try:
@@ -475,46 +655,137 @@ def font(size, bold=True):
     return ImageFont.load_default()
 
 
-def mock(path, parts):
-    base, border, back, gem, hexa, shield, wood = parts
-    rar = {"common": (204, 204, 204), "uncommon": (30, 255, 0), "rare": (51, 140, 255),
-           "epic": (178, 76, 255), "legendary": (255, 128, 0)}
-    cards = [("Loch Crocolisk", "common", 3, 2, 5, ""),
-             ("Plainstrider", "uncommon", 2, 1, 3, "Arrive: restore\n2 Morale."),
-             ("Booty Bay Bruiser", "rare", 4, 3, 5, "Guard, Sturdy"),
-             ("Edwin VanCleef", "legendary", 4, 4, 3, "Swift, Stealth,\nPierce")]
 
-    def card(name, rarity, cost, atk, hp, text):
-        c = Image.new("RGBA", (CW + 24, CH + 24), (0, 0, 0, 0))
-        art = vgrad(CW, CH, (70, 110, 120), (30, 50, 70)).resize((CW, CH)).convert("RGBA")
-        ImageDraw.Draw(art).ellipse([78, 40, 178, 150], fill=(120, 160, 150, 255))
-        c.paste(art.crop((ART[0], ART[1], ART[2], ART[3])), (12 + ART[0], 12 + ART[1]))
-        c.alpha_composite(base, (12, 12))
-        c.alpha_composite(tint(border, rar[rarity]), (12, 12))
-        d = ImageDraw.Draw(c)
-        d.text((12 + CW // 2, 12 + (NAME[1] + NAME[3]) // 2), name, font=font(19), fill=(250, 240, 215), anchor="mm",
-               stroke_width=2, stroke_fill=(20, 14, 8))
-        d.multiline_text((12 + CW // 2, 12 + (TEXT[1] + TEXT[3]) // 2), text, font=font(19, False), fill=(46, 34, 20),
-                         anchor="mm", align="center")
-        for img, col, pos, val in ((gem, (60, 120, 255), (0, 0), cost), (hexa, (255, 150, 40), (0, CH - 40), atk),
-                                   (shield, (225, 50, 50), (CW - 40, CH - 40), hp)):
-            c.alpha_composite(tint(img, col), pos)
-            d.text((pos[0] + 32, pos[1] + 31), str(val), font=font(30), fill="white", anchor="mm",
-                   stroke_width=3, stroke_fill=(10, 10, 10))
-        return c
+# ---------------------------------------------------------------------------
+# Preview sheet: sample cards laid out the way UI/Widgets.lua lays them out,
+# at R screen pixels per UI unit (2.1 is a 4K screen at UI scale 0.75, 1.4 a
+# 1080p one at UI scale 1). Uses the game's font if it can find a copy.
+FONTS = [r"D:/Games/World of Warcraft/_retail_/Interface/AddOns/DialogueUI/Fonts/frizqt__.ttf", "frizqt__.ttf",
+         "arial.ttf"]
+CARD_W, CARD_H = 112, 156
+K = CARD_W / CW
+RARITY = {"common": (204, 204, 204), "uncommon": (30, 255, 0), "rare": (51, 140, 255), "epic": (178, 76, 255),
+          "legendary": (255, 128, 0)}
+RIM = {"common": (158, 158, 158), "uncommon": (69, 189, 56), "rare": (66, 128, 242), "epic": (163, 87, 230),
+       "legendary": (245, 143, 31)}
 
-    big = [card(*c) for c in cards]
-    bk = Image.new("RGBA", (CW + 24, CH + 24), (0, 0, 0, 0))
-    bk.alpha_composite(back, (12, 12))
-    big.append(bk)
-    sheet = Image.new("RGBA", (len(big) * (CW + 30) + 6, CH + 24 + 170), (0, 0, 0, 255))
-    for x in range(0, sheet.width, 512):
-        for y in range(0, sheet.height, 512):
+
+def mock_font(size):
+    for name in FONTS:
+        try:
+            return ImageFont.truetype(name, max(1, int(round(size))))
+        except OSError:
+            pass
+    return ImageFont.load_default()
+
+
+def tint(img, col):
+    r, g, b, a = img.split()
+
+    def f(ch, c):
+        return ch.point(lambda v: v * c // 255)
+    return Image.merge("RGBA", (f(r, col[0]), f(g, col[1]), f(b, col[2]), a))
+
+
+def fit_text(img, box, paras, size, smallest, R, outline=False, wrap=True):
+    """Like UI.FitText: wrap into the box, a point smaller until it fits."""
+    x, y, w, h = box
+    while True:
+        f = mock_font(size * R)
+        lines = []
+        for text, col in paras:
+            cur = ""
+            for word in text.split(" "):
+                t = (cur + " " + word).strip()
+                if not wrap or not cur or f.getlength(t) <= w * R:
+                    cur = t
+                else:
+                    lines.append((cur, col))
+                    cur = word
+            lines.append((cur, col))
+        fits = len(lines) * size * 1.1 <= h + 0.5 and all(f.getlength(t) <= w * R + 0.5 for t, _ in lines)
+        if fits or size <= smallest:
+            break
+        size -= 1
+    d = ImageDraw.Draw(img)
+    top = y + (h - len(lines) * size * 1.1) / 2
+    for i, (t, col) in enumerate(lines):
+        pos = ((x + w / 2) * R, (top + (i + 0.5) * size * 1.1) * R)
+        if outline:
+            d.text(pos, t, font=f, fill=col, anchor="mm", stroke_width=max(1, int(R)), stroke_fill=(0, 0, 0))
+        else:
+            d.text(pos, t, font=f, fill=col, anchor="mm")
+
+
+def mock_card(c, art, R):
+    def sized(img, w, h):
+        return img.resize((max(1, int(round(w * R))), max(1, int(round(h * R)))), Image.LANCZOS)
+
+    def units(b, inset=(0, 0, 0, 0)):
+        return (b[0] + inset[0]) * K, (b[1] + inset[1]) * K, (b[2] - b[0] - inset[0] - inset[2]) * K, \
+            (b[3] - b[1] - inset[1] - inset[3]) * K
+    unit = c["type"] == "unit"
+    kind = "unit" if unit else "tactic"
+    img = Image.new("RGBA", (int(CARD_W * R), int(CARD_H * R)), (0, 0, 0, 0))
+    ax, ay, aw, ah = units(ICON)
+    pic = vgrad(64, 64, c["hue"], tuple(v // 3 for v in c["hue"])).resize((64, 64)).convert("RGBA")
+    ImageDraw.Draw(pic).ellipse([14, 10, 50, 70], fill=tuple(min(255, v + 60) for v in c["hue"]) + (255,))
+    img.alpha_composite(sized(pic, aw, ah), (int(ax * R), int(ay * R)))
+    img.alpha_composite(sized(art[kind], CARD_W, CARD_H))
+    img.alpha_composite(sized(tint(art["rim"], RIM[c["rarity"]]), CARD_W, CARD_H))
+    fit_text(img, units(NAME, (8, 1, 8, 1)), [(c["name"], (252, 244, 222))], 11, 7, R)
+    fit_text(img, units(TYPE, (5, 0, 5, 1)), [(c["typeline"], (255, 236, 196) if unit else (232, 234, 255))],
+             9, 6, R, wrap=False)
+    area = units(TEXT[kind], (7, 4, 7, 26 if unit else 6))
+    paras = []
+    if c.get("kw"):
+        paras.append((c["kw"], (24, 58, 120) if unit else (60, 40, 130)))
+    if c.get("short"):
+        paras.append((c["short"], (40, 28, 16) if unit else (30, 26, 50)))
+    if paras:
+        fit_text(img, area, paras, 10, 7, R)
+    elif c.get("flavor"):
+        fit_text(img, area, [("\u201c" + c["flavor"] + "\u201d", (120, 96, 66))], 9, 7, R)
+    g = 13
+    img.alpha_composite(sized(tint(art["gem"], RARITY[c["rarity"]]), g, g),
+                        (int((CARD_W - g) / 2 * R), int((GEM_Y[kind] * K - g / 2) * R)))
+    for key, (cx, cy), val in (("cost", (14, 14), c["cost"]), ("atk", (15, CARD_H - 16), c.get("atk")),
+                               ("hp", (CARD_W - 15, CARD_H - 16), c.get("hp"))):
+        if val is not None:
+            img.alpha_composite(sized(art[key], 30, 30), (int((cx - 15) * R), int((cy - 15) * R)))
+            fit_text(img, (cx - 15, cy - 15.5, 30, 30), [(str(val), (255, 255, 255))], 16, 16, R, outline=True)
+    return img
+
+
+def mock(path, art, R=2.1):
+    cards = [
+        dict(name="Kobold Vermin", type="unit", typeline="Unit", rarity="common", cost=1, atk=1, hp=2,
+             flavor="You no take candle!", hue=(110, 84, 60)),
+        dict(name="Plainstrider", type="unit", typeline="Beast unit", rarity="uncommon", cost=2, atk=1, hp=3,
+             short="Arrive: restore 2 Morale", hue=(140, 116, 70)),
+        dict(name="Booty Bay Bruiser", type="unit", typeline="Unit", rarity="rare", cost=4, atk=3, hp=5,
+             kw="Guard, Sturdy", hue=(70, 104, 128)),
+        dict(name="Edwin VanCleef", type="unit", typeline="Defias unit", rarity="legendary", cost=4, atk=4, hp=3,
+             kw="Swift, Stealth, Pierce", short="Arrive: draw a card", hue=(84, 60, 96)),
+        dict(name="Fireball", type="tactic", typeline="Tactic: enemy lane", rarity="common", cost=2,
+             short="3 damage, or 2 to Morale if empty", hue=(180, 80, 34)),
+        dict(name="Bandage", type="tactic", typeline="Tactic: your unit", rarity="uncommon", cost=1,
+             short="Fully heal a unit. Restore 2 Morale", hue=(160, 150, 128)),
+        dict(name="Blizzard", type="tactic", typeline="Tactic", rarity="epic", cost=5,
+             short="2 damage to every enemy unit", hue=(70, 124, 190)),
+    ]
+    faces = [mock_card(c, art, R) for c in cards]
+    back = art["back"].resize(faces[0].size, Image.LANCZOS)
+    faces.append(back)
+    gap = int(10 * R)
+    sheet = Image.new("RGBA", (len(faces) * (faces[0].width + gap) + gap, faces[0].height + 2 * gap), (0, 0, 0, 255))
+    wood = Image.open(OUT / "Board.tga").convert("RGBA")
+    for x in range(0, sheet.width, wood.width):
+        for y in range(0, sheet.height, wood.height):
             sheet.paste(wood, (x, y))
-    for i, c in enumerate(big):
-        sheet.alpha_composite(c, (6 + i * (CW + 30), 4))
-        small = c.resize((int(c.width * 90 / CW), int(c.height * 90 / CW)), Image.LANCZOS)   # in-game size
-        sheet.alpha_composite(small, (6 + i * (CW + 30) + 80, CH + 32))
+    sheet = Image.blend(sheet, Image.new("RGBA", sheet.size, (0, 0, 0, 255)), 0.3)
+    for i, f in enumerate(faces):
+        sheet.alpha_composite(f, (gap + i * (f.width + gap), gap))
     sheet.save(path)
 
 
@@ -641,9 +912,8 @@ def fx_all():
 
 
 if __name__ == "__main__":
-    parts = [card_base(), card_border(), card_back(), badge("Gem"),
-             badge("BadgeAttack", [(32, 3), (58, 17), (58, 47), (32, 61), (6, 47), (6, 17)]),
-             badge("BadgeHealth", [(7, 7), (57, 7), (57, 36), (32, 60), (7, 36)]), board()]
+    art = card_art()
+    board()
     star()
     holo_foil()
     holo_ring()
@@ -651,7 +921,7 @@ if __name__ == "__main__":
     fx_all()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
-        mock(sys.argv[1], parts)
+        mock(sys.argv[1], art, float(sys.argv[2]) if len(sys.argv) > 2 else 2.1)
         print("mock:", sys.argv[1])
         sheet = Image.new("RGBA", (DW * 3 + 40, (DH + 10) * 4 + 10), (30, 26, 22, 255))
         for i, im in enumerate(dia):
