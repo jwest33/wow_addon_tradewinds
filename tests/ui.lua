@@ -178,6 +178,35 @@ do
   G.EndMatch(); G.Continue()
 end
 
+-- the plan you're making is saved with the match (only saved data survives
+-- a /reload or a logout), so the cards you've placed, and the Supply they
+-- use, are still there when you come back to the game
+do
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  st.players[1].hand = { "kobold", "murloc", "thug" }
+  st.players[1].supply = 3
+  G.Refresh()
+  G.ClickHand(1, "LeftButton"); G.ClickSlot(1, 1, "LeftButton")
+  G.ClickHand(3, "LeftButton"); G.ClickSlot(1, 3, "LeftButton")
+  local d = db.match.draft
+  check(d and d.round == st.round and #d.acts == 2, "the plan is saved with the match")
+  G.Back()
+  G.Open("ai")
+  check(G.LaneState(1) == "out" and G.LaneState(3) == "out", "back in the game: the placed cards are still placed")
+  G.ClickHand(2, "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("Not enough supply"), "and the Supply they use is still spent")
+  db.match.draft.round = st.round + 1
+  G.Back(); G.Open("ai")
+  check(G.LaneState(1) == "open" and db.match.draft == nil, "a saved plan that doesn't fit the game is dropped")
+  G.ClickHand(1, "LeftButton"); G.ClickSlot(1, 1, "LeftButton")
+  G.LockIn()
+  MOCK.Advance(60)
+  check(db.match.st.round == 2 and db.match.draft == nil, "a played round leaves no saved plan")
+  G.EndMatch(); G.Continue()
+end
+
 -- the forecast while planning
 do
   G.Start("dorn")
@@ -226,6 +255,35 @@ do
   R.Summon(st, 2, 2, "mountaineer").new = nil
   G.Refresh()
   check(G.LaneState(1) == "guard", "a Guard from the next lane blocks")
+  G.EndMatch(); G.Continue()
+end
+
+-- a unit that only arrives during the round (Hogger's Riverpaw Runts) isn't
+-- in its lane while you plan. Its lane marker once hit a Lua error on the
+-- missing name, which stopped the board redrawing: planned cards stayed in
+-- the hand, could be played twice, and Lock In said "That card isn't in
+-- your hand."
+do
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  st.players[1].hand = { "kobold", "hogger" }
+  st.players[1].supply = 6
+  G.Refresh()
+  G.ClickHand(2, "LeftButton")
+  local ok, err = pcall(G.ClickSlot, 1, 2, "LeftButton")
+  check(ok, "planning Hogger beside empty lanes doesn't error (" .. tostring(err) .. ")")
+  local s, a, lines = G.LaneState(1)
+  check(s == "out" and a == 1 and lines and lines[1]:find("Riverpaw Runt", 1, true),
+    "the lane marker names the runt Hogger brings")
+  G.ClickHand(1, "LeftButton"); G.ClickSlot(1, 4, "LeftButton")
+  G.ClickHand(1, "LeftButton")         -- the kobold again, as a stale hand button would
+  check(G.Selected() == nil, "a planned card can't be picked a second time")
+  local n = #MOCK.errors
+  G.LockIn()
+  check(#MOCK.errors == n, "Lock In takes the plan")
+  MOCK.Advance(60)
+  check(db.match and db.match.st.round == 2, "the round was played")
   G.EndMatch(); G.Continue()
 end
 

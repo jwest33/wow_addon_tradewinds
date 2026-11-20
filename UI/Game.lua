@@ -173,6 +173,35 @@ local function plannedHand()
   return t
 end
 
+-- Your plan for the round is saved with its match (m.draft), so the cards
+-- you've placed are still there after a /reload or a logout, or when you come
+-- back to the game from another one. planOf: the match `plan` belongs to.
+local planOf
+
+local function savePlan(m)
+  if not (m and m.st) then return end
+  if #plan == 0 or lockedIn() or m.st.winner then
+    m.draft = nil
+    return
+  end
+  local acts = {}
+  for i, a in ipairs(plan) do acts[i] = { h = a.h, id = a.id, lane = a.lane } end
+  m.draft = { round = m.st.round, acts = acts }
+end
+
+-- m's saved plan if it still fits the game (the same round, and the cards
+-- still in the hand), otherwise an empty one.
+local function loadPlan(m)
+  local d = m and m.draft
+  if not (type(d) == "table" and d.round == m.st.round and type(d.acts) == "table") then return {} end
+  local out = {}
+  for i, a in ipairs(d.acts) do
+    if type(a) ~= "table" then return {} end
+    out[i] = { h = a.h, id = a.id, lane = a.lane }
+  end
+  return R.CheckPlan(m.st, ME, out) and out or {}
+end
+
 local function plannedUnitAt(l)
   for i, a in ipairs(plan) do
     if Cards.byId[a.id].type == "unit" and a.lane == l then return a, i end
@@ -266,8 +295,25 @@ local function computeForecast(st)
   local _, dies2 = simulateRound(st, 7919)
   if not (c and dies2) then return nil end
   local f = { dies = { {}, {} }, maybe = { {}, {} }, loss = {}, winner = c.winner, strikes = { {}, {} } }
+  -- Who is in each lane as the round plays out, so every strike knows its
+  -- unit (id) and target (tid), even one that wasn't there while you plan:
+  -- Hogger's Riverpaw Runts, a token from a Fallen effect.
+  local who = { {}, {} }
+  for p = 1, 2 do
+    for l = 1, R.LANES do
+      local u = st.players[p].board[l]
+      who[p][l] = u and u.id
+    end
+  end
   for _, e in ipairs(c.events) do
-    if e.t == "strike" and not f.strikes[e.p][e.lane] then f.strikes[e.p][e.lane] = e end
+    if (e.t == "place" or e.t == "set") and e.unit then
+      who[e.p][e.lane] = e.unit.id
+    elseif e.t == "die" then
+      who[e.p][e.lane] = nil
+    elseif e.t == "strike" and not f.strikes[e.p][e.lane] then
+      e.id, e.tid = who[e.p][e.lane], e.tl and who[e.tp][e.tl]
+      f.strikes[e.p][e.lane] = e
+    end
   end
   for p = 1, 2 do
     f.loss[p] = st.players[p].morale - c.players[p].morale
@@ -281,13 +327,13 @@ end
 
 function G.Forecast() return forecast end
 
--- The unit in a lane while planning (a planned one counts): card id, keywords.
+-- The card id of the unit in a lane while planning (a planned one counts).
 local function laneUnit(st, p, l)
   local u = st.players[p].board[l]
-  if u then return u.id, u.kw end
+  if u then return u.id end
   if p == ME then
     local a = plannedUnitAt(l)
-    if a then return a.id, Cards.byId[a.id].kw end
+    if a then return a.id end
   end
 end
 
@@ -303,29 +349,29 @@ end
 local function analyzeLane(st, l)
   local f = forecast
   local o = opponent()
-  local mine, myKw = laneUnit(st, ME, l)
-  local theirs, theirKw = laneUnit(st, OPP, l)
   local ms, ts = f.strikes[ME][l], f.strikes[OPP][l]
-  local mName = mine and UI.CardName(mine)
-  local tName = theirs and UI.CardName(theirs)
-  local function targetName(e)
-    local id = laneUnit(st, e.tp, e.tl)
-    return id and UI.CardName(id) or L["a unit"]
-  end
+  -- A unit that only arrives during the round (Hogger's Riverpaw Runts) isn't
+  -- in the lane while you plan, so its strike says what it is. Never format a
+  -- nil name: an error here stops the board redrawing, and your hand then
+  -- still shows cards you've already planned.
+  local mine = laneUnit(st, ME, l) or (ms and ms.id)
+  local theirs = laneUnit(st, OPP, l) or (ts and ts.id)
+  local function nameOf(id) return id and UI.CardName(id) or L["a unit"] end
+  local function targetName(e) return nameOf(laneUnit(st, e.tp, e.tl) or e.tid) end
   local lines = {}
   local state, amt
   if ts and not ts.tl then
     state, amt = "in", ts.amt
-    lines[1] = L["Nothing of yours is across from their %s, so it hits your Morale for %d."]:format(tName, ts.amt)
+    lines[1] = L["Nothing of yours is across from their %s, so it hits your Morale for %d."]:format(nameOf(theirs), ts.amt)
     lines[2] = L["Play a unit in lane %d to block it."]:format(l)
   elseif ms and not ms.tl then
     state, amt = "out", ms.amt
-    lines[1] = L["Nothing is across from your %s, so it hits %s's Morale for %d."]:format(mName, o.short, ms.amt)
+    lines[1] = L["Nothing is across from your %s, so it hits %s's Morale for %d."]:format(nameOf(mine), o.short, ms.amt)
     lines[2] = L["It keeps doing that every round until they block this lane."]
   elseif ms or ts then
     state = "fight"
     if mine and theirs then
-      lines[1] = L["Your %s and their %s face each other, so they fight."]:format(mName, tName)
+      lines[1] = L["Your %s and their %s face each other, so they fight."]:format(nameOf(mine), nameOf(theirs))
     end
     local SAY = {
       { strike = L["Your %s strikes %s for %d."],
@@ -337,29 +383,30 @@ local function analyzeLane(st, l)
         guard = L["Their %s has nothing across, but the Guard %s in lane %d steps in and takes the %d damage."],
         none = L["Their %s doesn't strike this round (it dies first, is frozen, or has no attack)."] },
     }
-    for side, pair in ipairs({ { ms, mName, myKw }, { ts, tName, theirKw } }) do
-      local e, name, kw = pair[1], pair[2], pair[3]
+    for side, pair in ipairs({ { ms, mine }, { ts, theirs } }) do
+      local e, id = pair[1], pair[2]
       local say = SAY[side]
       if e then
+        -- the strike's via says how it found a target in another lane
         if e.tl == l then
-          lines[#lines + 1] = say.strike:format(name, targetName(e), e.amt)
-        elseif kw and kw.ranged then
+          lines[#lines + 1] = say.strike:format(nameOf(id), targetName(e), e.amt)
+        elseif e.via == "ranged" then
           state = (state == "fight" and mine and theirs) and "fight" or "ranged"
-          lines[#lines + 1] = say.ranged:format(name, targetName(e), e.tl, e.amt)
+          lines[#lines + 1] = say.ranged:format(nameOf(id), targetName(e), e.tl, e.amt)
         else
           state = (state == "fight" and mine and theirs) and "fight" or "guard"
-          lines[#lines + 1] = say.guard:format(name, targetName(e), e.tl, e.amt)
+          lines[#lines + 1] = say.guard:format(nameOf(id), targetName(e), e.tl, e.amt)
         end
-      elseif name then
-        lines[#lines + 1] = say.none:format(name)
+      elseif id then
+        lines[#lines + 1] = say.none:format(nameOf(id))
       end
     end
   elseif mine then
     state = "idle"
-    lines[1] = L["Your %s won't strike this round (frozen, or no attack)."]:format(mName)
+    lines[1] = L["Your %s won't strike this round (frozen, or no attack)."]:format(nameOf(mine))
   elseif theirs then
     state = "idle"
-    lines[1] = L["Their %s won't strike this round (frozen, or no attack)."]:format(tName)
+    lines[1] = L["Their %s won't strike this round (frozen, or no attack)."]:format(nameOf(theirs))
   else
     state = "open"
     lines[1] = L["Lane %d is empty on both sides."]:format(l)
@@ -490,7 +537,7 @@ local function renderMarkers()
   end
 end
 
-function G.LaneState(l) return markers[l].state, markers[l].amt end
+function G.LaneState(l) return markers[l].state, markers[l].amt, markers[l].lines end
 
 -- ---------------------------------------------------------------------------
 -- Rendering
@@ -877,6 +924,10 @@ end
 function G.Refresh()
   if not page then return end
   local m = M()
+  -- the plan is the one of the match on the board (every change to it ends
+  -- in a Refresh, which saves it)
+  if planOf ~= m then plan, sel, planOf = loadPlan(m), nil, m end
+  savePlan(m)
   if m and m.last and m.shown == false and not busy and not view then
     startReplay(m.last, true)
     return
@@ -931,6 +982,9 @@ function G.ClickHand(h, button)
     G.Refresh()
     return
   end
+  -- already planned (a hand that didn't redraw could still show it): a card
+  -- can only be played once
+  if plannedHand()[h] then return end
   local c = Cards.byId[st.players[ME].hand[h]]
   local tm = tutorialMatch()
   if tm and not ns.Tutorial.Allowed(st, plan, st.players[ME].hand[h]) then
@@ -1433,6 +1487,7 @@ local function playRound(m, mine, theirs)
   m.last = { view = makeView(st, mine, #theirs), events = events }
   m.shown = false
   m.st = nxt
+  m.draft = nil
   if onBoard then plan = {} end
   local n = m.stats or { dealt = 0, taken = 0, kills = 0, lost = 0 }
   m.stats = n
@@ -1689,7 +1744,8 @@ function G.Open(key)
   if key == "ai" and not ns.db.match then return false end
   if key ~= "ai" and key ~= nil and not ns.db.games[key] then return false end
   stopReplay()
-  plan, sel, finished = {}, nil, nil
+  -- the next Refresh brings back the plan saved with the match
+  plan, sel, finished, planOf = {}, nil, nil, nil
   ns.db.active = key
   loadLog()
   if UI.tab ~= "play" and UI.Show then UI.Show("play") end

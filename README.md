@@ -274,8 +274,9 @@ loosely the easy ones play.
   Cards show their keywords and a short line of rules text; hover one for the
   full wording. Click
   a card and then a lane, or drag it onto the lane. **Replay** shows the last
-  round again. The log under your hand is saved with the match. If you reload
-  or log out while a round is playing out, it is shown when you come back.
+  round again. The log under your hand, and the cards you've placed but not
+  locked in yet, are saved with the match. If you reload or log out while a
+  round is playing out, it is shown when you come back.
 - **Cards**: every card with filters (owned, rarity, cost, type or tribe),
   three deck slots, the curve checklist and a chart of your deck's costs.
   Shift-click a card to craft it.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.1
+
+- Fixed: planning a unit that brings others with it (Hogger's Riverpaw
+  Runts, for example) beside an empty lane could freeze the board while you
+  planned. Cards you had placed stayed in your hand, playing one again put
+  it in the plan twice, and Lock In then kept saying "That card isn't in
+  your hand." The lane markers now name those units, and a planned card
+  can't be picked a second time.
+- Cards you've placed but not locked in yet are saved with the match. After
+  a /reload or a logout, or when you come back to a game from the opponent
+  list, they're still placed and the Supply counter still counts them.
+  Before, they went quietly back to your hand and the counter showed your
+  full Supply again.
+
 ## 0.15.0
 
 - **Trade cards with your friends.** Click **Trade** under your deck in the
