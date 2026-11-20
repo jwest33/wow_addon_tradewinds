@@ -15,6 +15,19 @@ land or dock and pick it up on the next trip. An update that changes the rules o
 cards ends a match in progress; that match doesn't count as a win or a loss.
 Other updates leave it alone.
 
+## Install
+
+Get Tradewinds from CurseForge, or download `Tradewinds-<version>.zip` from
+the [Releases page](https://github.com/jwest33/wow_addon_tradewinds/releases)
+and unzip it into `World of Warcraft\_forever_\Interface\AddOns`, so that you
+end up with `AddOns\Tradewinds\Tradewinds.toc`. Then restart the game: a
+`/reload` doesn't pick up a new addon.
+
+GitHub's **Code → Download ZIP** button gives you the source, not the addon:
+its folder is called `wow_addon_tradewinds-main` and holds the tests and
+tools, and the game won't load it. Use a release zip, or build one with
+`python tools/package.py` (see [Release](#release)).
+
 ## The game
 
 - Both players start with **12 Morale**. A game lasts **at most 8 rounds**.
@@ -417,6 +430,13 @@ same order, colour codes kept, commands in English).
 plans or translators' template). Unzip it into `Interface/AddOns`. `.pkgmeta`
 has the same exclusions for the CurseForge / Wago packager, which also takes
 the release notes from `CHANGELOG.md`.
+
+## License
+
+MIT, see [LICENSE](LICENSE). World of Warcraft and its icons belong to
+Blizzard Entertainment: the cards show the game's own icons, which aren't
+part of this repository. Everything in `Art/` and `media/` is drawn by the
+scripts in `tools/`.
 
 ## AI Disclosure
 

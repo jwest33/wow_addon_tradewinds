@@ -15,8 +15,9 @@ wanted), made by `tools/gen_logo.py`. Nothing in `media/` ships in the addon.
 | Main category | Minigames |
 | Other categories | Miscellaneous |
 | Logo / avatar | `media/logo.png` |
-| Licence | Your choice. "All Rights Reserved" keeps every right with you; MIT lets others reuse the code. |
-| Source | The git repository's URL, if you make it public |
+| Licence | MIT License (the repo's `LICENSE`, which also ships in the zip) |
+| Source | GitHub, `https://github.com/jwest33/wow_addon_tradewinds` |
+| Automatic packaging | Off: upload `dist/Tradewinds-<version>.zip` by hand and pick WoW Forever 1.60.1 as the game version |
 | Changelog | `CHANGELOG.md` (the packager reads it, see `.pkgmeta`) |
 
 Name check (2026-11-20): "Deckhand" (`/wow/addons/deckhand`, a different

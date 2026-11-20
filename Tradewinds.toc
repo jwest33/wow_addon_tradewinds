@@ -12,6 +12,9 @@
 ## Notes-zhCN: 在飞行和乘船途中游玩的魔兽卡牌游戏。旅途中赚取卡包，组建套牌，击败酒馆的常客。
 ## Notes-zhTW: 在飛行與搭船途中遊玩的魔獸卡牌遊戲。旅途中賺取卡包，組建牌組，擊敗酒館的常客。
 ## Version: 0.15.0
+## Author: Mooter Vision
+## X-License: MIT
+## X-Website: https://github.com/jwest33/wow_addon_tradewinds
 ## IconTexture: Interface\AddOns\Tradewinds\Art\Icon
 ## SavedVariablesPerCharacter: TradewindsCharDB
 ## AddonCompartmentFunc: Tradewinds_Toggle

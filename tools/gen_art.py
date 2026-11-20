@@ -12,6 +12,7 @@ The card occupies the top 256x357 of its 256x512 texture: use
 SetTexCoord(0, 1, 0, 357/512).
 """
 import math
+import os
 import pathlib
 import sys
 
@@ -673,9 +674,9 @@ def font(size, bold=True):
 # ---------------------------------------------------------------------------
 # Preview sheet: sample cards laid out the way UI/Widgets.lua lays them out,
 # at R screen pixels per UI unit (2.1 is a 4K screen at UI scale 0.75, 1.4 a
-# 1080p one at UI scale 1). Uses the game's font if it can find a copy.
-FONTS = [r"D:/Games/World of Warcraft/_retail_/Interface/AddOns/DialogueUI/Fonts/frizqt__.ttf", "frizqt__.ttf",
-         "arial.ttf"]
+# 1080p one at UI scale 1). Uses the game's font if it can find a copy: set
+# TRADEWINDS_FONT to the path of a frizqt__.ttf (some addons ship one).
+FONTS = [f for f in (os.environ.get("TRADEWINDS_FONT"), "frizqt__.ttf", "arial.ttf") if f]
 CARD_W, CARD_H = 112, 156
 K = CARD_W / CW
 RARITY = {"common": (204, 204, 204), "uncommon": (30, 255, 0), "rare": (51, 140, 255), "epic": (178, 76, 255),
