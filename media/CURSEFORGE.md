@@ -8,8 +8,8 @@ wanted), made by `tools/gen_logo.py`. Nothing in `media/` ships in the addon.
 
 | Field | Value |
 |---|---|
-| Project name | **Tradewinds - A Travel Card Game** |
-| Slug (URL) | `tradewinds` |
+| Project name | **Tradewinds: A Travel Card Game** |
+| Slug (URL) | `tradewinds-card-game` (https://www.curseforge.com/wow/addons/tradewinds-card-game) |
 | Summary | A Warcraft card game for flights and boat rides. Earn card packs as you travel, build a deck, beat the tavern regulars and challenge your friends. |
 | Game | World of Warcraft, the WoW Forever flavor (game version 1.60.1, `## Interface: 16001`) |
 | Main category | Minigames |
