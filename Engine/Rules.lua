@@ -22,7 +22,10 @@ ns.Rules = R
 
 -- Bump this whenever the rules or a card's behaviour change. A match saved
 -- under another number is ended on load without counting (Collection.Init).
-R.RULES_VERSION = 3
+-- 4: units that die together have their Fallen effects together (a unit a
+-- Fallen effect summons comes after all of them), and Pierce + Drain no
+-- longer counts the damage that carries on twice.
+R.RULES_VERSION = 4
 
 R.LANES = 4
 R.MAX_ROUNDS = 8
@@ -125,6 +128,13 @@ end
 
 local function setEvent(st, u, why)
   emit(st, { t = "set", p = u.owner, lane = u.lane, unit = R.Snapshot(u), why = why })
+end
+
+-- An effect of unit u that found nothing to act on (why = "notarget": a
+-- Fallen effect with no enemy unit across), so the replay can say so rather
+-- than show nothing.
+function R.Fizzle(st, u, why)
+  emit(st, { t = "fizzle", why = why, p = u.owner, lane = u.lane, id = u.id })
 end
 
 -- ---------------------------------------------------------------------------
@@ -284,10 +294,19 @@ function R.Transform(st, u, id)
   return nu
 end
 
+-- Summons made by Fallen and onDeath effects while R.Cleanup works through
+-- units that died together: deferred[st] is the list they wait in.
+local deferred = setmetatable({}, { __mode = "k" })
+
 function R.Summon(st, p, lane, id)
   if not lane or lane < 1 or lane > LANES then return end
   local board = st.players[p].board
   if board[lane] then return end
+  local wait = deferred[st]
+  if wait then
+    wait[#wait + 1] = { p = p, lane = lane, id = id }
+    return
+  end
   local u = newUnit(st, p, id, lane)
   board[lane] = u
   emit(st, { t = "place", p = p, lane = lane, unit = R.Snapshot(u), summon = true })
@@ -337,6 +356,14 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Deaths. Runs until nothing more dies: Fallen effects can kill in turn.
+--
+-- Units that die together have their effects together, so the order they're
+-- run in (initiative) never changes what happens: every Fallen effect sees
+-- the board as it is once they've all gone, the units that see the deaths
+-- (onDeath) are the ones standing at that moment, and a unit a Fallen effect
+-- summons arrives after all of them. Before rules version 4 a Ravaged
+-- Corpse's Skeleton could be hit by the Fallen effect of the Harvest Watcher
+-- it traded with, or not, depending on who had initiative.
 -- ---------------------------------------------------------------------------
 function R.Cleanup(st)
   local a, b = order(st)
@@ -365,23 +392,26 @@ function R.Cleanup(st)
       P.grave[#P.grave + 1] = u.id
       emit(st, { t = "die", p = u.owner, lane = u.lane, id = u.id })
     end
+    local watchers = {}
+    for _, p in ipairs({ a, b }) do
+      for _, w in ipairs(R.Units(st, p)) do
+        if card(w.id).onDeath then watchers[#watchers + 1] = w end
+      end
+    end
+    local summons = {}
+    deferred[st] = summons
     for _, u in ipairs(dying) do
       local c = card(u.id)
       if c.fallen then
         emit(st, { t = "trigger", p = u.owner, lane = u.lane, id = u.id, kind = "fallen" })
         c.fallen(st, u)
       end
-      for _, p in ipairs({ a, b }) do
-        local board = st.players[p].board
-        for l = 1, LANES do
-          local w = board[l]
-          if w and w.hp > 0 and not w.doomed then
-            local wc = card(w.id)
-            if wc.onDeath then wc.onDeath(st, w, u) end
-          end
-        end
+      for _, w in ipairs(watchers) do
+        if st.players[w.owner].board[w.lane] == w then card(w.id).onDeath(st, w, u) end
       end
     end
+    deferred[st] = nil
+    for _, s in ipairs(summons) do R.Summon(st, s.p, s.lane, s.id) end
   end
 end
 
@@ -464,10 +494,15 @@ local function strikesFor(st, u, hits)
   end
   -- via: how the hit found its target, for the replay ("ranged", "guard",
   -- "pierce", "cleave"); it doesn't change what happens
+  -- drain: how much of the hit counts for Drain, when that isn't all of it
   if target then
-    hits[#hits + 1] = { src = u, dst = target, amt = atk, via = via }
+    local hit = { src = u, dst = target, amt = atk, via = via }
+    hits[#hits + 1] = hit
     if u.kw.pierce and atk > target.hp then
-      hits[#hits + 1] = { src = u, mp = e, amt = atk - max(0, target.hp), via = "pierce", from = target }
+      local through = atk - max(0, target.hp)
+      -- the part that carries on is counted with the Morale hit, not twice
+      hit.drain = atk - through
+      hits[#hits + 1] = { src = u, mp = e, amt = through, via = "pierce", from = target }
     end
   else
     hits[#hits + 1] = { src = u, mp = e, amt = atk, via = via }
@@ -516,7 +551,7 @@ function R.Combat(st)
           R.HitMorale(st, h.mp, h.amt)
         end
         if src.kw.drain then
-          drained[src.owner] = drained[src.owner] + h.amt
+          drained[src.owner] = drained[src.owner] + (h.drain or h.amt)
           drainers[src.owner][src.lane] = true
         end
         if src.kw.stealth then
@@ -548,12 +583,12 @@ function R.EndRound(st)
     for l = 1, LANES do
       local u = board[l]
       if u then
-        local changed = false
-        if u.kw.regen and u.hp < u.maxHp then u.hp = u.maxHp; changed = true end
+        local changed, why = false, "endround"
+        if u.kw.regen and u.hp < u.maxHp then u.hp = u.maxHp; changed = true; why = "regen" end
         if (u.tmpAtk or 0) ~= 0 then u.tmpAtk = 0; changed = true end
         if u.frozen then u.frozen = nil; changed = true end
         u.new = nil
-        if changed then setEvent(st, u, "endround") end
+        if changed then setEvent(st, u, why) end
       end
     end
   end
@@ -712,6 +747,12 @@ function R.Resolve(st, plans, opts)
       local c = card(act.id)
       if c.type == "tactic" then
         emit(st, { t = "tactic", p = p, id = act.id, lane = act.lane })
+        -- aimed at a unit that has Stealth by now (played this round, or
+        -- given it by a tactic that went first): say why nothing hits it
+        local x = c.target == "enemy" and act.lane and st.players[3 - p].board[act.lane]
+        if x and not R.Targetable(x, p) then
+          emit(st, { t = "fizzle", why = "stealth", p = x.owner, lane = x.lane, id = x.id, tactic = act.id })
+        end
         c.play(st, p, act.lane)
         st.players[p].grave[#st.players[p].grave + 1] = act.id
         R.Cleanup(st)

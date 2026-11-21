@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.16.0
+
+Rules update: a match in progress from an earlier version ends when you log
+in, without counting (as with every rules change). Games against players
+need you both on this version.
+
+- Units that die at the same moment now have their Fallen effects at the
+  same moment, so who has initiative no longer changes what happens. A unit
+  that a Fallen effect summons (Ravaged Corpse's Skeleton) arrives after all
+  of them. Before, a Corpse and a Harvest Watcher trading in the same lane
+  left a Skeleton or not depending on initiative. Likewise, every unit still
+  standing sees all the deaths (King Bangalash, Carrion Vulture), even if a
+  Fallen effect in the same moment hurts it.
+- A unit with both Pierce and Drain restores the damage it deals, no longer
+  counting the part that carries on to Morale twice. No card has both yet.
+- An enemy tactic can no longer be aimed at a unit with Stealth when it would
+  do nothing there (Fireball, Eviscerate, Polymorph and the like). Tactics
+  that also hit the lanes beside it (Chain Lightning, Flame Breath, War
+  Stomp) still can.
+- The replay now shows damage that's undone or never lands, instead of
+  leaving a gap:
+  - Regenerate healing at the end of a round gets a callout, the health it
+    got back and a line in the log. Before, the unit only flashed, so the
+    damage looked like it had never happened.
+  - A Fallen effect with nothing across (the unit it would hit died at the
+    same time) says "No target".
+  - A tactic that lands on a unit with Stealth (one played this round, or
+    given Stealth by a tactic that went first) says so.
+- A unit marked "dies" or "may die" while you plan still shows that it's
+  Frozen or has Stealth.
+
 ## 0.15.1
 
 - Fixed: planning a unit that brings others with it (Hogger's Riverpaw

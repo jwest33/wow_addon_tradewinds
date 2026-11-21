@@ -66,8 +66,13 @@ then the round plays out and you see each strike in turn: a glowing bolt flies
 from the attacker to what it hits (gold for yours, red for theirs), the
 target shakes and the damage pops up over it, and keywords call themselves
 out as they work ("Guard" when a unit steps in, "Pierce" when damage goes
-through, "Venom", "Drain", "Sturdy!"). Strikes in a step still all happen at
-once, which is why units only fall after the whole volley. Click the board
+through, "Venom", "Drain", "Sturdy!", "Regenerate" when a unit heals at the
+end of the round). When something finds nothing to hit, the board says that
+too: "No target" for a Fallen effect whose target died at the same time,
+"Stealth" for a tactic that can't target the unit it was aimed at. Strikes in
+a step still all happen at once, which is why units only fall after the whole
+volley; units that die together also have their Fallen effects together, and
+a unit one of them summons arrives after all of them. Click the board
 to skip to the end of a round. The round counter shows how many rounds are
 left, and the last one is announced as the final round.
 

@@ -6,6 +6,8 @@
 --     roundStart(st, u)    at the start of every round
 --     onDeath(st, u, dead) whenever another unit dies
 --   tactics: target ("enemy" | "friend" | "none"), play(st, p, lane)
+--     splash = true: an enemy tactic that also hits the lanes beside its
+--     target, so it's still worth aiming at a unit it can't target (Stealth)
 --   text (rules beyond keywords), flavor, icon (list of candidates, first one
 --   the client has wins)
 --   tribe, aura, bonus: see Engine/CardsRoads.lua (the second set)
@@ -57,6 +59,13 @@ Cards.Neighbours = neighbours
 local function across(st, u)
   return st.players[3 - u.owner].board[u.lane]
 end
+
+-- Fallen: n damage to the enemy unit across, if there is one.
+local function hitAcross(st, u, n)
+  local t = across(st, u)
+  if t then R.Damage(st, t, n) else R.Fizzle(st, u, "notarget") end
+end
+Cards.HitAcross = hitAcross
 
 local function eachEnemy(st, p, fn)
   for _, x in ipairs(R.Units(st, 3 - p)) do fn(x) end
@@ -150,7 +159,7 @@ add { id = "bandage", name = "Heavy Linen Bandage", cost = 1, type = "tactic", r
 add { id = "watcher", name = "Harvest Watcher", cost = 3, type = "unit", rarity = "uncommon", atk = 2, hp = 4,
   text = "Fallen: deal 2 damage to the enemy unit across.", flavor = "Westfall's scarecrows took the job too seriously.",
   icon = icons("INV_Misc_Gear_01"),
-  fallen = function(st, u) R.Damage(st, across(st, u), 2) end }
+  fallen = function(st, u) hitAcross(st, u, 2) end }
 
 add { id = "vulture", name = "Carrion Vulture", cost = 2, type = "unit", rarity = "uncommon", atk = 1, hp = 2,
   text = "Whenever another unit dies, gains +1 attack.", flavor = "Patience is a virtue. So is lunch.",
@@ -214,7 +223,7 @@ add { id = "gryphon", name = "Wildhammer Gryphon Rider", cost = 4, type = "unit"
 add { id = "demo", name = "Dark Iron Demolitionist", cost = 3, type = "unit", rarity = "rare", atk = 2, hp = 2,
   text = "Fallen: deal 3 damage to the enemy unit across.", flavor = "Short fuse, long memory.",
   icon = icons("Spell_Fire_SelfDestruct"),
-  fallen = function(st, u) R.Damage(st, across(st, u), 3) end }
+  fallen = function(st, u) hitAcross(st, u, 3) end }
 
 add { id = "medic", name = "Argent Dawn Medic", cost = 3, type = "unit", rarity = "rare", atk = 1, hp = 4,
   text = "Round start: restore 2 health to your units in the neighbouring lanes.", flavor = "Triage, Light-style.",
@@ -249,7 +258,7 @@ add { id = "poly", name = "Polymorph", cost = 3, type = "tactic", rarity = "rare
 
 add { id = "chain", name = "Chain Lightning", cost = 3, type = "tactic", rarity = "rare", target = "enemy",
   text = "Deal 3 damage to the enemy unit in a lane and 1 damage to the enemy units next to it.",
-  flavor = "Bounces are free.", icon = icons("Spell_Nature_ChainLightning"),
+  flavor = "Bounces are free.", icon = icons("Spell_Nature_ChainLightning"), splash = true,
   play = function(st, p, lane)
     R.Damage(st, R.EnemyTarget(st, p, lane), 3)
     for _, l in ipairs(neighbours(lane)) do R.Damage(st, R.EnemyTarget(st, p, l), 1) end

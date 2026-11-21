@@ -13,7 +13,7 @@ local ROOT = ROOT or "."
 local ARGS = ARGS or {}
 
 local ns = {}
-local ENGINE = { ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
+local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")

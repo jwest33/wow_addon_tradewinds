@@ -686,11 +686,26 @@ function Card:SetSelected(on)
   self.sel:SetShown(on and true or false)
 end
 
-function Card:SetTag(text, r, g, b)
-  self.tag:SetText(text or "")
-  self.tag:SetTextColor(r or 1, g or 1, b or 1)
-  if text and text ~= "" then
-    self.tagBg:SetSize((self.tag:GetStringWidth() or 0) + 14, 17)
+-- top: an optional { text, r, g, b } shown on a line above, in its own
+-- colour: the unit's state when the forecast has a word too ("Frozen" over
+-- "dies"), so neither hides the other.
+function Card:SetTag(text, r, g, b, top)
+  local fs = self.tag
+  local shown = text and text ~= ""
+  local w
+  if shown and top then
+    fs:SetText(top.text)
+    w = fs:GetStringWidth() or 0
+    fs:SetText(text)
+    w = math.max(w, fs:GetStringWidth() or 0)
+    fs:SetText(UI.Hex(top.r, top.g, top.b) .. top.text .. "|r\n" .. text)
+  else
+    fs:SetText(text or "")
+    w = fs:GetStringWidth() or 0
+  end
+  fs:SetTextColor(r or 1, g or 1, b or 1)
+  if shown then
+    self.tagBg:SetSize(w + 14, top and 30 or 17)
     self.tagBg:Show()
   else
     self.tagBg:Hide()

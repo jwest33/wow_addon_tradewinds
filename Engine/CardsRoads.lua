@@ -8,7 +8,7 @@
 local _, ns = ...
 local R = ns.Rules
 local Cards = ns.Cards
-local icons, neighbours = Cards.Icons, Cards.Neighbours
+local icons, neighbours, hitAcross = Cards.Icons, Cards.Neighbours, Cards.HitAcross
 
 local function add(c)
   c.set = "roads"
@@ -135,7 +135,7 @@ add { id = "shoal", name = "Call the Shoal", cost = 3, type = "tactic", rarity =
 add { id = "skeleton", name = "Rattlecage Skeleton", cost = 1, type = "unit", rarity = "common", atk = 1, hp = 1, tribe = "undead",
   text = "Fallen: deal 1 damage to the enemy unit across.", flavor = "Falls apart on purpose.",
   icon = icons("INV_Misc_Bone_HumanSkull_01", "Spell_Shadow_RaiseDead"),
-  fallen = function(st, u) R.Damage(st, across(st, u), 1) end }
+  fallen = function(st, u) hitAcross(st, u, 1) end }
 
 add { id = "corpse", name = "Ravaged Corpse", cost = 2, type = "unit", rarity = "common", atk = 2, hp = 2, tribe = "undead",
   text = "Fallen: summon a 1/1 Skeleton in its lane.", flavor = "There's more of him in there.",
@@ -153,7 +153,10 @@ add { id = "necro", name = "Scholomance Necromancer", cost = 3, type = "unit", r
 add { id = "banshee", name = "Wailing Banshee", cost = 3, type = "unit", rarity = "uncommon", atk = 3, hp = 2, tribe = "undead",
   text = "Fallen: the enemy unit across gets -2 attack.", flavor = "The last thing she says stays with you.",
   icon = icons("Spell_Shadow_PsychicScream"),
-  fallen = function(st, u) R.Buff(st, across(st, u), -2, 0) end }
+  fallen = function(st, u)
+    local t = across(st, u)
+    if t then R.Buff(st, t, -2, 0) else R.Fizzle(st, u, "notarget") end
+  end }
 
 add { id = "gargoyle", name = "Stoneskin Gargoyle", cost = 4, type = "unit", rarity = "uncommon", atk = 3, hp = 5, tribe = "undead",
   kw = { regen = true }, flavor = "Cracks, then doesn't.", icon = icons("Spell_Shadow_UnholyStrength", "Ability_Hunter_Pet_Bat") }
@@ -263,7 +266,7 @@ add { id = "drakkisath", name = "General Drakkisath", cost = 5, type = "unit", r
 
 add { id = "flamebreath", name = "Flame Breath", cost = 4, type = "tactic", rarity = "rare", target = "enemy",
   text = "Deal 4 damage to the enemy unit in a lane and 2 damage to the enemy units next to it.",
-  flavor = "Stand anywhere else.", icon = icons("Spell_Fire_Incinerate", "Spell_Fire_Fire"),
+  flavor = "Stand anywhere else.", icon = icons("Spell_Fire_Incinerate", "Spell_Fire_Fire"), splash = true,
   play = function(st, p, lane)
     R.Damage(st, R.EnemyTarget(st, p, lane), 4)
     for _, l in ipairs(neighbours(lane)) do R.Damage(st, R.EnemyTarget(st, p, l), 2) end
@@ -286,8 +289,13 @@ add { id = "sapper", name = "Goblin Sapper", cost = 2, type = "unit", rarity = "
   icon = icons("INV_Misc_Bomb_05", "Spell_Fire_SelfDestruct"),
   fallen = function(st, u)
     local eb = st.players[3 - u.owner].board
+    local any = eb[u.lane] ~= nil
     R.Damage(st, eb[u.lane], 1)
-    for _, l in ipairs(neighbours(u.lane)) do R.Damage(st, eb[l], 1) end
+    for _, l in ipairs(neighbours(u.lane)) do
+      if eb[l] then any = true end
+      R.Damage(st, eb[l], 1)
+    end
+    if not any then R.Fizzle(st, u, "notarget") end
   end }
 
 add { id = "brave", name = "Bloodhoof Brave", cost = 5, type = "unit", rarity = "common", atk = 5, hp = 6,
@@ -303,7 +311,7 @@ add { id = "seahorn", name = "Fleet Master Seahorn", cost = 4, type = "unit", ra
 
 add { id = "warstomp", name = "War Stomp", cost = 2, type = "tactic", rarity = "common", target = "enemy",
   text = "Freeze the enemy unit in a lane and the ones next to it: they don't strike this round.",
-  flavor = "The ground has an opinion.", icon = icons("Ability_WarStomp"),
+  flavor = "The ground has an opinion.", icon = icons("Ability_WarStomp"), splash = true,
   play = function(st, p, lane)
     R.Freeze(st, R.EnemyTarget(st, p, lane))
     for _, l in ipairs(neighbours(lane)) do R.Freeze(st, R.EnemyTarget(st, p, l)) end

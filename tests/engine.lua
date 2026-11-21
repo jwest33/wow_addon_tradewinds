@@ -221,10 +221,16 @@ end
 
 do -- Regenerate
   local st = blank()
+  st.events = {}
   put(st, 1, 1, "troll")            -- 3/3 regen
   put(st, 2, 1, "thug")             -- 2/3
   combatOnly(st)
   check(st.players[1].board[1].hp == 3, "regenerate heals at end of round")
+  local regen
+  for _, e in ipairs(st.events) do
+    if e.t == "set" and e.why == "regen" and e.p == 1 and e.lane == 1 and e.unit.hp == 3 then regen = true end
+  end
+  check(regen, "the replay is told it was Regenerate")
 end
 
 do -- Rally
@@ -302,6 +308,126 @@ do -- Fallen effects
   put(st2, 2, 1, "ragnaros")
   combatOnly(st2)
   check(st2.players[1].morale == 8, "princess restores 4 when she dies, after 1 pierce damage (" .. st2.players[1].morale .. ")")
+end
+
+local function eventsOf(st, t)
+  local out = {}
+  for _, e in ipairs(st.events or {}) do if e.t == t then out[#out + 1] = e end end
+  return out
+end
+
+do -- units that die together have their effects together (rules version 4):
+  -- who has initiative doesn't change what happens
+  for init = 1, 2 do
+    local st = blank()
+    st.init = init
+    st.events = {}
+    put(st, 1, 2, "corpse")                -- 2/2, Fallen: a Skeleton in its lane
+    put(st, 2, 2, "watcher").hp = 2        -- 2/4, Fallen: 2 to the unit across
+    R.Combat(st)
+    local b = st.players[1].board[2]
+    check(b and b.id == "bones" and b.hp == 1,
+      "corpse and watcher trade: the Skeleton comes after the watcher's Fallen effect (initiative " .. init .. ")")
+    local f = eventsOf(st, "fizzle")[1]
+    check(f and f.why == "notarget" and f.p == 2 and f.lane == 2 and f.id == "watcher",
+      "a Fallen effect with nothing across says so (initiative " .. init .. ")")
+  end
+  for init = 1, 2 do
+    -- the king sees the wolf die even though the sapper dying beside it
+    -- hits him first or second
+    local st = blank()
+    st.init = init
+    put(st, 1, 2, "bangalash").hp = 1      -- onDeath: +1/+1 when another of your Beasts dies
+    put(st, 1, 3, "wolf").hp = 0
+    put(st, 2, 2, "sapper").hp = 0         -- Fallen: 1 to the king (and the wolf's lane)
+    R.Cleanup(st)
+    local k = st.players[1].board[2]
+    check(k and k.id == "bangalash" and k.hp == 1 and k.atk == 5,
+      "units that die together are all seen by the units still standing (initiative " .. init .. ")")
+  end
+  do -- Banshee and Sapper with nothing to hit say so too
+    local st = blank()
+    st.events = {}
+    put(st, 1, 1, "banshee").hp = 0
+    put(st, 1, 3, "sapper").hp = 0
+    R.Cleanup(st)
+    check(#eventsOf(st, "fizzle") == 2, "banshee and sapper with an empty enemy row: two 'no target' events")
+  end
+end
+
+do -- combat never depends on who has initiative: every hit in a step lands
+  -- at once and units that die together have their effects together
+  local units = {}
+  for _, c in ipairs(Cards.list) do
+    if c.type == "unit" and c.id ~= "ghost" then units[#units + 1] = c.id end
+  end
+  local seed = 4242
+  local function rnd(n) seed = (seed * 16807) % 2147483647; return (seed % n) + 1 end
+  local function sig(st)
+    local t = {}
+    for p = 1, 2 do
+      t[#t + 1] = st.players[p].morale
+      for l = 1, R.LANES do
+        local u = st.players[p].board[l]
+        if u then
+          local k = {}
+          for kw, v in pairs(u.kw) do if v then k[#k + 1] = kw end end
+          table.sort(k)
+          t[#t + 1] = table.concat({ u.id, u.atk, u.hp, u.maxHp, table.concat(k, "+") }, ":")
+        else
+          t[#t + 1] = "."
+        end
+      end
+    end
+    return table.concat(t, "|")
+  end
+  local differ = 0
+  for _ = 1, 3000 do
+    local st = blank()
+    for p = 1, 2 do
+      st.players[p].morale = rnd(12)
+      for l = 1, R.LANES do
+        if rnd(10) <= 8 then
+          local u = put(st, p, l, units[rnd(#units)])
+          u.hp = rnd(u.maxHp)              -- some already hurt
+        end
+      end
+    end
+    local a, b = R.Clone(st), R.Clone(st)
+    a.init, b.init = 1, 2
+    R.Combat(a); R.Combat(b)
+    if sig(a) ~= sig(b) then differ = differ + 1 end
+  end
+  check(differ == 0, ("combat comes out the same whoever has initiative (%d of 3000 boards differ)"):format(differ))
+end
+
+do -- Pierce + Drain: the damage that carries on to Morale is counted once
+  local st = blank()
+  st.players[1].morale = 4
+  put(st, 1, 1, "dragonspawn").kw.drain = true   -- 4/4 Pierce
+  put(st, 2, 1, "runt")                          -- 1/1: 3 carries on
+  R.Combat(st)
+  check(st.players[2].morale == M - 3 and st.players[1].morale == 8,
+    "pierce + drain restores the 4 it dealt, not 7 (" .. st.players[1].morale .. ")")
+end
+
+do -- a tactic aimed at a unit that has Stealth by the time it lands says why
+  -- nothing happens
+  local st = blank()
+  st.events = {}
+  st.players[1].hand = { "fireball" }
+  st.players[2].hand = { "footpad" }
+  R.Resolve(st, { { { h = 1, lane = 2 } }, { { h = 1, lane = 2 } } }, { noAdvance = true })
+  local f = eventsOf(st, "fizzle")[1]
+  check(st.players[2].morale == M and st.players[2].board[2].hp == 2, "fireball at a footpad played the same round does nothing")
+  check(f and f.why == "stealth" and f.p == 2 and f.lane == 2 and f.id == "footpad" and f.tactic == "fireball",
+    "and the replay is told why")
+  local st2 = blank()
+  st2.events = {}
+  put(st2, 2, 2, "kobold")
+  st2.players[1].hand = { "evisc" }
+  R.Resolve(st2, { { { h = 1, lane = 2 } }, {} }, { noAdvance = true })
+  check(#eventsOf(st2, "fizzle") == 0, "no such event when the tactic can target the unit")
 end
 
 do -- plan checks

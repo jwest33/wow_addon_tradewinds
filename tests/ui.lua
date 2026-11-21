@@ -287,6 +287,68 @@ do
   G.EndMatch(); G.Continue()
 end
 
+-- an enemy tactic can't be aimed at a unit with Stealth, where it would do
+-- nothing; one that also hits the lanes beside it still can
+do
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  R.Summon(st, 2, 2, "footpad").new = nil
+  R.Summon(st, 2, 3, "kobold").new = nil
+  st.players[1].hand = { "evisc", "chain" }
+  st.players[1].supply = 6
+  G.Refresh()
+  G.ClickHand(1, "LeftButton")
+  G.ClickSlot(2, 2, "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("has Stealth", 1, true) and G.Selected() == 1,
+    "Eviscerate can't be aimed at a unit with Stealth")
+  G.ClickSlot(2, 3, "LeftButton")
+  check(G.Selected() == nil, "but can at the unit beside it")
+  G.ClickHand(2, "LeftButton")
+  G.ClickSlot(2, 2, "LeftButton")
+  check(G.Selected() == nil and #db.match.draft.acts == 2, "Chain Lightning can: it hits the lanes beside too")
+  G.EndMatch(); G.Continue()
+end
+
+-- the replay shows damage being undone or finding nothing, rather than
+-- leaving a gap: Regenerate healing at the end of the round, a Fallen effect
+-- with nothing across, a tactic that can't target a unit with Stealth
+do
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  st.players[1].hand, st.players[2].hand = {}, {}
+  R.Summon(st, 1, 1, "troll").new = nil           -- 3/3 Regenerate: hurt by the thug, then healed
+  R.Summon(st, 2, 1, "thug").new = nil
+  R.Summon(st, 1, 3, "watcher").new = nil         -- trades with the grunt: nothing left across
+  st.players[1].board[3].hp = 3
+  R.Summon(st, 2, 3, "grunt").new = nil
+  st.players[2].board[3].hp = 2
+  -- the forecast's word goes under the unit's state, not over it
+  st.players[2].board[1].frozen = true
+  st.players[2].board[1].hp = 1
+  G.Refresh()
+  local tag = G.api.slot(2, 1).card.tag:GetText() or ""
+  check(tag:find("Frozen", 1, true) and tag:find("dies", 1, true), "a frozen unit marked to die says both (" .. tag .. ")")
+  st.players[2].board[1].frozen = nil
+  st.players[2].board[1].hp = 3
+  G.LockIn()
+  MOCK.Advance(60)
+  local m = db.match
+  local function logHas(s)
+    for _, line in ipairs(m.log or {}) do if line:find(s, 1, true) then return true end end
+  end
+  check(logHas("regenerated to full health"), "the log says the troll regenerated")
+  check(logHas("found no target"), "and that the watcher's Fallen effect found no target")
+  local callouts = UI.FX.counts.callout or 0
+  m.last.events[#m.last.events + 1] = { t = "fizzle", why = "stealth", p = 2, lane = 4, id = "footpad", tactic = "fireball" }
+  G.Replay()
+  MOCK.Advance(60)
+  check(logHas("has Stealth, so"), "a tactic that couldn't target a unit with Stealth says why")
+  check((UI.FX.counts.callout or 0) - callouts >= 3, "each one calls itself out on the board")
+  G.EndMatch(); G.Continue()
+end
+
 -- ending a match: the button asks first; works in the middle of a replay
 do
   G.Start("sally")

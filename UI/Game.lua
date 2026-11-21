@@ -225,6 +225,12 @@ local function validTarget(st, side, l)
     return true
   elseif c.target == "enemy" then
     if side ~= OPP then return false, L["%s targets an enemy lane (the top row)."]:format(c.name) end
+    -- it would do nothing there (one that also hits the lanes beside it
+    -- still can go)
+    local x = st.players[OPP].board[l]
+    if x and not c.splash and not R.Targetable(x, ME) then
+      return false, L["%s has Stealth, so %s can't target it."]:format(Cards.byId[x.id].name, c.name)
+    end
     return true
   elseif c.target == "friend" then
     if side ~= ME then return false, L["%s targets one of your units (the bottom row)."]:format(c.name) end
@@ -553,7 +559,12 @@ local function renderSlot(p, l)
   local maybe = planning and forecast and forecast.maybe[p][l]
   if u then
     card:SetCard(u.id, u, S, p == ME and C.IsHolo(ns.db, u.id))
-    if dies then card:SetTag(L["dies"], 1, 0.3, 0.3) elseif maybe then card:SetTag(L["may die"], 1, 0.65, 0.2) end
+    -- the forecast's word goes under the one saying the unit is Frozen or
+    -- has Stealth, rather than replacing it
+    local status = (u.frozen and { text = L["Frozen"], r = 0.6, g = 0.85, b = 1 })
+      or (u.kw.stealth and { text = L["Stealth"], r = 0.8, g = 0.7, b = 1 }) or nil
+    if dies then card:SetTag(L["dies"], 1, 0.3, 0.3, status)
+    elseif maybe then card:SetTag(L["may die"], 1, 0.65, 0.2, status) end
   elseif p == ME and (planning or lockedIn()) and plannedUnitAt(l) then
     card:SetCard(plannedUnitAt(l).id, nil, nil, C.IsHolo(ns.db, plannedUnitAt(l).id))
     card:SetAlpha(0.85)
@@ -1086,7 +1097,7 @@ end
 
 local SET_COLOR = {
   heal = { 0.3, 1, 0.3 }, buff = { 1, 0.85, 0.3 }, freeze = { 0.4, 0.7, 1 }, sturdy = { 1, 1, 1 },
-  transform = { 0.8, 0.4, 1 }, reveal = { 0.6, 0.6, 0.8 }, endround = { 0.3, 1, 0.3 },
+  transform = { 0.8, 0.4, 1 }, reveal = { 0.6, 0.6, 0.8 }, endround = { 0.3, 1, 0.3 }, regen = { 0.3, 1, 0.3 },
 }
 
 local bannerToken = 0
@@ -1183,12 +1194,28 @@ local function apply(e)
     end
     return 0.18
   elseif t == "set" then
+    local old = view.players[e.p].board[e.lane]
     view.players[e.p].board[e.lane] = R.DeepCopy(e.unit)
     renderSlot(e.p, e.lane)
     local col = SET_COLOR[e.why] or { 1, 1, 1 }
     local s = slots[e.p][e.lane]
     s.card:Flash(col[1], col[2], col[3])
     if e.why == "transform" then G.Log(L["Baa! A unit became a %s."], UI.CardName(e.unit.id)) end
+    if e.why == "regen" then
+      -- Regenerate at the end of the round: show the health coming back,
+      -- or the damage it took looks like it never landed
+      if e.p == ME then
+        G.Log(L["Your %s regenerated to full health."], UI.CardName(e.unit.id))
+      else
+        G.Log(L["%s's %s regenerated to full health."], oppName(), UI.CardName(e.unit.id))
+      end
+      if not fx then return 0 end
+      local healed = e.unit.hp - ((old and old.hp) or e.unit.hp)
+      FX.Pulse(s, FX.HEAL, 110)
+      FX.Callout(s, L["Regenerate"], FX.HEAL, calloutY(e.p))
+      if healed > 0 then FX.Number(s, "+" .. healed, FX.HEAL, 27) end
+      return 0.35
+    end
     if not fx or e.why == "endround" then return 0 end
     if e.why == "sturdy" then
       FX.Pulse(s, FX.WHITE, 130)
@@ -1313,6 +1340,22 @@ local function apply(e)
       return 0.4
     end
     return 0
+  elseif t == "fizzle" then
+    -- an effect that found nothing to act on, said out loud rather than
+    -- leaving a gap where the damage should have been
+    local s = slots[e.p][e.lane]
+    if e.why == "stealth" then
+      G.Log(L["%s has Stealth, so %s can't target it."], UI.CardName(e.id), UI.CardName(e.tactic))
+      if not fx then return 0 end
+      if s.card:IsShown() then s.card:Flash(0.6, 0.6, 0.8) end
+      FX.Callout(s, L["Stealth"], { 0.8, 0.7, 1 }, calloutY(e.p))
+      return 0.35
+    end
+    G.Log(L["The Fallen effect of %s found no target."], UI.CardName(e.id))
+    if not fx then return 0 end
+    -- in the middle of the (now empty) slot, clear of the "Fallen" callout
+    FX.Callout(s, L["No target"], { 0.75, 0.75, 0.75 }, 0)
+    return 0.3
   elseif t == "trigger" then
     local s = slots[e.p][e.lane]
     if s.card:IsShown() then s.card:Flash(0.7, 0.4, 1) end
