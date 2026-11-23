@@ -9,7 +9,7 @@ end
 
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
-local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
+local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/CardsTribes.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
@@ -517,7 +517,7 @@ do
     end
   end
   for id in pairs(Cards.SHORT) do check(Cards.byId[id], "short text for a card that exists: " .. id) end
-  check(Cards.byId.wolf.tribe == "beast" and Cards.byId.onyxia.tribe == "dragonkin" and Cards.byId.kobold.tribe == nil,
+  check(Cards.byId.wolf.tribe == "beast" and Cards.byId.onyxia.tribe == "dragonkin" and Cards.byId.kobold.tribe == "humanoid",
     "core cards have their tribes")
   for _, o in ipairs(ns.Opponents) do
     local c = Cards.byId[o.signature]
@@ -765,6 +765,233 @@ do
   cast(st, 1, "execute", 1); cast(st, 1, "execute", 2); cast(st, 1, "execute", 3)
   check(st.players[2].board[1] == nil and fresh.hp == 5, "execute destroys a damaged unit only")
   check(st.players[2].board[3] == tough and tough.hp == 1 and not tough.kw.sturdy, "Sturdy survives an execute, once")
+end
+
+-- 2c. Tribes of Azeroth: tribes on every unit, shared stat lines, items -------------
+do
+  local function arrive(st, p, lane, id)
+    local u = R.Summon(st, p, lane, id)
+    Cards.byId[id].arrive(st, u)
+    R.Cleanup(st)
+    return u
+  end
+  local function cast(st, p, id, lane)
+    Cards.byId[id].play(st, p, lane)
+    R.Cleanup(st)
+  end
+  local function kill(st, u)
+    R.Damage(st, u, 99)
+    R.Cleanup(st)
+  end
+  local function kws(kw)
+    local t = {}
+    for k, v in pairs(kw or {}) do if v then t[#t + 1] = k end end
+    table.sort(t)
+    return table.concat(t, ",")
+  end
+
+  -- every collectible unit has a tribe, but the four that wait for a later wave
+  local later = { watcher = true, shredder = true, kazzak = true, ragnaros = true }
+  for _, c in ipairs(Cards.collectible) do
+    if c.type == "unit" then
+      check((c.tribe ~= nil) ~= (later[c.id] == true), c.id .. " has a tribe (or waits for a later wave)")
+    end
+    if c.synergy then check(Cards.TRIBES[c.synergy], c.id .. " counts a tribe that exists") end
+  end
+  for _, t in ipairs(Cards.TRIBE_ORDER) do check(Cards.TRIBES[t], "tribe order: " .. t) end
+  check(Cards.byId.runt.tribe == "humanoid" and Cards.byId.sheep.tribe == nil, "Hogger's Runt is a Humanoid; the Sheep has no tribe")
+
+  -- shared stat lines: same cost, stats and keywords as their twin, plain,
+  -- common, another tribe; never two cards of one tribe on a line
+  local lines, twins = {}, 0
+  for _, c in ipairs(Cards.collectible) do
+    if c.twin then
+      twins = twins + 1
+      local b = Cards.byId[c.twin]
+      check(b and b.collectible and not b.twin, c.id .. " twins a real card")
+      check(c.cost == b.cost and c.atk == b.atk and c.hp == b.hp and kws(c.kw) == kws(b.kw), c.id .. " has the same stat line as " .. c.twin)
+      check(not c.text and not b.text and not c.arrive and not c.fallen and not c.aura and not c.bonus, c.id .. " and its twin are plain")
+      check(c.rarity == "common" and b.rarity == "common", c.id .. " is common, like its twin")
+      check(c.tribe and c.tribe ~= b.tribe, c.id .. " is of another tribe than its twin")
+      local key = c.twin
+      lines[key] = lines[key] or { [b.tribe or "-"] = true }
+      check(not lines[key][c.tribe], c.id .. ": one card per tribe on a stat line")
+      lines[key][c.tribe] = true
+    end
+  end
+  check(twins == 34, "34 shared-line cards (" .. twins .. ")")
+
+  -- items
+  local items = 0
+  for _, c in ipairs(Cards.collectible) do
+    if c.item then
+      items = items + 1
+      check(c.type == "tactic" and c.play, c.id .. ": an item is a tactic")
+    end
+  end
+  check(items == 12 and Cards.byId.potion.item and Cards.byId.bandage.item, "12 items, Healing Potion and Bandage among them")
+
+  -- Humanoids are new, and nothing counted them before
+  local st = blank()
+  local pl = put(st, 1, 1, "packleader")
+  local k = put(st, 1, 2, "kobold")
+  check(R.Attack(st, k) == 1, "a Humanoid isn't a Beast to the Packleader")
+
+  -- Beasts
+  st = blank()
+  local hand = #st.players[1].hand
+  arrive(st, 1, 1, "trackinghound")
+  check(#st.players[1].hand == hand, "tracking hound: no other Beast, no card")
+  put(st, 1, 2, "wolf")
+  arrive(st, 1, 3, "trackinghound")
+  check(#st.players[1].hand == hand + 1, "tracking hound: a card with another Beast")
+  st = blank()
+  local w, h = put(st, 1, 1, "wolf"), put(st, 1, 2, "kobold")
+  arrive(st, 1, 3, "patriarch")
+  check(w.atk == 2 and w.hp == 2 and h.atk == 1, "patriarch: other Beasts +1/+1")
+
+  -- Humanoids
+  st = blank()
+  local left, far, beast = put(st, 1, 1, "kobold"), put(st, 1, 4, "grunt"), put(st, 1, 3, "wolf")
+  arrive(st, 1, 2, "captain")
+  check(left.atk == 2 and left.hp == 3 and far.atk == 3 and beast.atk == 1, "captain: only Humanoids in the neighbouring lanes")
+  st = blank()
+  hand = #st.players[1].hand
+  put(st, 1, 1, "kobold")
+  arrive(st, 1, 2, "crier")
+  check(#st.players[1].hand == hand, "town crier: one other Humanoid isn't enough")
+  put(st, 1, 3, "grunt")
+  arrive(st, 1, 4, "crier")
+  check(#st.players[1].hand == hand + 1, "town crier: draws with two other Humanoids")
+  st = blank()
+  local hm, bs = put(st, 1, 1, "kobold"), put(st, 1, 2, "wolf")
+  local bol = arrive(st, 1, 3, "bolvar")
+  check(hm.atk == 2 and hm.hp == 3 and bs.atk == 1 and bol.kw.rally and R.Attack(st, bs) == 2,
+    "bolvar: other Humanoids +1/+1, and Rally")
+  st = blank()
+  hm = put(st, 1, 1, "kobold")
+  arrive(st, 1, 2, "sergeant")
+  check(hm.hp == 3 and hm.atk == 1, "militia sergeant: other Humanoids +1 health")
+
+  -- Murlocs
+  st = blank()
+  check(arrive(st, 1, 1, "raider").atk == 2, "murloc raider: nothing alone")
+  check(arrive(st, 1, 2, "raider").atk == 3, "murloc raider: +1 attack with another Murloc")
+  st = blank()
+  local fl = put(st, 1, 2, "flopper")
+  kill(st, fl)
+  check(st.players[1].board[2] and st.players[1].board[2].id == "scout", "murloc flopper: leaves a Scout")
+  st = blank()
+  arrive(st, 1, 2, "tidecaller")
+  check(st.players[1].board[1].id == "scout" and st.players[1].board[3].id == "scout", "tidecaller: Scouts on both sides")
+  st = blank()
+  put(st, 1, 1, "murloc"); put(st, 1, 3, "kobold")
+  local e1, e2, e3 = put(st, 2, 1, "grunt"), put(st, 2, 2, "grunt"), put(st, 2, 3, "grunt")
+  arrive(st, 1, 2, "netmaster")
+  check(e1.frozen and not e2.frozen and not e3.frozen, "netmaster: freezes what's across your other Murlocs only")
+  st = blank()
+  local md = put(st, 1, 1, "muckdweller")
+  local m2, wf = put(st, 1, 2, "murloc"), put(st, 1, 3, "wolf")
+  kill(st, m2)
+  kill(st, wf)
+  check(md.atk == 3 and md.hp == 5, "muckdweller: +1/+1 for a Murloc that dies, not a Beast")
+  st = blank()
+  local mm = put(st, 1, 4, "murloc")
+  arrive(st, 1, 2, "murkdeep")
+  check(st.players[1].board[1].id == "scout" and st.players[1].board[3].id == "scout"
+    and R.Attack(st, mm) == 3 and R.Attack(st, st.players[1].board[1]) == 2, "murkdeep: Scouts beside it, other Murlocs +1 attack")
+  st = blank()
+  local ma, kb = put(st, 1, 1, "murloc"), put(st, 1, 2, "kobold")
+  cast(st, 1, "hightide")
+  check(ma.atk == 3 and ma.hp == 2 and kb.atk == 1, "high tide: Murlocs +1/+1")
+
+  -- Undead
+  st = blank()
+  check(arrive(st, 1, 1, "squire").atk == 1 and arrive(st, 1, 2, "squire").atk == 2, "rotting squire: +1 attack with another Undead")
+  st = blank()
+  local bc, gh, kk = put(st, 1, 1, "bonecaller"), put(st, 1, 2, "ghoul"), put(st, 1, 3, "kobold")
+  kill(st, bc)
+  check(gh.atk == 3 and kk.atk == 1, "bonecaller: Fallen, other Undead +1 attack")
+  st = blank()
+  local pe = put(st, 1, 1, "plagueeater")
+  kill(st, put(st, 1, 2, "zombie"))
+  check(pe.atk == 3 and pe.hp == 5, "plague eater: +1/+1 for an Undead that dies")
+  st = blank()
+  local x1, x2 = put(st, 2, 1, "murloc"), put(st, 2, 3, "grunt")
+  kill(st, put(st, 1, 2, "bloated"))
+  check(st.players[2].board[1] == nil and x2.hp == 3, "bloated zombie: Fallen, 1 damage to every enemy unit")
+  st = blank()
+  put(st, 1, 2, "kobold")
+  cast(st, 1, "armydead")
+  check(#R.Units(st, 1) == 4 and st.players[1].board[1].id == "bones" and st.players[1].board[2].id == "kobold",
+    "army of the dead: Skeletons in every empty lane")
+  st = blank()
+  local cm, zb = put(st, 1, 1, "commander"), put(st, 1, 2, "zombie")
+  check(R.Attack(st, zb) == 3 and R.Attack(st, cm) == 3, "scourge commander: other Undead +1 attack")
+  st = blank()
+  put(st, 1, 2, "gandling")
+  R.StartRound(st)
+  check(st.players[1].board[1].id == "bones" and st.players[1].board[3].id == "bones", "gandling: Skeletons beside it at round start")
+
+  -- Defias
+  st = blank()
+  check(arrive(st, 1, 1, "overseer").atk == 2 and arrive(st, 1, 2, "overseer").atk == 3, "defias overseer: +1 attack with another Defias")
+  st = blank()
+  put(st, 1, 1, "thug"); put(st, 1, 3, "footpad"); put(st, 1, 4, "lookout")
+  local m0 = st.players[2].morale
+  arrive(st, 1, 2, "conjurer")
+  check(st.players[2].morale == m0 - 2, "defias conjurer: -1 Morale per other Defias, at most 2")
+  st = blank()
+  local th = put(st, 1, 1, "thug")
+  local bg = arrive(st, 1, 2, "blackguard")
+  check(th.kw.stealth and bg.kw.stealth, "defias blackguard: other Defias get Stealth")
+
+  -- Dragonkin
+  st = blank()
+  check(arrive(st, 1, 1, "whelpling").atk == 1 and arrive(st, 1, 2, "whelpling").atk == 2, "brood whelpling: +1 attack with another Dragonkin")
+  st = blank()
+  local fb = put(st, 1, 1, "firebrand")
+  put(st, 1, 2, "whelp"); put(st, 1, 3, "drakonid")
+  check(R.Attack(st, fb) == 4, "wyrmkin firebrand: +1 attack per other Dragonkin")
+  st = blank()
+  local en = put(st, 2, 1, "grunt")
+  arrive(st, 1, 1, "wyrmkin")
+  check(en.hp == 4, "flamescale wyrmkin: alone, no damage")
+  put(st, 1, 2, "whelp")
+  arrive(st, 1, 3, "wyrmkin")
+  check(en.hp == 3, "flamescale wyrmkin: 1 damage to every enemy with another Dragonkin")
+  st = blank()
+  local dk = put(st, 1, 1, "whelp")
+  arrive(st, 1, 2, "nefarian")
+  check(dk.atk == 4 and dk.hp == 3, "nefarian: other Dragonkin +2/+2")
+
+  -- items
+  st = blank()
+  local u = put(st, 1, 1, "kobold")
+  cast(st, 1, "thunderfury", 1)
+  check(u.atk == 3 and u.hp == 4 and u.kw.swift and u.kw.cleave, "thunderfury: +2/+2, Swift and Cleave")
+  cast(st, 1, "cutlass", 1)
+  cast(st, 1, "scrollprot", 1)
+  check(u.atk == 7 and u.hp == 9, "cutlass +3/+1, scroll of protection +1/+4")
+  cast(st, 1, "trollblood", 1)
+  cast(st, 1, "lionheart", 1)
+  check(u.kw.regen and u.kw.rally and u.atk == 10 and u.hp == 13, "troll's blood: Regenerate and +1/+2; lionheart helm: +2/+2 and Rally")
+  st = blank()
+  local t = put(st, 2, 2, "grunt")
+  cast(st, 1, "grenade", 2)
+  check(t.hp == 2 and t.frozen, "iron grenade: 2 damage and freeze")
+  local t2 = put(st, 2, 3, "grunt")
+  local inHand = #st.players[1].hand
+  cast(st, 1, "netomatic", 3)
+  check(t2.frozen and t2.hp == 4 and #st.players[1].hand == inHand + 1, "net-o-matic: freeze, and draw a card")
+  local stealthy = put(st, 2, 4, "footpad")
+  cast(st, 1, "grenade", 4)
+  check(stealthy.hp == 2 and not stealthy.frozen, "an item can't target Stealth any more than a tactic can")
+  st.players[1].morale = 3
+  cast(st, 1, "majorheal")
+  check(st.players[1].morale == 11, "major healing potion: 8 Morale")
+  cast(st, 1, "majorheal")
+  check(st.players[1].morale == R.MAX_MORALE, "and no more than the most")
 end
 
 -- 3. determinism ------------------------------------------------------------------
@@ -1140,9 +1367,10 @@ do
 
   -- rewards, stars and the ladder
   local function tally(list)
-    local t = { packs = 0, shards = 0, stars = 0, cards = {}, unlocked = {} }
+    local t = { packs = 0, special = 0, shards = 0, stars = 0, cards = {}, unlocked = {} }
     for _, r in ipairs(list) do
       t.packs = t.packs + (r.packs or 0)
+      t.special = t.special + (r.special or 0)
       t.shards = t.shards + (r.shards or 0)
       if r.star then t.stars = t.stars + 1 end
       if r.card then t.cards[#t.cards + 1] = r end
@@ -1219,7 +1447,8 @@ do
     check(t2.stars == 0 and C.Stars(h, "dorn")[2] == starsBefore and h.record.dorn == nil,
       "a heroic win earns no stars and keeps its own record")
     check(h.heroic.dorn.w == 1 and h.heroic.dorn.beaten and h.stats.wins == wins + 1, "the heroic record")
-    check(t2.shards == C.REWARD.win.heroic and t2.packs == C.REWARD.heroicPacks + 1, "heroic pay: shards, a pack, the day's first win")
+    check(t2.shards == C.REWARD.win.heroic and t2.special == C.REWARD.heroicSpecial and t2.packs == 1,
+      "heroic pay: shards, a Windfall pack, and the day's first-win pack")
     check(#t2.cards == 1 and t2.cards[1].card == "bangalash" and t2.cards[1].holo and C.IsHolo(h, "bangalash"),
       "first heroic win: their signature card, holographic")
     h.collection.murkeye = 2
@@ -1242,16 +1471,22 @@ do
 
   -- levels, flight paths, flight time
   packs, shards = db.packs, db.shards
+  local special = db.specialPacks
   t = tally(C.LevelUp(db, 23))
-  check(t.shards == C.REWARD.level and t.packs == 0, "a level gives shards")
+  check(t.shards == C.REWARD.level and t.packs == 0 and t.special == 0, "a level gives shards")
   t = tally(C.LevelUp(db, 30))
-  check(t.shards == C.REWARD.level and t.packs == 1, "every tenth level also gives a pack")
+  check(t.shards == C.REWARD.level and t.packs == 0 and t.special == 1, "every tenth level also gives a Windfall pack")
   t = tally(C.FlightPath(db))
-  check(t.shards == C.REWARD.flightPath and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath and db.packs == packs + 1,
-    "a new flight path gives shards")
+  check(t.shards == C.REWARD.flightPath and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath and db.packs == packs
+    and db.specialPacks == special + 1, "a new flight path gives shards")
   local before = db.packs
-  db.progress.travel = 0
-  check(C.AddTravel(db, 2 * C.TRAVEL_PACK_SECONDS + 50) == 2 and db.packs == before + 2 and db.progress.travel == 50, "travel packs")
+  db.progress.travel, db.progress.specialTravel = 0, 0
+  local earned, windfall = C.AddTravel(db, 2 * C.TRAVEL_PACK_SECONDS + 50)
+  check(earned == 2 and windfall == 0 and db.packs == before + 2 and db.progress.travel == 50, "travel packs")
+  earned, windfall = C.AddTravel(db, C.TRAVEL_SPECIAL_SECONDS - (2 * C.TRAVEL_PACK_SECONDS + 50))
+  check(earned == 0 and windfall == 1 and db.specialPacks == special + 2 and db.progress.specialTravel == 0
+    and db.progress.travel == C.TRAVEL_SPECIAL_SECONDS - 2 * C.TRAVEL_PACK_SECONDS,
+    "45 minutes of travel: a Windfall pack, on a clock of its own")
 
   -- the daily task
   local f = {}
@@ -1398,8 +1633,8 @@ do
   check(fresh5.packs == C.STARTER_PACKS and C.STARTER_PACKS == 1, "one starter pack (the tutorial pays the second)")
   local t1 = C.FinishTutorial(fresh5)
   local t2 = C.FinishTutorial(fresh5)
-  check(#t1 == 1 and t1[1].packs == C.TUTORIAL_PACKS and #t2 == 0 and fresh5.packs == 1 + C.TUTORIAL_PACKS,
-    "finishing the tutorial pays once")
+  check(#t1 == 1 and t1[1].special == C.TUTORIAL_PACKS and #t2 == 0 and fresh5.packs == 1
+    and fresh5.specialPacks == C.TUTORIAL_PACKS, "finishing the tutorial pays a Windfall pack, once")
 
   -- migration 6: a game against a player moves out of the computer's slot
   local function pvpGame(gid)
@@ -1440,11 +1675,89 @@ do
   check(#C.Games(v6) == 1, "C.Games lists them")
 end
 
+-- 7b. Windfall packs and milestones ----------------------------------------------------
+do
+  local rnd = lcg(4242)
+  local fifth = { rare = 0, epic = 0, legendary = 0 }
+  local ok, pity = true, 0
+  for _ = 1, 3000 do
+    local cards, newPity, holo = C.RollPack(rnd, pity, "special")
+    if #cards ~= C.SPECIAL_SIZE then ok = false end
+    local r5 = Cards.byId[cards[5]].rarity
+    if fifth[r5] == nil then ok = false else fifth[r5] = fifth[r5] + 1 end
+    if Cards.byId[cards[3]].rarity ~= "uncommon" then ok = false end
+    for i = 1, 2 do if Cards.byId[cards[i]].rarity ~= "common" then ok = false end end
+    for _, id in ipairs(cards) do if not C.InPacks(id) then ok = false end end
+    if holo and (holo < 1 or holo > C.SPECIAL_SIZE) then ok = false end
+    pity = newPity
+  end
+  check(ok, "Windfall packs: five pack cards, two commons, an uncommon, and the last always rare or better")
+  check(fifth.rare > 2400 and fifth.epic > 200 and fifth.legendary > 20,
+    ("the last card of a Windfall pack: %d rare, %d epic, %d legendary in 3000"):format(fifth.rare, fifth.epic, fifth.legendary))
+  local forced = true
+  for s = 1, 50 do
+    local cards = C.RollPack(lcg(s), C.PITY - 1, "special")
+    local r = Cards.byId[cards[5]].rarity
+    if r ~= "epic" and r ~= "legendary" then forced = false end
+  end
+  check(forced, "pity makes the last card of a Windfall pack the epic")
+
+  local db = {}
+  C.Init(db)
+  check(db.specialPacks == 0 and C.OpenPack(db, rnd, "special") == nil, "a new character has no Windfall pack to open")
+  db.specialPacks = 2
+  local packs = db.packs
+  local res = C.OpenPack(db, rnd, "special")
+  check(res and #res == C.SPECIAL_SIZE and db.specialPacks == 1 and db.packs == packs, "opening one uses a Windfall pack, not a card pack")
+  db.shards = 1000
+  C.BuyPack(db)
+  check(db.specialPacks == 1 and db.packs == packs + 1, "the shop sells card packs only")
+
+  -- milestones
+  db = {}
+  C.Init(db)
+  check(#C.Milestones(db) == 0, "a new character has reached no milestone")
+  db.stars.dorn = { true, true, true }
+  local got = C.CheckMilestones(db)
+  check(#got == 1 and got[1].special == 1 and got[1].milestone == "stars:dorn" and db.specialPacks == 1,
+    "all three stars against Dorn: a Windfall pack")
+  check(#C.CheckMilestones(db) == 0 and db.specialPacks == 1, "once")
+  for _, o in ipairs(ns.Opponents) do db.stars[o.id] = { true, true, true } end
+  got = C.CheckMilestones(db)
+  check(#got == #ns.Opponents and db.specialPacks == 1 + #ns.Opponents,
+    "every star: one for each other opponent, and one for the whole circuit")
+  for _, o in ipairs(ns.Opponents) do db.heroic[o.id] = { w = 1, l = 0, d = 0, beaten = true } end
+  got = C.CheckMilestones(db)
+  check(#got == 1 and got[1].milestone == "heroic", "every heroic rematch won: a Windfall pack")
+  local have, total = C.TribeProgress(db, "murloc")
+  check(have < total and total == #C.TribeCards("murloc") and total >= 15, "tribe progress counts the tribe's cards (" .. total .. " Murlocs)")
+  for i, id in ipairs(C.TribeCards("murloc")) do
+    if i < total then db.collection[id] = 1 end
+  end
+  check(#C.CheckMilestones(db) == 0, "all but one Murloc: nothing yet")
+  db.collection[C.TribeCards("murloc")[total]] = 1
+  got = C.CheckMilestones(db)
+  check(#got == 1 and got[1].milestone == "tribe:murloc" and got[1].why:find("Murloc"), "one of every Murloc: a Windfall pack")
+  local saved = db.progress.special
+  check(saved["tribe:murloc"] and saved.circuit and saved.heroic and saved["stars:dorn"], "the milestones paid are saved")
+
+  -- the game that earns the third star pays the Windfall pack with it
+  local r = {}
+  C.Init(r)
+  r.stars.dorn = { true, true }
+  local list = C.RecordResult(r, "dorn", "win", "2026-11-23", { margin = 9, plain = true })
+  local found = false
+  for _, x in ipairs(list) do if x.milestone == "stars:dorn" then found = true end end
+  check(found and r.specialPacks == 1, "the third star's game pays the Windfall pack, and lists it with the rewards")
+end
+
 -- 8. the pace of the collection -------------------------------------------------------
--- How many packs (earned, not counting the ones bought with shards from
--- duplicates) it takes to own the cards packs hold. At roughly 13 packs a week
--- of casual play, the target is three quarters in two to three weeks and
--- everything in two to three months; crafting shortens the tail further.
+-- How many card packs (earned, not counting the ones bought with shards from
+-- duplicates) it takes to own the cards packs hold, with a Windfall pack for
+-- every 4 card packs. Casual play earns roughly 13 card packs and 3 or 4
+-- Windfall packs a week (2 hours of travel, and now and then a milestone).
+-- The target: three quarters in about three to four weeks, everything in two
+-- to three months; crafting shortens the tail further.
 -- Legendaries are left out: packs hold them only very rarely, as a jackpot.
 do
   local function counted(c) return C.InPacks(c.id) and c.rarity ~= "legendary" end
@@ -1461,8 +1774,9 @@ do
     while not marks.all and earned < 2000 do
       earned = earned + 1
       db.packs = db.packs + 1
-      while db.packs > 0 do
-        C.OpenPack(db, rnd)
+      if earned % 4 == 0 then db.specialPacks = db.specialPacks + 1 end
+      while db.packs > 0 or db.specialPacks > 0 do
+        C.OpenPack(db, rnd, db.specialPacks > 0 and "special" or nil)
         -- shards from duplicates: more packs early on; once most cards are
         -- owned, craft the cheapest one still missing instead
         local have, missing = 0, {}
@@ -1502,7 +1816,7 @@ do
   local half, most, one, all = median("half"), median("most"), median("one"), median("all")
   print(("collection pace: %d cards in packs; median packs to own 50%%: %d, 75%%: %d, one of each: %d, full playset: %d"):format(
     total, half, most, one, all))
-  check(most >= 28 and most <= 48, "75% of the pack cards takes about three weeks of packs (" .. most .. ")")
+  check(most >= 36 and most <= 60, "75% of the pack cards takes three to four weeks of packs (" .. most .. ")")
   check(one >= 90 and one <= 170, "one of every pack card takes two to three months of packs (" .. one .. ")")
 end
 

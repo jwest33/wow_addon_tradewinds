@@ -134,7 +134,7 @@ end
 
 function UI.Refresh()
   if not main then return end
-  local packs = ns.db.packs
+  local packs = ns.db.packs + (ns.db.specialPacks or 0)
   tabs.packs.badge:SetText(packs > 0 and tostring(packs) or "")
   if main:IsShown() and UI.tab then pages[UI.tab].module.Refresh() end
 end
@@ -211,8 +211,8 @@ function UI.AnyGame()
   return (ns.db and (ns.db.match or next(ns.db.games or {}))) and true or false
 end
 
--- kind: "flight" | "boat" | "pvp" | "pack" | nil (hide); n: how many packs;
--- why: the reason for a pack, or the text for "pvp"
+-- kind: "flight" | "boat" | "pvp" | "pack" | "special" (Windfall packs) | nil
+-- (hide); n: how many packs; why: the reason for a pack, or the text for "pvp"
 function UI.Toast(kind, why, n)
   if not kind then
     if toast then toast:Hide() end
@@ -236,7 +236,8 @@ function UI.Toast(kind, why, n)
     toast.go:SetScript("OnClick", function() UI.Show("play") end)
   else
     n = n or 1
-    toast.title:SetText(ns.Plural(n, "+%d card pack", "+%d card packs"):format(n))
+    toast.title:SetText(kind == "special" and ns.Plural(n, "+%d Windfall pack", "+%d Windfall packs"):format(n)
+      or ns.Plural(n, "+%d card pack", "+%d card packs"):format(n))
     toast.text:SetText(why and L["For %s."]:format(why) or "")
     toast.go:SetText(L["Open"])
     toast.go:SetScript("OnClick", function() UI.Show("packs") end)
@@ -302,6 +303,10 @@ local function makeMinimap()
     end
     if ns.db.packs > 0 then
       GameTooltip:AddLine(ns.Plural(ns.db.packs, "%d unopened pack", "%d unopened packs"):format(ns.db.packs), 1, 0.82, 0)
+    end
+    local special = ns.db.specialPacks or 0
+    if special > 0 then
+      GameTooltip:AddLine(ns.Plural(special, "%d unopened Windfall pack", "%d unopened Windfall packs"):format(special), 1, 0.6, 0.2)
     end
     GameTooltip:AddLine(L["Click: play.  Right-click: packs.  Drag: move."], 0.7, 0.7, 0.7)
     GameTooltip:Show()

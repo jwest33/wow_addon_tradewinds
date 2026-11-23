@@ -278,6 +278,7 @@ end
 local function carryOut(name, give, get)
   local got, trimmed = C.ApplyTrade(ns.db, give, get)
   ui().OnDone(short(name), give, got, trimmed)
+  if ns.CheckMilestones then ns.CheckMilestones() end
 end
 
 local function pruneDone()

@@ -468,6 +468,293 @@ L["Mrgl?"] = "음르글?"
 -- bones
 L["Skeleton"] = "해골"
 L["Clack."] = "달그락."
+-- crawler
+L["Shore Crawler"] = "해안 게"
+L["Westfall's beaches belong to it. Ask anyone."] = "서부 몰락지대 해변은 이 녀석 거다. 아무한테나 물어봐."
+-- hyena
+L["Hecklefang Hyena"] = "비웃는송곳니 하이에나"
+L["It laughs first. Then it bites."] = "먼저 웃는다. 그다음에 문다."
+-- cougar
+L["Mountain Cougar"] = "산악 퓨마"
+L["Mulgore's other welcoming committee."] = "멀고어의 또 다른 환영 위원회."
+-- panther
+L["Shadowmaw Panther"] = "그림자아귀 표범"
+L["Stranglethorn's shadows have teeth."] = "가시덤불 골짜기의 그림자에는 이빨이 있다."
+-- elderstrider
+L["Elder Plainstrider"] = "늙은 초원타조"
+L["Older, slower, and very much in the way."] = "더 늙고, 더 느리고, 아주 제대로 길을 막고 있다."
+-- ashbear
+L["Ashenvale Bear"] = "잿빛 골짜기 곰"
+L["The forest's quiet giant, until it isn't."] = "숲의 조용한 거인. 조용하지 않게 될 때까지는."
+-- tiger
+L["Stranglethorn Tiger"] = "가시덤불 호랑이"
+L["Hunters come here for its pelt. Some leave."] = "사냥꾼들이 그 가죽을 노리고 온다. 돌아가는 사람도 더러 있다."
+-- corehound
+L["Ancient Core Hound"] = "고대 심장부 사냥개"
+L["Two heads. Neither of them is friendly."] = "머리가 둘이다. 어느 쪽도 친절하지 않다."
+-- footman
+L["Stormwind Footman"] = "스톰윈드 보병"
+L["Ready for anything. Mostly guard duty."] = "무엇이든 할 준비가 돼 있다. 주로 보초 근무지만."
+-- sentinel
+L["Silverwing Sentinel"] = "은빛날개 파수꾼"
+L["Warsong Gulch taught her to run."] = "전쟁노래 협곡에서 달리는 법을 배웠다."
+-- defender
+L["Ironforge Defender"] = "아이언포지 수비병"
+L["The gates never fell on his watch."] = "그가 지키는 동안 성문은 한 번도 뚫리지 않았다."
+-- veteran
+L["Kor'kron Veteran"] = "코르크론 노병"
+L["Orgrimmar's elite, and he'll tell you so."] = "오그리마 최정예. 묻지 않아도 본인이 알려 준다."
+-- streamrunner
+L["Murloc Streamrunner"] = "멀록 개울질주자"
+L["Mrrgl? Mrrgl."] = "음르글? 음르글."
+-- tidewarrior
+L["Murloc Tidewarrior"] = "멀록 파도전사"
+L["Bigger than the rest, and twice as loud."] = "다른 놈들보다 크고, 두 배는 시끄럽다."
+-- harpooner
+L["Murloc Harpooner"] = "멀록 작살잡이"
+L["Throws first. Asks never."] = "일단 던진다. 묻지는 않는다."
+-- zombie
+L["Tirisfal Zombie"] = "티리스팔 좀비"
+L["Slow, hungry, and in no hurry."] = "느리고, 배고프고, 서두를 생각도 없다."
+-- deathguard
+L["Deathguard Lookout"] = "죽음의 경비대 감시병"
+L["Brill's night watch. And day watch."] = "브릴의 야간 경비. 주간 경비도."
+-- hungryghoul
+L["Hungering Ghoul"] = "굶주린 구울"
+L["Always hungry. Never full."] = "늘 배고프다. 배부른 적은 없다."
+-- warder
+L["Skeletal Warder"] = "해골 파수병"
+L["Stands its post. It has nothing better to do."] = "자리를 지킨다. 딱히 할 일도 없으니까."
+-- footsoldier
+L["Scourge Footsoldier"] = "스컬지 보병"
+L["The Plaguelands' endless infantry."] = "역병지대의 끝없는 보병대."
+-- abomination
+L["Hulking Abomination"] = "육중한 누더기골렘"
+L["Three of everything, stitched together."] = "뭐든 세 개씩, 한데 꿰매 붙였다."
+-- lookout
+L["Defias Lookout"] = "데피아즈단 망꾼"
+L["Sees you coming. Tells everyone."] = "당신이 오는 걸 본다. 그리고 모두에게 알린다."
+-- cutpurse
+L["Defias Cutpurse"] = "데피아즈단 소매치기"
+L["Your coin purse feels lighter already."] = "벌써 지갑이 가벼워진 느낌이다."
+-- highwayman
+L["Defias Highwayman"] = "데피아즈단 노상강도"
+L["The road to Sentinel Hill has a toll."] = "감시의 언덕으로 가는 길엔 통행료가 있다."
+-- nightrunner
+L["Defias Night Runner"] = "데피아즈단 밤의 질주자"
+L["Westfall's nights belong to the Brotherhood."] = "서부 몰락지대의 밤은 형제단의 것이다."
+-- pathstalker
+L["Defias Pathstalker"] = "데피아즈단 추적자"
+L["Watches the Moonbrook road from the hills."] = "언덕 위에서 달빛 시내로 가는 길을 지켜본다."
+-- azurewhelp
+L["Azure Whelp"] = "푸른 새끼용"
+L["Bites first. Sneezes frost later."] = "일단 문다. 서리 재채기는 나중에."
+-- drakonid
+L["Black Drakonid"] = "검은 드라코니드"
+L["Bred in Blackwing Lair for one job."] = "검은날개 둥지에서 단 한 가지 일을 위해 길러졌다."
+-- drakeling
+L["Emerald Drakeling"] = "에메랄드 새끼 비룡"
+L["Dreams fast, wakes faster."] = "꿈은 빨리 꾸고, 깨기는 더 빨리 깬다."
+-- broodling
+L["Black Broodling"] = "검은 아기용"
+L["Spits fire before it can fly."] = "날기도 전에 불부터 뱉는다."
+-- wyrmguard
+L["Bronze Wyrmguard"] = "청동 용경비병"
+L["Guards the sands of time. And you, for now."] = "시간의 모래를 지킨다. 지금은 당신도."
+-- reddragonspawn
+L["Red Dragonspawn"] = "붉은용혈족"
+L["Grim Batol's warden, on leave."] = "휴가 나온 그림 바톨 간수."
+-- greendrake
+L["Green Drake"] = "녹색 비룡"
+L["Asleep until woken. Then very awake."] = "깨우기 전까진 잔다. 깨우면 아주 제대로 깬다."
+-- seether
+L["Death Talon Seether"] = "죽음의 발톱 격노자"
+L["Blackwing Lair's hall monitor."] = "검은날개 둥지 선도부원."
+-- trackinghound
+L["Tracking Hound"] = "추적 사냥개"
+L["Arrive: draw with another Beast"] = "등장: 다른 야수 있으면 뽑기"
+L["Arrive: draw a card if you have another Beast."] = "등장: 내 다른 야수가 있으면 카드를 1장 뽑아요."
+L["Already knows where you're going."] = "당신이 어디로 갈지 이미 알고 있다."
+-- patriarch
+L["Silverback Patriarch"] = "은빛등 족장"
+L["Arrive: other Beasts +1/+1"] = "등장: 다른 야수 +1/+1"
+L["Arrive: your other Beasts get +1/+1."] = "등장: 내 다른 야수들이 +1/+1을 얻어요."
+L["The troop follows the grey."] = "무리는 회색 털을 따른다."
+-- crier
+L["Town Crier"] = "마을 포고관"
+L["Arrive: draw with 2 other Humanoids"] = "등장: 다른 인간형 2개 이상이면 뽑기"
+L["Arrive: draw a card if you have 2 other Humanoids."] = "등장: 내 다른 인간형이 2개 이상 있으면 카드를 1장 뽑아요."
+L["Hear ye! Wanted: Hogger. Again."] = "들으시오! 현상수배: 들창코. 또다시."
+-- sergeant
+L["Militia Sergeant"] = "민병대 하사관"
+L["Arrive: other Humanoids +1 health"] = "등장: 다른 인간형 생명력 +1"
+L["Arrive: your other Humanoids get +1 health."] = "등장: 내 다른 인간형이 생명력 +1을 얻어요."
+L["Goldshire's finest. Goldshire's only."] = "골드샤이어 최고의 병사. 골드샤이어 유일의 병사."
+-- captain
+L["Stormwind Captain"] = "스톰윈드 대장"
+L["Arrive: Humanoids beside it +1/+1"] = "등장: 양옆의 인간형 +1/+1"
+L["Arrive: your Humanoids in the neighbouring lanes get +1/+1."] = "등장: 옆 전선의 내 인간형이 +1/+1을 얻어요."
+L["Leads from the front. Mostly."] = "앞장서서 이끈다. 대체로는."
+-- bolvar
+L["Bolvar Fordragon"] = "볼바르 폴드라곤"
+L["Arrive: other Humanoids +1/+1"] = "등장: 다른 인간형 +1/+1"
+L["Arrive: your other Humanoids get +1/+1."] = "등장: 내 다른 인간형이 +1/+1을 얻어요."
+L["Regent of Stormwind, and nobody's pushover."] = "스톰윈드의 섭정. 만만한 사람이 아니다."
+-- raider
+L["Murloc Raider"] = "멀록 약탈자"
+L["Arrive: +1 attack with a Murloc"] = "등장: 다른 멀록 있으면 공격력 +1"
+L["Arrive: +1 attack if you have another Murloc."] = "등장: 내 다른 멀록이 있으면 공격력 +1을 얻어요."
+L["Never raids alone. Wouldn't know how."] = "혼자서는 절대 약탈하지 않는다. 할 줄을 모른다."
+-- flopper
+L["Murloc Flopper"] = "퍼덕이는 멀록"
+L["Fallen: leaves a 1/1 Murloc Scout"] = "쓰러짐: 1/1 멀록 정찰병을 남김"
+L["Fallen: summon a 1/1 Murloc Scout in its lane."] = "쓰러짐: 이 유닛이 있던 전선에 1/1 멀록 정찰병을 소환해요."
+L["Flops in. Flops out. Leaves a friend."] = "퍼덕퍼덕 들어와서, 퍼덕퍼덕 나간다. 친구를 남기고."
+-- tidecaller
+L["Murloc Tidecaller"] = "멀록 파도부름꾼"
+L["Arrive: 1/1 Scouts beside it"] = "등장: 양옆에 1/1 정찰병 소환"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."] = "등장: 비어 있는 옆 전선마다 1/1 멀록 정찰병을 소환해요."
+L["It calls. They come. Every time."] = "부르면 온다. 매번."
+-- netmaster
+L["Murloc Netmaster"] = "멀록 그물대장"
+L["Arrive: freeze what's across Murlocs"] = "등장: 다른 멀록 맞은편 빙결"
+L["Arrive: freeze the enemy units across from your other Murlocs."] = "등장: 내 다른 멀록들 맞은편의 적 유닛을 빙결시켜요."
+L["One net, many murlocs, no way out."] = "그물 하나, 멀록 여럿, 빠져나갈 구멍은 없음."
+-- hightide
+L["High Tide"] = "만조"
+L["Your Murlocs: +1/+1"] = "내 멀록: +1/+1"
+L["Your Murlocs get +1/+1."] = "내 멀록들이 +1/+1을 얻어요."
+L["Everything floats. Especially murlocs."] = "물이 차면 뭐든 뜬다. 특히 멀록은."
+-- muckdweller
+L["Murloc Muckdweller"] = "멀록 진흙거주자"
+L["+1/+1 when your Murloc dies"] = "내 멀록이 죽으면 +1/+1"
+L["Whenever another of your Murlocs dies, gains +1/+1."] = "내 다른 멀록이 죽을 때마다 +1/+1을 얻어요."
+L["Grows fat on the tide's leftovers."] = "파도가 남긴 찌꺼기로 살이 오른다."
+-- murkdeep
+L["Murkdeep"] = "머크딥"
+L["1/1 Scouts beside. Murlocs +1 attack"] = "양옆에 1/1 정찰병. 다른 멀록 공격력 +1"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."] = "등장: 비어 있는 옆 전선마다 1/1 멀록 정찰병을 소환해요. 내 다른 멀록들이 공격력 +1을 얻어요."
+L["Darkshore's coast has one king, and he's wet."] = "어둠해안에는 왕이 하나 있다. 축축한 왕이."
+-- squire
+L["Rotting Squire"] = "썩어가는 종자"
+L["Arrive: +1 attack with an Undead"] = "등장: 다른 언데드 있으면 공격력 +1"
+L["Arrive: +1 attack if you have another Undead."] = "등장: 내 다른 언데드가 있으면 공격력 +1을 얻어요."
+L["Still serving. Still squiring."] = "죽어서도 시중든다. 여전히 종자다."
+-- bonecaller
+L["Bonecaller"] = "뼈부름꾼"
+L["Fallen: other Undead +1 attack"] = "쓰러짐: 다른 언데드 공격력 +1"
+L["Fallen: your other Undead get +1 attack."] = "쓰러짐: 내 다른 언데드가 공격력 +1을 얻어요."
+L["Its last word is always 'rise'."] = "마지막 말은 언제나 '일어나라'다."
+-- plagueeater
+L["Plague Eater"] = "역병 포식자"
+L["+1/+1 when your Undead dies"] = "내 언데드가 죽으면 +1/+1"
+L["Whenever another of your Undead dies, gains +1/+1."] = "내 다른 언데드가 죽을 때마다 +1/+1을 얻어요."
+L["Nothing goes to waste in the Plaguelands."] = "역병지대에선 버리는 게 하나도 없다."
+-- bloated
+L["Bloated Zombie"] = "부푼 좀비"
+L["Fallen: 1 damage to every enemy"] = "쓰러짐: 모든 적에게 피해 1"
+L["Fallen: deal 1 damage to every enemy unit."] = "쓰러짐: 모든 적 유닛에게 피해를 1 줘요."
+L["Do not poke."] = "찌르지 마시오."
+-- armydead
+L["Army of the Dead"] = "사자의 군대"
+L["1/1 Skeletons in your empty lanes"] = "내 빈 전선마다 1/1 해골 소환"
+L["Summon a 1/1 Skeleton in each of your empty lanes."] = "내 빈 전선마다 1/1 해골을 소환해요."
+L["They were already here. They just stood up."] = "원래 여기 있었다. 일어났을 뿐이다."
+-- commander
+L["Scourge Commander"] = "스컬지 사령관"
+L["Other Undead: +1 attack"] = "다른 언데드: 공격력 +1"
+L["Your other Undead have +1 attack."] = "내 다른 언데드가 공격력 +1을 얻어요."
+L["Orders from Naxxramas, delivered in person."] = "낙스라마스의 명령을 직접 들고 왔다."
+-- gandling
+L["Darkmaster Gandling"] = "암흑스승 간들링"
+L["Round start: 1/1 Skeletons beside"] = "라운드 시작: 양옆에 1/1 해골 소환"
+L["Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."] = "라운드 시작: 비어 있는 옆 전선마다 1/1 해골을 소환해요."
+L["Scholomance's headmaster. Attendance is mandatory."] = "스칼로맨스의 교장. 출석은 의무다."
+-- overseer
+L["Defias Overseer"] = "데피아즈단 감독관"
+L["Arrive: +1 attack with a Defias"] = "등장: 다른 데피아즈단 있으면 공격력 +1"
+L["Arrive: +1 attack if you have another Defias."] = "등장: 내 다른 데피아즈단이 있으면 공격력 +1을 얻어요."
+L["Counts the loot. Twice."] = "전리품을 센다. 두 번."
+-- conjurer
+L["Defias Conjurer"] = "데피아즈단 요술사"
+L["Arrive: enemy -1 Morale per Defias"] = "등장: 다른 데피아즈단당 적 사기 -1"
+L["Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."] = "등장: 내 다른 데피아즈단 하나당 적의 사기가 1 줄어요(최대 2)."
+L["Learned his tricks from a book he stole."] = "요술은 훔친 책으로 배웠다."
+-- blackguard
+L["Defias Blackguard"] = "데피아즈단 악한"
+L["Arrive: other Defias get Stealth"] = "등장: 다른 데피아즈단 은신"
+L["Arrive: your other Defias get Stealth."] = "등장: 내 다른 데피아즈단이 은신을 얻어요."
+L["Teaches the new recruits to disappear."] = "신참들에게 사라지는 법을 가르친다."
+-- whelpling
+L["Brood Whelpling"] = "둥지 새끼용"
+L["Arrive: +1 attack with a Dragonkin"] = "등장: 다른 용족 있으면 공격력 +1"
+L["Arrive: +1 attack if you have another Dragonkin."] = "등장: 내 다른 용족이 있으면 공격력 +1을 얻어요."
+L["Small, loud, and already hoarding."] = "작고, 시끄럽고, 벌써 보물을 모은다."
+-- firebrand
+L["Wyrmkin Firebrand"] = "용족 화염술사"
+L["+1 attack per other Dragonkin"] = "다른 용족 하나당 공격력 +1"
+L["Has +1 attack for each other Dragonkin you have."] = "내 다른 용족 하나당 공격력이 1 높아요."
+L["The flame burns hotter in a crowd."] = "불꽃은 여럿이 모이면 더 뜨겁게 탄다."
+-- wyrmkin
+L["Flamescale Wyrmkin"] = "불꽃비늘 용족"
+L["Arrive: 1 to all enemies, if Dragonkin"] = "등장: 다른 용족 있으면 모든 적에게 피해 1"
+L["Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."] = "등장: 내 다른 용족이 있으면 모든 적 유닛에게 피해를 1 줘요."
+L["Breathes on everyone. Apologises to no one."] = "모두에게 숨을 내뿜는다. 아무에게도 사과하지 않는다."
+-- nefarian
+L["Nefarian"] = "네파리안"
+L["Arrive: other Dragonkin +2/+2"] = "등장: 다른 용족 +2/+2"
+L["Arrive: your other Dragonkin get +2/+2."] = "등장: 내 다른 용족이 +2/+2를 얻어요."
+L["Blackwing Lair's host, and its worst landlord."] = "검은날개 둥지의 주인. 최악의 집주인이기도 하다."
+-- cutlass
+L["Bloodsail Cutlass"] = "붉은해적단 커틀러스"
+L["+3/+1"] = "+3/+1"
+L["Give one of your units +3/+1."] = "내 유닛 하나에게 +3/+1을 부여해요."
+L["Rusty, notched, and still sharper than you'd like."] = "녹슬고 이가 빠졌는데도, 바라는 것보다 날카롭다."
+-- swiftness
+L["Swiftness Potion"] = "신속의 물약"
+L["Swift and +1/+1"] = "신속, +1/+1"
+L["Give one of your units Swift and +1/+1."] = "내 유닛 하나에게 신속과 +1/+1을 부여해요."
+L["Drink it before the fight, not during."] = "싸우기 전에 마셔라. 싸우는 도중 말고."
+-- scrollprot
+L["Scroll of Protection"] = "보호의 두루마리"
+L["+1/+4"] = "+1/+4"
+L["Give one of your units +1/+4."] = "내 유닛 하나에게 +1/+4를 부여해요."
+L["Read aloud. Slowly. Mind the long words."] = "소리 내어 읽을 것. 천천히. 긴 단어 조심."
+-- grenade
+L["Iron Grenade"] = "철 수류탄"
+L["2 damage and freeze it"] = "피해 2, 빙결"
+L["Deal 2 damage to the enemy unit in a lane and freeze it."] = "한 전선의 적 유닛에게 피해를 2 주고 빙결시켜요."
+L["Pull pin. Throw. Do not hold."] = "핀을 뽑는다. 던진다. 들고 있지 않는다."
+-- majorheal
+L["Major Healing Potion"] = "최상급 치유 물약"
+L["Restore 8 Morale"] = "사기 8 회복"
+L["Restore 8 Morale."] = "사기를 8 회복해요."
+L["The good stuff. Tastes worse."] = "좋은 물건이다. 맛은 더 나쁘다."
+-- netomatic
+L["Gnomish Net-o-Matic Projector"] = "노움 그물 발사기"
+L["Freeze an enemy unit. Draw a card"] = "적 유닛 빙결. 카드 1장 뽑기"
+L["Freeze the enemy unit in a lane. Draw a card."] = "한 전선의 적 유닛을 빙결시켜요. 카드를 1장 뽑아요."
+L["Works every time. Sixty percent of the time."] = "매번 작동한다. 열 번에 여섯 번꼴로."
+-- trollblood
+L["Mighty Troll's Blood Potion"] = "강력한 트롤의 피 물약"
+L["Regenerate and +1/+2"] = "재생, +1/+2"
+L["Give one of your units Regenerate and +1/+2."] = "내 유닛 하나에게 재생과 +1/+2를 부여해요."
+L["Don't ask what's in it. Don't ask whose."] = "뭐가 들었는지 묻지 마라. 누구 건지도."
+-- giants
+L["Elixir of the Giants"] = "거인의 비약"
+L["+3/+3"] = "+3/+3"
+L["Give one of your units +3/+3."] = "내 유닛 하나에게 +3/+3을 부여해요."
+L["Side effects include ducking under doorways."] = "부작용: 문을 지날 때마다 고개를 숙이게 됨."
+-- lionheart
+L["Lionheart Helm"] = "사자심장 투구"
+L["+2/+2 and Rally"] = "+2/+2, 격려"
+L["Give one of your units +2/+2 and Rally."] = "내 유닛 하나에게 +2/+2와 격려를 부여해요."
+L["Whoever wears it, the rest stand taller."] = "누가 쓰든, 나머지가 어깨를 편다."
+-- thunderfury
+L["Thunderfury"] = "우레폭풍"
+L["+2/+2, Swift and Cleave"] = "+2/+2, 신속, 휩쓸기"
+L["Give one of your units +2/+2, Swift and Cleave."] = "내 유닛 하나에게 +2/+2, 신속, 휩쓸기를 부여해요."
+L["Did someone say...?"] = "누가 방금 뭐라고...?"
 
 -- == Opponents == (name, short name, title, and what they say)
 -- dorn
@@ -586,12 +873,14 @@ L["Player %d"] = "플레이어 %d"
 
 -- == Engine/Cards.lua ==
 L["Beast"] = "야수"
+L["Humanoid"] = "인간형"
 L["Murloc"] = "멀록"
 L["Undead"] = "언데드"
 L["Defias"] = "데피아즈단"
 L["Dragonkin"] = "용족"
 L["Core set"] = "기본 세트"
 L["Roads of Azeroth"] = "아제로스의 길"
+L["Tribes of Azeroth"] = "아제로스의 종족"
 
 -- == Collection.lua ==
 L["That card can't be crafted."] = "그 카드는 제작할 수 없어요."
@@ -643,6 +932,8 @@ L["victory; games against %s have paid in full %d times today"] = "승리 - 오�
 L["finishing the tutorial"] = "튜토리얼 완료"
 L["reaching level %s"] = "%s레벨 달성"
 L["a new flight path"] = "새 비행 경로"
+L["every star against %s"] = "%s 상대 모든 별"
+L["every %s card"] = "모든 %s 카드"
 
 -- == Net.lua ==
 L["Another player"] = "다른 플레이어"
@@ -689,9 +980,13 @@ L["%d of them waits for your move."] = "그중 %d개가 내 차례를 기다려�
 L["%d of them wait for your move."] = "그중 %d개가 내 차례를 기다려요."
 L["Your tutorial is waiting. Type /tradewinds to continue."] = "튜토리얼이 기다리고 있어요. /tradewinds 를 입력해서 계속하세요."
 L["Your game against %s is waiting. Type /tradewinds to continue."] = "%s 상대 게임이 기다리고 있어요. /tradewinds 를 입력해서 계속하세요."
-L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."] = "Tradewinds가 처음인가요? /tradewinds tutorial 을 입력하면 짧은 안내 대전을 할 수 있어요. 카드 팩도 받아요."
+L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."] = "Tradewinds가 처음인가요? /tradewinds tutorial 을 입력하면 짧은 안내 대전을 할 수 있어요. 순풍 팩도 받아요."
+L["You have %d unopened Windfall pack. Type /tradewinds packs to open it."] = "열지 않은 순풍 팩이 %d개 있어요. /tradewinds packs 를 입력해서 열어 보세요."
+L["You have %d unopened Windfall packs. Type /tradewinds packs to open them."] = "열지 않은 순풍 팩이 %d개 있어요. /tradewinds packs 를 입력해서 열어 보세요."
 L["You have %d unopened card pack. Type /tradewinds to play."] = "열지 않은 카드 팩이 %d개 있어요. /tradewinds 를 입력해서 플레이하세요."
 L["You have %d unopened card packs. Type /tradewinds to play."] = "열지 않은 카드 팩이 %d개 있어요. /tradewinds 를 입력해서 플레이하세요."
+L["+%d Windfall pack"] = "순풍 팩 +%d"
+L["+%d Windfall packs"] = "순풍 팩 +%d"
 L["|cff9fdfff%s|r (%s)."] = "|cff9fdfff%s|r (%s)."
 L["+%d shard"] = "조각 +%d"
 L["+%d shards"] = "조각 +%d"
@@ -728,6 +1023,9 @@ L["click"] = "클릭"
 L["Tactic: enemy lane"] = "전술: 적 전선"
 L["Tactic: your unit"] = "전술: 내 유닛"
 L["Tactic"] = "전술"
+L["Item: enemy lane"] = "아이템: 적 전선"
+L["Item: your unit"] = "아이템: 내 유닛"
+L["Item"] = "아이템"
 L["Frozen"] = "빙결"
 L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."] = "적 전선을 고르세요. 공개 후에 발동하므로, 그때 그곳에 있는 유닛을 맞혀요."
 L["Pick one of your units, or a lane you're playing a unit into this round."] = "내 유닛 하나, 또는 이번 라운드에 유닛을 낼 전선을 고르세요."
@@ -770,6 +1068,8 @@ L["%d of your games wait for your move."] = "내 차례인 게임이 %d개 있�
 L["Games in progress."] = "진행 중인 게임이 있어요."
 L["%d unopened pack"] = "열지 않은 카드 팩 %d개"
 L["%d unopened packs"] = "열지 않은 카드 팩 %d개"
+L["%d unopened Windfall pack"] = "열지 않은 순풍 팩 %d개"
+L["%d unopened Windfall packs"] = "열지 않은 순풍 팩 %d개"
 L["Click: play.  Right-click: packs.  Drag: move."] = "클릭: 플레이.  우클릭: 카드 팩.  드래그: 이동."
 
 -- == UI/Effects.lua ==
@@ -1067,8 +1367,11 @@ L["A tactic is played once, then it's gone. Its type line says what it targets:"
 L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."] = "|cffffffff전술: 적 전선|r  위쪽 줄의 전선을 고르세요. 공개 후 그곳의 유닛을 맞혀요. 전선이 비어 있으면 다른 효과를 내는 전술도 있어요(화염구는 대신 사기를 맞혀요)."
 L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."] = "|cffffffff전술: 내 유닛|r  내 유닛 하나, 또는 이번 라운드에 유닛을 낼 전선을 고르세요."
 L["|cffffffffTactic|r  no target needed."] = "|cffffffff전술|r  대상이 필요 없어요."
+L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."] = "|cffffffff아이템|r(물약, 폭탄, 무기)도 전술이고 똑같이 써요. 가죽 테두리가 있고 종류 줄에 \"아이템\"이라고 적혀 있어요. 장비는 방패의 벽처럼 유닛에 계속 남아요."
 L["Tribes"] = "종족"
-L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."] = "야수, 멀록, 언데드, 데피아즈단, 용족이 있어요. 어떤 카드는 같은 종족이 옆에 있거나 보드에 있으면 더 강해져요. 카드의 종족은 이름 아래 줄에 나오고, 카드 탭에서 종족별로 거를 수 있어요."
+L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."] = "모든 유닛은 야수, 인간형, 멀록, 언데드, 데피아즈단, 용족 중 한 종족에 속해요. 어떤 카드는 같은 종족이 옆에 있거나 보드에 있으면 더 강해져요. 카드의 종족은 이름 아래 줄에 나와요."
+L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."] = "종족이 다른 유닛끼리 능력치가 같을 수도 있어요. 그 자체로는 똑같이 싸우지만, 어떤 카드가 그 유닛을 세는지는 종족이 정해요. 종족을 세는 카드에 마우스를 올리면 그 카드가 세는 유닛이 빛나요."
+L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."] = "카드 탭에서 종족별로 거를 수 있어요. 한 종족의 카드를 종류마다 1장씩 모두 모으면 순풍 팩을 받아요."
 L["Summoned units"] = "소환된 유닛"
 L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."] = "들창코의 갈퀴발일족 심부름꾼처럼 보드에 유닛을 추가로 불러오는 카드가 있어요. 이런 유닛은 덱에 들어가지 않아요."
 L["Winning"] = "승리 조건"
@@ -1078,11 +1381,13 @@ L["Eight opponents, from easy to hard. Beating one opens the next. Each has thre
 L["|cffffffffVictory|r  win. Pays a card pack."] = "|cffffffff승리|r  이기기. 보상은 카드 팩 1개."
 L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."] = "|cffffffff압승|r  상대보다 사기가 %d 이상 많은 상태로 이기기. 보상은 상대의 대표 카드."
 L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."] = "|cffffffff이름 없는 병사들|r  희귀, 특급, 전설 카드가 없는 덱으로 이기기. 보상은 카드 팩 2개."
-L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."] = "마지막 상대를 이기면 |cffffffff영웅 재대결|r이 열려요. 모든 상대와 최고의 덱, 가장 날카로운 플레이로 다시 붙어요. 각 상대에게 처음 영웅 승리를 거두면 카드 팩과 그 상대의 홀로그램 대표 카드를 받아요."
+L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."] = "한 상대에게서 별 3개를 모두 얻으면 순풍 팩을 받아요. 순회전의 모든 별을 얻어도 받아요."
+L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."] = "마지막 상대를 이기면 |cffffffff영웅 재대결|r이 열려요. 모든 상대와 최고의 덱, 가장 날카로운 플레이로 다시 붙어요. 각 상대에게 처음 영웅 승리를 거두면 순풍 팩과 그 상대의 홀로그램 대표 카드를 받아요."
 L["Your deck"] = "내 덱"
 L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."] = "정확히 %d장, 같은 카드는 최대 2장(전설은 1장)이에요. 비용 1 유닛이 최소 2장, 비용 2 카드가 최소 4장, 비용 3 카드가 최소 3장 있어야 해요. 초반에 뽑는 카드는 여기서 골라요. 덱은 카드 탭에서 만들어요."
 L["Collecting"] = "수집"
 L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."] = "카드 팩은 여행(비행, 배, 비행선), 레벨업, 승리로 얻어요. 중복 카드와 게임에서 얻은 조각으로 카드 팩을 사거나 원하는 카드를 제작할 수 있어요. 카드 팩 탭에 모든 획득 방법이 나와 있어요."
+L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."] = "|cffff9933순풍 팩|r에는 카드가 5장 들어 있고, 마지막 카드는 항상 희귀 이상이에요. 여행 %d분마다, 그리고 특별한 목표(튜토리얼, 10레벨마다, 별, 영웅 승리, 한 종족 전부)를 달성하면 받을 수 있고, 살 수는 없어요."
 L["The basics"] = "기본"
 L["A round"] = "라운드"
 L["Keywords"] = "키워드"
@@ -1091,7 +1396,7 @@ L["Card text"] = "카드 문구"
 L["Play the tutorial (+%d pack)"] = "튜토리얼 하기 (카드 팩 +%d)"
 L["Play the tutorial (+%d packs)"] = "튜토리얼 하기 (카드 팩 +%d)"
 L["Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."] = "왼쪽: 맞은편이 비어 있어 내 유닛이 상대 사기를 공격해요. 가운데: 두 유닛이 마주 보고 싸워요. 오른쪽: 맞은편에 내 유닛이 없어 상대 유닛이 내 사기를 공격해요."
-L["Finishing it the first time earns a card pack."] = "처음 완료하면 카드 팩을 받아요."
+L["Finishing it the first time earns a Windfall pack."] = "처음 완료하면 순풍 팩을 받아요."
 
 -- == UI/Binder.lua ==
 L["Show"] = "표시"
@@ -1110,6 +1415,8 @@ L["Cost"] = "비용"
 L["Type"] = "종류"
 L["units"] = "유닛"
 L["tactics"] = "전술"
+L["items"] = "아이템"
+L["Tribe"] = "종족"
 L["Owned %d of %d.  In your deck: %d."] = "보유 %d/%d.  덱에 %d장."
 L["Left-click: add to deck.  Right-click: take one out."] = "클릭: 덱에 추가.  우클릭: 1장 빼기."
 L["Shift-click: craft a copy for %d shards (you have %d)."] = "Shift-클릭: 조각 %d개로 1장 제작 (보유 %d개)."
@@ -1120,6 +1427,7 @@ L["win from %s"] = "%s 상대 승리로 획득"
 L["not found yet"] = "아직 못 찾음"
 L["not in packs"] = "카드 팩에서 안 나옴"
 L["%d in deck"] = "덱에 %d장"
+L["%s: collected %d of %d"] = "%s: %d/%d 수집"
 L["Collected %d of %d cards"] = "수집한 카드 %d/%d장"
 L["%d %s"] = "%d장 %s"
 L["%d shard"] = "조각 %d개"
@@ -1136,6 +1444,7 @@ L["Avg. cost %s"] = "평균 비용 %s"
 L["Click: take one out of the deck."] = "클릭: 덱에서 1장 빼기."
 L["No cards match these filters."] = "조건에 맞는 카드가 없어요."
 L["Click for the next choice, right-click for the one before."] = "클릭하면 다음 항목, 우클릭하면 이전 항목."
+L["One of every card of a tribe earns a Windfall pack."] = "한 종족의 카드를 종류마다 1장씩 모두 모으면 순풍 팩을 받아요."
 L["All"] = "전체"
 L["Clear the filters and show every card."] = "필터를 지우고 모든 카드를 보여 줘요."
 L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."] = "카드 클릭: 덱에 추가.   우클릭: 빼기.   Shift-클릭: 조각으로 제작."
@@ -1158,6 +1467,7 @@ L["Now holographic!"] = "이제 홀로그램!"
 L["Holographic!"] = "홀로그램!"
 L["Legendary!"] = "전설!"
 L["Epic!"] = "특급!"
+L["Rare or better"] = "희귀 이상"
 L["No packs to open."] = "열 카드 팩이 없어요."
 L["Opened %s: %s, %s from extra copies."] = "%s 개봉: %s, 중복 카드로 %s."
 L["%d pack"] = "카드 팩 %d개"
@@ -1167,12 +1477,18 @@ L["%d new cards"] = "새 카드 %d장"
 L["New: %s"] = "새 카드: %s"
 L["Open a pack"] = "카드 팩 열기"
 L["No packs"] = "카드 팩 없음"
+L["Windfall packs: %d"] = "순풍 팩: %d개"
 L["(in the air)"] = "(비행 중)"
 L["(on board)"] = "(탑승 중)"
 L["Travel time toward your next pack: %s / %s"] = "다음 카드 팩까지 이동 시간: %s / %s"
+L["Toward your next Windfall pack: %s / %s"] = "다음 순풍 팩까지: %s / %s"
 L["Card packs"] = "카드 팩"
 L["Open all"] = "모두 열기"
-L["Opens every pack you have. The new cards are listed in chat."] = "가진 카드 팩을 모두 열어요. 새 카드는 대화창에 표시돼요."
+L["Opens every pack you have, Windfall packs too. The new cards are listed in chat."] = "순풍 팩을 포함해 가진 카드 팩을 모두 열어요. 새 카드는 대화창에 표시돼요."
+L["Open a Windfall pack"] = "순풍 팩 열기"
+L["Windfall packs"] = "순풍 팩"
+L["Five cards, and the last one is always rare or better."] = "카드 5장. 마지막 카드는 항상 희귀 이상이에요."
+L["You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."] = "여행 %d분마다, 그리고 특별한 목표를 달성하면 받아요. 튜토리얼 완료, 10레벨마다, 한 상대에게서 별 3개 모두 얻기, 영웅 승리, 한 종족의 카드를 종류마다 1장씩 모으기. 살 수는 없어요."
 L["Shards"] = "조각"
 L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."] = "이미 최대 수량(2장, 전설은 1장)을 가진 카드는 조각으로 바뀌어요. 일반 %d, 고급 %d, 희귀 %d, 특급 %d."
 L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."] = "게임, 레벨업, 비행 경로, 일일 과제로도 조각을 얻어요. 조각 %d개로 카드 팩 1개를 살 수 있어요. 카드 탭에서 카드를 Shift-클릭하면 조각으로 제작해요."
@@ -1181,13 +1497,13 @@ L["Open a pack to see what's inside. Click each card to turn it over."] = "카�
 L["Reveal all"] = "모두 뒤집기"
 L["Ways to earn packs"] = "카드 팩 얻는 법"
 L["- Every %d minutes on a flight path, boat or zeppelin"] = "- 비행 경로, 배, 비행선에서 %d분마다"
-L["- Your first win of the day, and every tenth level"] = "- 오늘의 첫 승리, 그리고 10레벨마다"
-L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- 별: 각 상대에게 처음 이겼을 때, 그리고 일반·고급 카드만으로 된 덱으로 이겼을 때"
+L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- 오늘의 첫 승리, 그리고 별: 각 상대에게 처음 이겼을 때, 일반·고급 카드만으로 된 덱으로 이겼을 때"
 L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"] = "- 조각 %d개. 승리, 일일 과제, 레벨업, 새 비행 경로, 중복 카드로 조각을 얻어요"
 L["What's in a pack"] = "카드 팩 구성"
 L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"] = "- 일반 2장과 고급 1장. 고급 자리는 가끔 희귀, 때때로 특급, 아주 드물게 전설로 나와요"
 L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"] = "- 전설이 아닌 대표 카드는 카드 팩에서 나오지 않아요. 상대에게 이겨서 얻거나 제작하세요"
 L["- About 1 pack in %d has a %s card. It plays the same; it just shines"] = "- 카드 팩 %d개 중 1개꼴로 %s 카드가 들어 있어요. 성능은 같고, 반짝이기만 해요"
+L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"] = "- 카드 5장: 일반 2장, 고급 1장, 카드 팩의 가장 좋은 카드와 같은 방식으로 나오는 1장, 그리고 항상 희귀 이상인 1장. 여행 %d분마다, 그리고 특별한 목표를 달성하면 받아요(위 버튼에 마우스를 올려 보세요)"
 
 -- == UI/Options.lua ==
 L["Card, combat and pack sounds."] = "카드, 전투, 카드 팩 효과음."

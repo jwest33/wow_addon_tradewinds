@@ -207,6 +207,31 @@ do
   G.EndMatch(); G.Continue()
 end
 
+-- pointing at a tribal card lights up the units it counts
+do
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {} end
+  R.Summon(st, 1, 1, "wolf")          -- your Beast
+  R.Summon(st, 1, 2, "kobold")        -- your Humanoid
+  R.Summon(st, 1, 3, "packleader")    -- your Beast, and the card that counts Beasts
+  R.Summon(st, 2, 4, "boar")          -- their Beast
+  st.players[1].hand = { "callwild" }
+  G.Refresh()
+  G.CardHover({ cardId = "callwild" }, true)
+  check(G.KinLit(1, 1) and G.KinLit(1, 3) and not G.KinLit(1, 2) and not G.KinLit(2, 4),
+    "a card in hand that counts Beasts lights up your Beasts, not the rest or theirs")
+  G.CardHover({ cardId = "callwild" }, false)
+  check(not G.KinLit(1, 1) and not G.KinLit(1, 3), "and they go dark again")
+  G.CardHover({ cardId = "packleader", unit = st.players[1].board[3] }, true)
+  check(G.KinLit(1, 1) and not G.KinLit(1, 3), "a unit on the board lights up the others, not itself")
+  G.CardHover({ cardId = "packleader", unit = st.players[1].board[3] }, false)
+  G.CardHover({ cardId = "wolf" }, true)
+  check(not G.KinLit(1, 1) and not G.KinLit(1, 3), "a card that counts nothing lights up nothing")
+  G.CardHover({ cardId = "wolf" }, false)
+  G.EndMatch(); G.Continue()
+end
+
 -- the forecast while planning
 do
   G.Start("dorn")
@@ -454,7 +479,7 @@ end
 -- the tutorial
 do
   check(db.settings.seenWelcome == nil and not (db.tutorial and db.tutorial.done), "a new character hasn't seen the tutorial")
-  local packs = db.packs
+  local packs, special = db.packs, db.specialPacks
   local s0 = { db.stats.wins, db.stats.losses, db.stats.draws }
   local function handIndex(id)
     for h, x in ipairs(db.match.st.players[1].hand) do if x == id then return h end end
@@ -501,7 +526,8 @@ do
     G.LockIn()
     MOCK.Advance(60)
   end
-  check(db.match == nil and db.tutorial.done and db.packs == packs + C.TUTORIAL_PACKS, "finishing the tutorial pays a pack")
+  check(db.match == nil and db.tutorial.done and db.packs == packs and db.specialPacks == special + C.TUTORIAL_PACKS,
+    "finishing the tutorial pays a Windfall pack")
   check(db.stats.wins == s0[1] and db.stats.losses == s0[2] and db.stats.draws == s0[3], "and doesn't count on the circuit")
   G.Continue()
   G.StartTutorial()
@@ -509,7 +535,7 @@ do
   G.AskEndMatch()
   check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_END_TUTORIAL", "leaving the tutorial asks first")
   StaticPopupDialogs[MOCK.popup.name].OnAccept()
-  check(db.match == nil and db.packs == packs + C.TUTORIAL_PACKS and db.stats.losses == s0[2], "leaving it: no pack, no loss")
+  check(db.match == nil and db.specialPacks == special + C.TUTORIAL_PACKS and db.stats.losses == s0[2], "leaving it: no pack, no loss")
   G.Continue()
 end
 
@@ -605,10 +631,16 @@ end
 do
   local plain = function(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
   local cf = UI.CreateCard(UIParent)
-  cf:SetCard("kobold")
+  cf:SetCard("watcher")
   check(cf.typeText:GetText() == "Unit" and cf.base:GetTexture():find("CardUnit$"), "a unit says so and has a unit's frame")
+  cf:SetCard("kobold")
+  check(cf.typeText:GetText() == "Humanoid unit", "a Humanoid says so")
   check(cf.atk:IsShown() and cf.hp:IsShown() and cf.gem:IsShown(), "with its attack, health and rarity gem")
   check(cf.text:GetText() == "\"You no take candle!\"", "a unit with no rules shows its flavour line")
+  cf:SetCard("giants")
+  check(cf.typeText:GetText() == "Item: your unit" and cf.base:GetTexture():find("CardItem$"), "an item has its own type line and frame")
+  cf:SetCard("potion")
+  check(cf.typeText:GetText() == "Item" and cf.base:GetTexture():find("CardItem$"), "Healing Potion is an item now")
   cf:SetCard("cub")
   check(cf.typeText:GetText() == "Beast unit", "a tribe's unit names the tribe")
   cf:SetCard("fireball")
@@ -849,14 +881,25 @@ do
   -- filters
   local total = #UI.Binder.Shown()
   check(total == #Cards.collectible, "no filters: every card")
-  UI.Binder.SetFilter("kind", "murloc")
+  UI.Binder.SetFilter("tribe", "murloc")
   local murlocs = UI.Binder.Shown()
   local allMurlocs = #murlocs > 0
   for _, c in ipairs(murlocs) do if c.tribe ~= "murloc" then allMurlocs = false end end
   check(allMurlocs, "filter by tribe (" .. #murlocs .. " Murlocs)")
+  check(UI.Binder.Progress():find("Murloc: collected %d+ of " .. #C.TribeCards("murloc")), "and the header counts the tribe")
+  UI.Binder.SetFilter("tribe", "all")
+  UI.Binder.SetFilter("kind", "item")
+  local items = UI.Binder.Shown()
+  local allItems = #items > 0
+  for _, c in ipairs(items) do if not c.item then allItems = false end end
+  check(allItems and #items == 12, "filter by type: items (" .. #items .. ")")
+  UI.Binder.SetFilter("kind", "tactic")
+  local noItems = true
+  for _, c in ipairs(UI.Binder.Shown()) do if c.item or c.type ~= "tactic" then noItems = false end end
+  check(noItems, "and tactics without them")
   UI.Binder.SetFilter("kind", "all")
   UI.Binder.SetFilter("rarity", "legendary")
-  check(#UI.Binder.Shown() == 4, "filter by rarity")
+  check(#UI.Binder.Shown() == #Cards.byRarity.legendary, "filter by rarity")
   UI.Binder.SetFilter("cost", 1)
   check(#UI.Binder.Shown() == 0, "filters combine (no 1-cost legendaries)")
   UI.Binder.SetFilter("rarity", "all"); UI.Binder.SetFilter("cost", "all")
@@ -1011,13 +1054,14 @@ end
 
 -- other events and slash commands
 do
-  local packs = db.packs
+  local packs, special = db.packs, db.specialPacks
   local shards = db.shards
   MOCK.Fire("PLAYER_LEVEL_UP", 23)
   MOCK.Fire("UI_INFO_MESSAGE", 0, "New flight path discovered!")
   check(db.packs == packs and db.shards == shards + C.REWARD.level + C.REWARD.flightPath, "a level and a new flight path give shards")
   MOCK.Fire("PLAYER_LEVEL_UP", 30)
-  check(db.packs == packs + 1 and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath, "every tenth level gives a pack too")
+  check(db.packs == packs and db.specialPacks == special + 1 and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath,
+    "every tenth level gives a Windfall pack too")
   SlashCmdList.TRADEWINDS("")
   MOCK.Fire("PLAYER_REGEN_DISABLED")
   check(not TradewindsFrame:IsShown(), "combat closes the window")

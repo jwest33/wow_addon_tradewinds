@@ -11,6 +11,7 @@
 --   text (rules beyond keywords), flavor, icon (list of candidates, first one
 --   the client has wins)
 --   tribe, aura, bonus: see Engine/CardsRoads.lua (the second set)
+--   item, synergy, twin: see Engine/CardsTribes.lua
 --   signature: set by Data/Opponents.lua on cards that are won, not found in packs
 local _, ns = ...
 local L = ns.L
@@ -21,8 +22,11 @@ ns.Cards = Cards
 
 Cards.RARITIES = { "common", "uncommon", "rare", "epic", "legendary" }
 Cards.RARITY_RANK = { common = 1, uncommon = 2, rare = 3, epic = 4, legendary = 5 }
-Cards.TRIBES = { beast = L["Beast"], murloc = L["Murloc"], undead = L["Undead"], defias = L["Defias"], dragonkin = L["Dragonkin"] }
-Cards.SETS = { core = L["Core set"], roads = L["Roads of Azeroth"] }
+Cards.TRIBES = { beast = L["Beast"], humanoid = L["Humanoid"], murloc = L["Murloc"], undead = L["Undead"], defias = L["Defias"],
+  dragonkin = L["Dragonkin"] }
+Cards.TRIBE_ORDER = { "beast", "humanoid", "murloc", "undead", "defias", "dragonkin" }
+-- Which file a card came from (not shown to players).
+Cards.SETS = { core = L["Core set"], roads = L["Roads of Azeroth"], tribes = L["Tribes of Azeroth"] }
 
 local function icons(...)
   local t = {}
@@ -331,7 +335,8 @@ for tribe, ids in pairs({
 end
 
 -- Collectible cards by rarity, sorted by cost then name (packs and the
--- binder). Called by the last card file once every set is in.
+-- binder). Called by the last card file (Engine/CardsTribes.lua) once every
+-- set is in.
 function Cards.Finish()
   Cards.byRarity = {}
   for _, r in ipairs(Cards.RARITIES) do Cards.byRarity[r] = {} end

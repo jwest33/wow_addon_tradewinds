@@ -19,23 +19,25 @@ C.CRAFT_COST = { common = 10, uncommon = 25, rare = 60, epic = 150, legendary = 
 C.SIGNATURE_CRAFT_COST = 400   -- signature cards, whatever their rarity
 C.PACK_COST = 30               -- shards
 C.PACK_SIZE = 3                -- two commons and one uncommon or better
+C.SPECIAL_SIZE = 5             -- a Windfall pack (db.specialPacks): see C.RollPack
 -- The third card, per 1000 packs: a legendary (any of them, signature cards
 -- included) 5, an epic 30, a rare 250, otherwise an uncommon.
 C.PACK_ODDS = { legendary = 5, epic = 30, rare = 250 }
 C.PITY = 25                    -- at most this many packs in a row without an epic or better
 C.HOLO_ODDS = 100              -- 1 pack in this many has a holographic card
 C.TRAVEL_PACK_SECONDS = 1200
+C.TRAVEL_SPECIAL_SECONDS = 2700   -- and a Windfall pack for every 45 minutes of travel
 C.STARTER_PACKS = 1
-C.TUTORIAL_PACKS = 1           -- for finishing the tutorial, once
+C.TUTORIAL_PACKS = 1           -- Windfall packs for finishing the tutorial, once
 C.REWARD = {
   win = { easy = 2, normal = 4, hard = 6, heroic = 8, pvp = 4 },  -- shards, by the opponent's level
-  heroicPacks = 1,    -- the first heroic win against each opponent (with a holographic signature card)
+  heroicSpecial = 1,  -- Windfall packs for the first heroic win against each opponent (with a holographic signature card)
   fullWins = 3,       -- wins per opponent per day that pay the full amount
   reducedWin = 1,     -- what later wins that day pay
   loss = 1,           -- a loss or draw...
   lossRound = 4,      -- ...that reached this round
   level = 5,          -- shards per level gained
-  levelPackEvery = 10, -- and a pack on these levels
+  levelPackEvery = 10, -- and a Windfall pack on these levels
   flightPath = 5,     -- shards per flight path discovered
   daily = 10,         -- shards for the daily task
   decisive = 6,       -- Morale lead for the second star
@@ -353,6 +355,7 @@ function C.Init(db, rules)
   db.deckSlot = (type(db.deckSlot) == "number" and db.deckSlot >= 1 and db.deckSlot <= C.DECK_SLOTS) and db.deckSlot or 1
   db.decks[db.deckSlot] = db.deck   -- db.deck is always the deck in use
   db.packs = db.packs or 0
+  db.specialPacks = (type(db.specialPacks) == "number" and db.specialPacks > 0) and math.floor(db.specialPacks) or 0
   db.shards = db.shards or 0
   db.stats = db.stats or { wins = 0, losses = 0, draws = 0 }
   db.record = db.record or {}
@@ -362,6 +365,9 @@ function C.Init(db, rules)
   db.progress = db.progress or {}
   db.progress.travel = db.progress.travel or 0
   db.progress.pity = db.progress.pity or 0
+  db.progress.specialTravel = tonumber(db.progress.specialTravel) or 0
+  -- milestones that paid a Windfall pack (C.Milestones)
+  db.progress.special = type(db.progress.special) == "table" and db.progress.special or {}
   db.settings = db.settings or {}
   for k, v in pairs(C.SETTING_DEFAULTS) do
     if db.settings[k] == nil then db.settings[k] = v end
@@ -463,35 +469,56 @@ function C.InPacks(id)
   return (c.collectible and (c.rarity == "legendary" or not c.signature)) and true or false
 end
 
--- Three cards: two commons and an uncommon, which is sometimes better (see
--- C.PACK_ODDS). pity: packs opened since the last epic or legendary; the pack
--- after C.PITY - 1 dry ones always has an epic. 1 pack in C.HOLO_ODDS has one
--- holographic card. Returns the cards, the new pity count, and the slot of the
--- holographic card (or nil).
-function C.RollPack(rnd, pity)
+-- A card pack: three cards, two commons and an uncommon, which is sometimes
+-- better (see C.PACK_ODDS). pity: packs opened since the last epic or
+-- legendary; the pack after C.PITY - 1 dry ones always has an epic. 1 pack in
+-- C.HOLO_ODDS has one holographic card.
+-- kind = "special": a Windfall pack, five cards: two commons, an uncommon,
+-- a card rolled like a card pack's third, and a rare or better (the same odds
+-- with uncommon taken out; pity makes this one the epic). Windfall packs are
+-- earned, never bought.
+-- Returns the cards, the new pity count, and the slot of the holographic card
+-- (or nil).
+function C.RollPack(rnd, pity, kind)
   pity = pity or 0
   local function pick(r)
     local list = C.PackPool(r)
     return list[rnd(#list)]
   end
   local odds = C.PACK_ODDS
+  local L5, LE, LER = odds.legendary, odds.legendary + odds.epic, odds.legendary + odds.epic + odds.rare
+  if kind == "special" then
+    local x = rnd(1000)
+    local fourth = x <= L5 and "legendary" or x <= LE and "epic" or x <= LER and "rare" or "uncommon"
+    local y = rnd(LER)
+    local fifth = y <= L5 and "legendary" or (y <= LE or pity >= C.PITY - 1) and "epic" or "rare"
+    local cards = { pick("common"), pick("common"), pick("uncommon"), pick(fourth), pick(fifth) }
+    local holo = rnd(C.HOLO_ODDS) == 1 and rnd(C.SPECIAL_SIZE) or nil
+    local lucky = fourth == "epic" or fourth == "legendary" or fifth == "epic" or fifth == "legendary"
+    return cards, lucky and 0 or pity + 1, holo
+  end
   local x = rnd(1000)
-  local third = x <= odds.legendary and "legendary"
-    or (x <= odds.legendary + odds.epic or pity >= C.PITY - 1) and "epic"
-    or x <= odds.legendary + odds.epic + odds.rare and "rare" or "uncommon"
+  local third = x <= L5 and "legendary"
+    or (x <= LE or pity >= C.PITY - 1) and "epic"
+    or x <= LER and "rare" or "uncommon"
   local cards = { pick("common"), pick("common"), pick(third) }
   local holo = rnd(C.HOLO_ODDS) == 1 and rnd(C.PACK_SIZE) or nil
   local lucky = third == "epic" or third == "legendary"
   return cards, lucky and 0 or pity + 1, holo
 end
 
--- Returns a list of { id, kind, shards, holo } or nil when there's no pack to
--- open.
-function C.OpenPack(db, rnd)
-  if db.packs <= 0 then return nil end
-  db.packs = db.packs - 1
+-- kind: nil (a card pack) or "special" (a Windfall pack). Returns a list of
+-- { id, kind, shards, holo } or nil when there's no pack of that kind to open.
+function C.OpenPack(db, rnd, kind)
+  if kind == "special" then
+    if (db.specialPacks or 0) <= 0 then return nil end
+    db.specialPacks = db.specialPacks - 1
+  else
+    if db.packs <= 0 then return nil end
+    db.packs = db.packs - 1
+  end
   local cards, holo
-  cards, db.progress.pity, holo = C.RollPack(rnd, db.progress.pity)
+  cards, db.progress.pity, holo = C.RollPack(rnd, db.progress.pity, kind)
   local results = {}
   for i, id in ipairs(cards) do
     local kind, shards = C.Add(db, id, holo == i)
@@ -882,6 +909,7 @@ local function pay(db, out)
   for _, r in ipairs(out) do
     if not r.paid then
       db.packs = db.packs + (r.packs or 0)
+      db.specialPacks = (db.specialPacks or 0) + (r.special or 0)
       db.shards = db.shards + (r.shards or 0)
     end
   end
@@ -900,8 +928,8 @@ end
 --   plain     the deck had nothing rarer than uncommon
 --   heroic    a heroic rematch (no stars; see C.HeroicUnlocked)
 -- Returns a list of rewards, each with a reason (why): { packs = n },
--- { shards = n }, { star = i }, { card = id, kind =, dupe = shards, holo = },
--- { unlocked = opponent id }.
+-- { special = n } (Windfall packs), { shards = n }, { star = i },
+-- { card = id, kind =, dupe = shards, holo = }, { unlocked = opponent id }.
 function C.RecordResult(db, oppId, result, today, info)
   info = info or {}
   local o = ns.OpponentById[oppId]
@@ -941,7 +969,7 @@ function C.RecordResult(db, oppId, result, today, info)
       if not rec.beaten then
         rec.beaten = true
         local why = L["first heroic win against %s"]:format(o.short)
-        out[#out + 1] = { packs = C.REWARD.heroicPacks, why = why }
+        out[#out + 1] = { special = C.REWARD.heroicSpecial, why = why }
         giveCard(db, out, o.signature, why, true)
       end
       if not p.heroicChampion and C.AllHeroic(db) then
@@ -993,6 +1021,7 @@ function C.RecordResult(db, oppId, result, today, info)
       out[#out + 1] = { shards = C.REWARD.loss, why = L["good game"] }
     end
   end
+  for _, r in ipairs(C.Milestones(db)) do out[#out + 1] = r end
   return pay(db, out)
 end
 
@@ -1054,14 +1083,14 @@ function C.FinishTutorial(db)
   db.tutorial = type(db.tutorial) == "table" and db.tutorial or {}
   if db.tutorial.done then return {} end
   db.tutorial.done = true
-  return pay(db, { { packs = C.TUTORIAL_PACKS, why = L["finishing the tutorial"] } })
+  return pay(db, { { special = C.TUTORIAL_PACKS, why = L["finishing the tutorial"] } })
 end
 
--- A level gained: shards, and a pack on every tenth level.
+-- A level gained: shards, and a Windfall pack on every tenth level.
 function C.LevelUp(db, level)
   local out = { { shards = C.REWARD.level, why = L["reaching level %s"]:format(tostring(level)) } }
   if type(level) == "number" and level > 0 and level % C.REWARD.levelPackEvery == 0 then
-    out[#out + 1] = { packs = 1, why = L["reaching level %s"]:format(tostring(level)) }
+    out[#out + 1] = { special = 1, why = L["reaching level %s"]:format(tostring(level)) }
   end
   return pay(db, out)
 end
@@ -1070,15 +1099,79 @@ function C.FlightPath(db)
   return pay(db, { { shards = C.REWARD.flightPath, why = L["a new flight path"] } })
 end
 
--- Adds flight time; returns the number of packs it earned.
+-- Adds travel time (flights, boats and zeppelins); returns the number of card
+-- packs and of Windfall packs it earned. The two run on clocks of their own.
 function C.AddTravel(db, seconds)
   local p = db.progress
   p.travel = (p.travel or 0) + seconds
-  local earned = 0
+  p.specialTravel = (tonumber(p.specialTravel) or 0) + seconds
+  local earned, special = 0, 0
   while p.travel >= C.TRAVEL_PACK_SECONDS do
     p.travel = p.travel - C.TRAVEL_PACK_SECONDS
     earned = earned + 1
   end
+  while p.specialTravel >= C.TRAVEL_SPECIAL_SECONDS do
+    p.specialTravel = p.specialTravel - C.TRAVEL_SPECIAL_SECONDS
+    special = special + 1
+  end
   db.packs = db.packs + earned
-  return earned
+  db.specialPacks = (db.specialPacks or 0) + special
+  return earned, special
+end
+
+-- Tribes: the collectible units of a tribe, and how many of them you own.
+local tribeCards
+function C.TribeCards(tribe)
+  if not tribeCards then
+    tribeCards = {}
+    for _, c in ipairs(Cards.collectible) do
+      if c.type == "unit" and c.tribe then
+        tribeCards[c.tribe] = tribeCards[c.tribe] or {}
+        table.insert(tribeCards[c.tribe], c.id)
+      end
+    end
+  end
+  return tribeCards[tribe] or {}
+end
+
+function C.TribeProgress(db, tribe)
+  local list, have = C.TribeCards(tribe), 0
+  for _, id in ipairs(list) do
+    if C.Owned(db, id) > 0 then have = have + 1 end
+  end
+  return have, #list
+end
+
+-- Milestones that pay a Windfall pack, once each (db.progress.special). They
+-- are read from what the save holds, so whoever reached one before it paid
+-- (in an older version, or through a trade) gets it the next time this is
+-- checked, at the latest at the next login:
+--   stars:<opponent>   all three stars against that opponent
+--   circuit            every star on the circuit
+--   heroic             every heroic rematch won
+--   tribe:<tribe>      one of every card of that tribe
+-- Returns the rewards, not yet paid (C.CheckMilestones pays them).
+function C.Milestones(db)
+  local done = db.progress.special
+  local out = {}
+  local function reach(key, why)
+    if done[key] then return end
+    done[key] = true
+    out[#out + 1] = { special = 1, why = why, milestone = key }
+  end
+  for _, o in ipairs(ns.Opponents) do
+    local _, n = C.Stars(db, o.id)
+    if n >= #C.STARS then reach("stars:" .. o.id, L["every star against %s"]:format(o.short)) end
+  end
+  if C.AllStars(db) then reach("circuit", L["every star on the circuit"]) end
+  if C.AllHeroic(db) then reach("heroic", L["every heroic rematch won"]) end
+  for _, t in ipairs(Cards.TRIBE_ORDER) do
+    local have, total = C.TribeProgress(db, t)
+    if total > 0 and have == total then reach("tribe:" .. t, L["every %s card"]:format(Cards.TRIBES[t])) end
+  end
+  return out
+end
+
+function C.CheckMilestones(db)
+  return pay(db, C.Milestones(db))
 end

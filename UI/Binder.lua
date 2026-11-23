@@ -51,19 +51,22 @@ local topRow = 0   -- the first row of cards shown: the wheel moves a row, the a
 -- ---------------------------------------------------------------------------
 -- Filters: each button cycles through its choices.
 -- ---------------------------------------------------------------------------
+local TRIBE_CHOICES = { { "all", L["any"] } }
+for _, t in ipairs(Cards.TRIBE_ORDER) do TRIBE_CHOICES[#TRIBE_CHOICES + 1] = { t, Cards.TRIBES[t] } end
+
 local FILTERS = {
-  { key = "own", label = L["Show"], width = 110, choices = {
+  { key = "own", label = L["Show"], width = 100, choices = {
     { "all", L["all cards"] }, { "owned", L["owned"] }, { "missing", L["missing"] }, { "deck", L["in deck"] } } },
-  { key = "rarity", label = L["Rarity"], width = 126, choices = {
+  { key = "rarity", label = L["Rarity"], width = 110, choices = {
     { "all", L["any"] }, { "common", L["common"] }, { "uncommon", L["uncommon"] }, { "rare", L["rare"] }, { "epic", L["epic"] },
     { "legendary", L["legendary"] } } },
-  { key = "cost", label = L["Cost"], width = 80, choices = {
+  { key = "cost", label = L["Cost"], width = 66, choices = {
     { "all", L["any"] }, { 1, "1" }, { 2, "2" }, { 3, "3" }, { 4, "4" }, { 5, "5" }, { 6, "6" } } },
-  { key = "kind", label = L["Type"], width = 124, choices = {
-    { "all", L["any"] }, { "unit", L["units"] }, { "tactic", L["tactics"] }, { "beast", Cards.TRIBES.beast },
-    { "murloc", Cards.TRIBES.murloc }, { "undead", Cards.TRIBES.undead }, { "defias", Cards.TRIBES.defias },
-    { "dragonkin", Cards.TRIBES.dragonkin } } },
+  { key = "kind", label = L["Type"], width = 104, choices = {
+    { "all", L["any"] }, { "unit", L["units"] }, { "tactic", L["tactics"] }, { "item", L["items"] } } },
+  { key = "tribe", label = L["Tribe"], width = 116, choices = TRIBE_CHOICES },
 }
+local FILTER_GAP = 3
 local filter = {}   -- key -> index into choices
 for _, f in ipairs(FILTERS) do filter[f.key] = 1 end
 
@@ -81,11 +84,11 @@ local function passes(c)
   if own == "deck" and C.Count(ns.db.deck, c.id) == 0 then return false end
   if rarity ~= "all" and c.rarity ~= rarity then return false end
   if cost ~= "all" and c.cost ~= cost then return false end
-  if kind == "unit" or kind == "tactic" then
-    if c.type ~= kind then return false end
-  elseif kind ~= "all" and c.tribe ~= kind then
-    return false
-  end
+  if kind == "unit" and c.type ~= "unit" then return false end
+  if kind == "tactic" and not (c.type == "tactic" and not c.item) then return false end
+  if kind == "item" and not c.item then return false end
+  local tribe = chosen("tribe")
+  if tribe ~= "all" and c.tribe ~= tribe then return false end
   return true
 end
 
@@ -110,6 +113,7 @@ function B.SetFilter(key, value)
 end
 
 function B.Shown() return list() end
+function B.Progress() return ctl.progress and ctl.progress:GetText() or "" end
 
 -- The last row the grid can start at, for n cards.
 local function lastTop(n)
@@ -173,6 +177,7 @@ function B.CraftNow()
   if ok then
     ns.Print(L["Crafted %s for %d shards."], UI.CardName(id), why)
     UI.Sound("rare")
+    ns.CheckMilestones()
   else
     UI.Error(why)
   end
@@ -257,7 +262,15 @@ function B.Refresh()
     if C.Owned(ns.db, c.id) > 0 then have = have + 1 end
     if C.IsHolo(ns.db, c.id) then holo = holo + 1 end
   end
-  UI.FitText(ctl.progress, L["Collected %d of %d cards"]:format(have, total)
+  local tribe = chosen("tribe")
+  local collected
+  if tribe ~= "all" then
+    local th, tt = C.TribeProgress(ns.db, tribe)
+    collected = L["%s: collected %d of %d"]:format(Cards.TRIBES[tribe], th, tt) .. (th == tt and " |cffff9933*|r" or "")
+  else
+    collected = L["Collected %d of %d cards"]:format(have, total)
+  end
+  UI.FitText(ctl.progress, collected
     .. (holo > 0 and ("  (" .. L["%d %s"]:format(holo, UI.Rainbow(L["holographic"])) .. ")") or "")
     .. "    |cff9fdfff" .. ns.Plural(ns.db.shards, "%d shard", "%d shards"):format(ns.db.shards) .. "|r    "
     .. L["Showing %d"]:format(#all))
@@ -480,11 +493,30 @@ function B.Build(parent)
       UI.Sound("pick")
       B.Refresh()
     end)
-    UI.SimpleTooltip(b, f.label, L["Click for the next choice, right-click for the one before."])
+    if f.key == "tribe" then
+      -- every tribe's progress, and what collecting one pays
+      b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(L["Tribe"])
+        GameTooltip:AddLine(L["Click for the next choice, right-click for the one before."], 0.85, 0.85, 0.85, true)
+        GameTooltip:AddLine(" ")
+        for _, t in ipairs(Cards.TRIBE_ORDER) do
+          local have, total = C.TribeProgress(ns.db, t)
+          local done = have == total
+          GameTooltip:AddDoubleLine(Cards.TRIBES[t], ("%d / %d"):format(have, total), 1, 1, 1,
+            done and 1 or 0.85, done and 0.6 or 0.85, done and 0.2 or 0.85)
+        end
+        GameTooltip:AddLine(L["One of every card of a tribe earns a Windfall pack."], 1, 0.6, 0.2, true)
+        GameTooltip:Show()
+      end)
+      b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    else
+      UI.SimpleTooltip(b, f.label, L["Click for the next choice, right-click for the one before."])
+    end
     ctl.filters[f.key] = b
-    x = x + f.width + 4
+    x = x + f.width + FILTER_GAP
   end
-  local reset = UI.Button(page, L["All"], 60, 22, function()
+  local reset = UI.Button(page, L["All"], 40, 22, function()
     for _, f in ipairs(FILTERS) do filter[f.key] = 1 end
     topRow = 0
     B.Refresh()

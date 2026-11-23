@@ -8,7 +8,7 @@ friends.
 `/tradewinds` opens it. The first time, Flightmaster Dorn offers a short guided
 match (the **tutorial**, also `/tradewinds tutorial`): four rounds where he tells
 you what to play and why, then you finish the match yourself. Finishing it
-earns a card pack.
+earns a Windfall pack.
 
 Games are saved after every round, so you can stop when you
 land or dock and pick it up on the next trip. An update that changes the rules or
@@ -100,10 +100,23 @@ lane as the strikes land. `/tradewinds forecast off` hides the predictions.
 
 ### Cards
 
-97 cards in two sets. The core set has 48. **Roads of Azeroth** adds 49, built
-around five tribes: Beasts, Murlocs, Undead, Defias and Dragonkin. Tribe cards
-reward being played together ("Your other Beasts have +1 attack", "+1 attack
-for each other Murloc you have"). A card's tribe is in its tooltip.
+168 cards. The core set has 48, **Roads of Azeroth** 49, and **Tribes of
+Azeroth** 71.
+
+- **Tribes**: every unit belongs to one: Beasts, Humanoids, Murlocs, Undead,
+  Defias or Dragonkin (Harvest Watcher, the Shredder, Kazzak and Ragnaros wait
+  for tribes of their own in a later update). Tribe cards reward being played
+  together ("Your other Beasts have +1 attack", "+1 attack for each other
+  Murloc you have"). A card's tribe is on its type line. Point at a card that
+  counts a tribe and the units it counts light up.
+- **The same stats in different tribes**: 34 of the new cards are plain units
+  with exactly the stats and keywords of a plain unit of another tribe (a 3/4
+  for 3 is an Orgrimmar Grunt, an Ashenvale Bear, a Murloc Tidewarrior...). On
+  their own they play the same; their tribe decides which cards count them.
+- **Items**: potions, bombs and gear. They are tactics and play exactly like
+  them, with a leather frame and "Item" on the type line. Gear stays on the
+  unit, like Shield Wall. Healing Potion and Heavy Linen Bandage are items
+  now too.
 
 A deck is exactly 20 cards, with up to 2 copies of a card (1 of a legendary),
 and it needs a **curve**: at least 2 units costing 1, 4 cards costing 2 and
@@ -112,13 +125,17 @@ shows the curve as a checklist.
 
 ### Getting cards
 
-You start with a 20-card starter deck and 1 pack, plus 1 for finishing the
-tutorial.
+You start with a 20-card starter deck and 1 pack, plus a Windfall pack for
+finishing the tutorial.
 
 - **Packs** hold 3 cards: two commons and an uncommon. The uncommon is
   upgraded to a rare 25% of the time, an epic 3% and a **legendary 0.5%** (1
   pack in 200). If 24 packs in a row had no epic or legendary, the next one
   has an epic.
+- **Windfall packs** hold 5 cards: two commons, an uncommon, a card rolled
+  like a pack's third, and a last one that is always **rare or better** (88%
+  rare, 10.5% epic, 1.75% legendary). They are earned, never bought: every 45
+  minutes of travel, and for milestones (below).
 - **Holographic cards**: about 1 pack in 100 has a holographic card, with a
   shimmering foil over its art and a prismatic border. It plays exactly like
   the normal card. Once you own a holographic copy, every copy of that card
@@ -139,19 +156,24 @@ Where packs and shards come from:
 |---|---|
 | First win of the day | 1 pack |
 | Every 20 minutes travelling (flight path, boat or zeppelin) | 1 pack |
-| Every tenth level | 1 pack |
+| Every 45 minutes travelling (on a clock of its own) | 1 Windfall pack |
+| Finishing the tutorial, every tenth level | 1 Windfall pack |
+| All three stars against an opponent; every star on the circuit | 1 Windfall pack each |
+| One of every card of a tribe (the Tribe filter's tooltip shows how close you are) | 1 Windfall pack each |
 | A win | 2, 4 or 6 shards by the opponent's level, 8 in a heroic rematch. The first 3 wins a day against each opponent pay in full, later ones 1 |
-| The first heroic win against each opponent | 1 pack, and their signature card, holographic |
+| The first heroic win against each opponent | 1 Windfall pack, and their signature card, holographic |
+| Every heroic rematch won | 1 Windfall pack, and the champion's card, holographic |
 | A loss or draw that reached round 4 | 1 shard |
 | The daily task | 10 shards |
 | A level, a new flight path | 5 shards each |
 
-Ending a match early pays nothing.
+Ending a match early pays nothing. A milestone reached before it paid (in an
+older version, or through a trade) pays at the next login.
 
 The numbers are set for a pace of about three quarters of the pack cards in
-three weeks of casual play and one of everything in two to three months
-(legendaries aside: they're a jackpot). A test simulates that and fails if a
-change moves it.
+three to four weeks of casual play and one of everything in two to three
+months (legendaries aside: they're a jackpot). A test simulates that and
+fails if a change moves it.
 
 ### Opponents and stars
 
@@ -282,10 +304,13 @@ loosely the easy ones play.
   round again. The log under your hand, and the cards you've placed but not
   locked in yet, are saved with the match. If you reload or log out while a
   round is playing out, it is shown when you come back.
-- **Cards**: every card with filters (owned, rarity, cost, type or tribe),
-  three deck slots, the curve checklist and a chart of your deck's costs.
-  Shift-click a card to craft it.
-- **Packs**: open one pack card by card, or all of them at once.
+- **Cards**: every card with filters (owned, rarity, cost, type: unit,
+  tactic or item, and tribe), three deck slots, the curve checklist and a
+  chart of your deck's costs. With a tribe filtered, the header counts that
+  tribe; the Tribe filter's tooltip lists every tribe's progress. Shift-click
+  a card to craft it.
+- **Packs**: open card packs and Windfall packs card by card, or all of them
+  at once, and see both travel clocks.
 - **Guide**: every rule, a round step by step, and each keyword with a
   diagram. The tutorial can be started from here too.
 - **Options**: sound, the forecast, opponent lines, the travel prompt,
@@ -343,8 +368,9 @@ corrections are welcome. To fix or add one, see Translating below.
   plans, checksums, concede, resends). The message format is at the top.
 - `Trade.lua`: trading cards, over the same whispers; `UI/Trading.lua` is
   the trade panel in the Cards tab.
-- `Engine/Cards.lua`, `Engine/CardsRoads.lua`: the two card sets.
-  `Engine/AI.lua`: the computer opponent.
+- `Engine/Cards.lua`, `Engine/CardsRoads.lua`, `Engine/CardsTribes.lua`: the
+  card sets (`CardsTribes` also gives every unit its tribe and marks the
+  items). `Engine/AI.lua`: the computer opponent.
 - `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs,
   crafting, stars, daily tasks and rewards (saved per character in
   `TradewindsCharDB`, with numbered migrations).
@@ -417,7 +443,7 @@ the addon in each language (every tab, card, tooltip, the tutorial and a
 match), so a translation that breaks a format string fails there.
 
 `tests/balance.lua` is the balance harness, run on demand (minutes, not
-seconds):
+seconds; `balance tribes` plays decks of one tribe against each other):
 
 ```
 python tests/run_tests.py balance ai [games]       # the AI levels against each other

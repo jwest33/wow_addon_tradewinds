@@ -290,11 +290,14 @@ local function treat(name, original)
   if OLD_ROOT then
     local old = client(roundTrip(c3.db()), OLD_ROOT)
     local odb = old.db()
+    -- (cards it doesn't know, it deletes: 0.16.0 has no stash. That's why
+    -- going back past 0.17.0 loses new cards.)
     local sameCards = true
     for id, n in pairs(c3.db().collection) do
-      if odb.collection[id] ~= n then sameCards = false end
+      local known = old.ns.Cards.byId[id] and old.ns.Cards.byId[id].collectible
+      if known and odb.collection[id] ~= n then sameCards = false end
     end
-    check(sameCards, name .. ": the previous version sees the same cards")
+    check(sameCards, name .. ": the previous version sees the same cards (the ones it knows)")
     local back = client(roundTrip(odb))
     d = diff(kept(odb), kept(back.db()))
     check(d == nil, name .. ": and this version loads what it saved unchanged " .. tostring(d))

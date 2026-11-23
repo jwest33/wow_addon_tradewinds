@@ -324,8 +324,9 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Card frame. Back to front: the icon (through a hole in the body), the body
--- (Art/CardUnit or Art/CardTactic: bronze and parchment for units, indigo
--- and vellum for tactics; the picture's glow and the icon's frame are part
+-- (Art/CardUnit, Art/CardTactic or Art/CardItem: bronze and parchment for
+-- units, indigo and vellum for tactics, oxblood leather and brass for items;
+-- the picture's glow and the icon's frame are part
 -- of it), the rim (Art/CardRim, grey, tinted by
 -- rarity), then the gems, the stats and the text. Positions are the
 -- textures' layout in texture pixels (tools/gen_art.py), scaled by K.
@@ -343,9 +344,9 @@ local ART_BOX = { 14, 14, 242, 146 }   -- the picture
 local ICON_BOX = { 78, 25, 178, 125 }  -- the icon in its frame, in the middle of the picture
 local NAME_BOX = { 8, 136, 248, 170 }
 local TYPE_BOX = { 20, 170, 236, 195 }
-local TEXT_BOX = { unit = { 16, 199, 240, 310 }, tactic = { 16, 199, 240, 332 } }
-local TEXT_INSET = { unit = { 7, 4, 7, 26 }, tactic = { 7, 4, 7, 6 } }   -- the text stays clear of the stats
-local GEM_Y = { unit = 333, tactic = 342 }
+local TEXT_BOX = { unit = { 16, 199, 240, 310 }, tactic = { 16, 199, 240, 332 }, item = { 16, 199, 240, 332 } }
+local TEXT_INSET = { unit = { 7, 4, 7, 26 }, tactic = { 7, 4, 7, 6 }, item = { 7, 4, 7, 6 } }   -- the text stays clear of the stats
+local GEM_Y = { unit = 333, tactic = 342, item = 342 }
 local GLOW_PAD, GLOW_V = 22 * K, 342 / 512   -- Art/CardGlow: the card plus 22 texture pixels all round
 local STAT = 30                -- stat badge size
 local GEM = 13                 -- rarity gem size
@@ -361,7 +362,15 @@ local KIND = {
     flavor = { 0.47, 0.38, 0.26 } },
   tactic = { body = "CardTactic", type = { 0.91, 0.92, 1 }, kw = "|cff3c2882", rules = { 0.12, 0.10, 0.2 },
     flavor = { 0.36, 0.34, 0.5 } },
+  item = { body = "CardItem", type = { 1, 0.9, 0.72 }, kw = "|cff6a2e12", rules = { 0.2, 0.11, 0.05 },
+    flavor = { 0.5, 0.34, 0.2 } },
 }
+
+-- Which face a card gets: "unit", "tactic", or "item" (a tactic that's an item).
+function UI.CardKind(c)
+  if c.type == "unit" then return "unit" end
+  return c.item and "item" or "tactic"
+end
 
 local function place(fs, card, box, inset)
   inset = inset or { 0, 0, 0, 0 }
@@ -400,6 +409,10 @@ function UI.CreateCard(parent)
   b.sel = glow(b, "BACKGROUND", -8)
   b.sel:SetVertexColor(1, 0.8, 0.2)
   b.sel:Hide()
+  -- a teal glow: a unit the card under the mouse counts (its tribe)
+  b.kin = glow(b, "BACKGROUND", -7)
+  b.kin:SetVertexColor(0.25, 0.95, 0.85)
+  b.kin:Hide()
 
   b.art = b:CreateTexture(nil, "BACKGROUND")
   b.art:SetPoint("TOPLEFT", UI.CARD_ART[1], -UI.CARD_ART[2])
@@ -520,8 +533,14 @@ function UI.CreateCard(parent)
 
   for k, v in pairs(Card) do b[k] = v end
   b.baseScale = 1
-  b:SetScript("OnEnter", b.ShowTooltip)
-  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  b:SetScript("OnEnter", function(self)
+    self:ShowTooltip()
+    if UI.CardHover then UI.CardHover(self, true) end
+  end)
+  b:SetScript("OnLeave", function(self)
+    GameTooltip:Hide()
+    if UI.CardHover then UI.CardHover(self, false) end
+  end)
   return b
 end
 
@@ -539,12 +558,14 @@ end
 UI.FaceText = faceText
 
 local TACTIC_LABEL = { enemy = L["Tactic: enemy lane"], friend = L["Tactic: your unit"], none = L["Tactic"] }
+local ITEM_LABEL = { enemy = L["Item: enemy lane"], friend = L["Item: your unit"], none = L["Item"] }
 
--- The type line: "Beast unit", "Unit", "Tactic: enemy lane".
+-- The type line: "Beast unit", "Unit", "Tactic: enemy lane", "Item: your unit".
 function UI.TypeLine(c)
   if c.type == "unit" then
     return c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"]
   end
+  if c.item then return ITEM_LABEL[c.target] or L["Item"] end
   return TACTIC_LABEL[c.target] or L["Tactic"]
 end
 
@@ -569,7 +590,7 @@ function Card:SetCard(id, unit, st, holo)
   self.cardId, self.unit, self.st = id, unit, st
   self.back:Hide()
   self:SetHolo(holo)
-  self:SetKind(c.type == "unit" and "unit" or "tactic")
+  self:SetKind(UI.CardKind(c))
   local look = KIND[self.kind]
   self.art:SetTexture(UI.CardIcon(id))
   self.art:SetVertexColor(1, 1, 1)
@@ -686,6 +707,11 @@ function Card:SetSelected(on)
   self.sel:SetShown(on and true or false)
 end
 
+-- A teal glow: one of the units the card under the mouse counts.
+function Card:SetKin(on)
+  self.kin:SetShown(on and true or false)
+end
+
 -- top: an optional { text, r, g, b } shown on a line above, in its own
 -- colour: the unit's state when the forecast has a word too ("Frozen" over
 -- "dies"), so neither hides the other.
@@ -735,7 +761,8 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
   tip:AddLine(c.name, col[1], col[2], col[3])
   if holo then tip:AddLine(UI.Rainbow(L["Holographic"])) end
   local rarity = c.collectible and RARITY_NAME[c.rarity] or L["Token"]
-  local kind = c.type == "unit" and (c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"]) or L["Tactic"]
+  local kind = c.type == "unit" and (c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"])
+    or (c.item and L["Item"] or L["Tactic"])
   tip:AddDoubleLine(L["%s, %s"]:format(kind, rarity), L["%d Supply"]:format(c.cost),
     0.65, 0.65, 0.65, 0.45, 0.65, 1)
   local kw = c.kw

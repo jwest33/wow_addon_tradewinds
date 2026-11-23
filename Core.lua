@@ -76,6 +76,8 @@ ns.On("PLAYER_LOGIN", function()
         o and o.name or L["the computer"])
     end
   end
+  -- milestones reached before they paid (Collection.Milestones)
+  ns.CheckMilestones()
   if (ns.setAside or 0) > 0 then
     ns.Print(L["Some of your cards are from a newer version of Tradewinds. They're kept safe, and come back when you update again."])
   end
@@ -104,26 +106,39 @@ ns.On("PLAYER_LOGIN", function()
   elseif games > 0 then
     return
   elseif not (ns.db.tutorial and ns.db.tutorial.done) and s.wins + s.losses + s.draws == 0 then
-    ns.Print(L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."])
+    ns.Print(L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."])
+  elseif (ns.db.specialPacks or 0) > 0 then
+    ns.Print(Plural(ns.db.specialPacks, "You have %d unopened Windfall pack. Type /tradewinds packs to open it.",
+      "You have %d unopened Windfall packs. Type /tradewinds packs to open them."), ns.db.specialPacks)
   elseif ns.db.packs > 0 then
     ns.Print(Plural(ns.db.packs, "You have %d unopened card pack. Type /tradewinds to play.",
       "You have %d unopened card packs. Type /tradewinds to play."), ns.db.packs)
   end
 end)
 
--- Prints (and toasts) a list of rewards from Collection: { packs = n } and
--- { shards = n }, each with a reason.
+-- Prints (and toasts) a list of rewards from Collection: { packs = n },
+-- { special = n } (Windfall packs) and { shards = n }, each with a reason.
 function ns.Announce(rewards)
   if not rewards then return end
   for _, r in ipairs(rewards) do
     if r.packs then
       ns.Print(L["|cffffd100%s|r (%s). /tradewinds packs to open."], Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
       if ns.UI and ns.UI.Toast then ns.UI.Toast("pack", r.why, r.packs) end
+    elseif r.special then
+      ns.Print(L["|cffffd100%s|r (%s). /tradewinds packs to open."],
+        Plural(r.special, "+%d Windfall pack", "+%d Windfall packs"):format(r.special), r.why)
+      if ns.UI and ns.UI.Toast then ns.UI.Toast("special", r.why, r.special) end
     elseif r.shards then
       ns.Print(L["|cff9fdfff%s|r (%s)."], Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
     end
   end
   refresh()
+end
+
+-- Pays (and announces) the Windfall packs of milestones just reached: after
+-- anything that adds cards or stars.
+function ns.CheckMilestones()
+  if ns.db then ns.Announce(ns.Collection.CheckMilestones(ns.db)) end
 end
 
 ns.On("PLAYER_LEVEL_UP", function(level)

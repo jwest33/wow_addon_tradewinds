@@ -68,9 +68,12 @@ local CARD_TEXT = table.concat({
   L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."],
   L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."],
   L["|cffffffffTactic|r  no target needed."],
+  L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."],
   "",
   heading(L["Tribes"]),
-  L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."],
+  L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."],
+  L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."],
+  L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."],
   "",
   heading(L["Summoned units"]),
   L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."],
@@ -86,13 +89,15 @@ local function winningText()
     L["|cffffffffVictory|r  win. Pays a card pack."],
     L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."]:format(C.REWARD.decisive),
     L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."],
-    L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."],
+    L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."],
+    L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."],
     "",
     heading(L["Your deck"]),
     L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."]:format(R.DECK_SIZE),
     "",
     heading(L["Collecting"]),
     L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."],
+    L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."]:format(C.TRAVEL_SPECIAL_SECONDS / 60),
     L["You can also trade cards with friends who have Tradewinds: the Trade button in the Cards tab."],
   }, "\n")
 end
@@ -228,7 +233,7 @@ function Gd.Build(parent)
   tutorialButton = UI.Button(page, L["Play the tutorial"], 150, 26, function() UI.Game.StartTutorial() end)
   tutorialButton:SetPoint("TOPLEFT", 6, -30 - #SECTIONS * 30 - 16)
   UI.SimpleTooltip(tutorialButton, L["Tutorial"], L["A short guided match against Flightmaster Dorn: four rounds with his help, then you finish it."],
-    L["Finishing it the first time earns a card pack."])
+    L["Finishing it the first time earns a Windfall pack."])
 
   page:SetScript("OnShow", function() Gd.Refresh() end)
   Gd.Show(current)

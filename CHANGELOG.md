@@ -2,6 +2,41 @@
 
 ## 0.17.0
 
+**Tribes of Azeroth**: 71 new cards (168 in all), Windfall packs, and items.
+Matches in progress carry on: no rule changed. Games against players and
+trades need you both on this version.
+
+- **Every unit has a tribe.** Humanoids join Beasts, Murlocs, Undead, Defias
+  and Dragonkin: the Kobold, the Grunt, Hogger and 22 others. No card counted
+  Humanoids before, so nothing plays differently. (Harvest Watcher, the
+  Shredder, Kazzak and Ragnaros keep no tribe until a later update gives them
+  their own.)
+- **The same stats in different tribes.** 34 new plain units have exactly the
+  cost, stats and keywords of a plain unit of another tribe: an Ashenvale
+  Bear, a Murloc Tidewarrior, a Scourge Footsoldier and a Black Drakonid are
+  all 3/4 for 3, like the Orgrimmar Grunt. On their own they play the same;
+  their tribe decides which cards count them.
+- **27 new tribe cards**, from Murloc Raider and Rotting Squire to Bolvar
+  Fordragon, Darkmaster Gandling, Murkdeep and Nefarian, built the way the
+  Roads of Azeroth tribes work (auras, Arrive buffs, "for each other...").
+- **Items**: 10 new (Iron Grenade, Elixir of the Giants, Thunderfury...).
+  They are tactics with a leather frame and "Item" on the type line, and play
+  exactly like tactics. Healing Potion and Heavy Linen Bandage are items now.
+- **Windfall packs**: 5 cards, and the last one is always rare or better.
+  They come every 45 minutes of travel (on a clock of their own, beside the
+  20-minute card packs) and with milestones: finishing the tutorial, every
+  tenth level and the first heroic win against each opponent (which used to
+  pay a card pack), and, new, all three stars against an opponent, every star
+  on the circuit, every heroic rematch won, and one of every card of a tribe.
+  A milestone you reached before this update pays at your first login. Card
+  packs are unchanged.
+- Point at a card that counts a tribe (Worg Packleader, Call of the Wild) and
+  the units it counts light up on the board.
+- Cards tab: a Tribe filter of its own (its tooltip shows how much of each
+  tribe you have), and the Type filter has items. With a tribe filtered, the
+  header counts that tribe.
+- `balance tribes` in the test harness plays decks of one tribe against each
+  other.
 - Cards are never deleted any more. Cards this version doesn't know (from a
   newer version, if you go back to this one) are kept aside, with the decks
   and trade offers that use them, and come back when you update again. Chat

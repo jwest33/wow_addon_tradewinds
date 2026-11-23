@@ -4,6 +4,7 @@
 --   python tests/run_tests.py balance ai              AI levels against each other
 --   python tests/run_tests.py balance ladder          the circuit, as a new player sees it
 --   python tests/run_tests.py balance cards [n] [ids] each card's effect on winning
+--   python tests/run_tests.py balance tribes [n] [g]  decks of one tribe against each other
 --
 -- "cards" plays each card in a range of decks against the same decks with a
 -- plain unit of the same cost in its place (cost c: c attack, c + 1 health),
@@ -13,7 +14,7 @@ local ROOT = ROOT or "."
 local ARGS = ARGS or {}
 
 local ns = {}
-local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/AI.lua"] = true,
+local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/CardsTribes.lua"] = true, ["Engine/AI.lua"] = true,
   ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
@@ -214,7 +215,85 @@ elseif mode == "cards" then
     local x = byRarity[r]
     if x then print(("  %-10s %+5.1f (%d cards)"):format(r, x.s / x.n * 100, x.n)) end
   end
+elseif mode == "tribes" then
+  -- A deck per tribe: its own units and the tactics and items that count no
+  -- other tribe, random but legal, several per tribe. Every tribe plays every
+  -- other with the normal AI on both sides, each first half the time.
+  local N = tonumber(ARGS[2]) or 6      -- decks per tribe
+  local G = tonumber(ARGS[3]) or 4      -- games per pairing of decks
+  local rnd = lcg(31337)
+  local function tribeDeck(tribe)
+    local units, ones, tactics = {}, {}, {}
+    for _, c in ipairs(Cards.collectible) do
+      if c.type == "unit" and c.tribe == tribe then
+        units[#units + 1] = c
+        if c.cost == 1 then ones[#ones + 1] = c end
+      elseif c.type == "tactic" and (not c.synergy or c.synergy == tribe) then
+        tactics[#tactics + 1] = c
+      end
+    end
+    for _ = 1, 500 do
+      local d, n = {}, {}
+      local function fill(list, upto)
+        local tries = 0
+        while #d < upto and tries < 500 do
+          tries = tries + 1
+          local c = list[rnd(#list)]
+          if (n[c.id] or 0) < C.MaxCopies(c.id) then
+            n[c.id] = (n[c.id] or 0) + 1
+            d[#d + 1] = c.id
+          end
+        end
+      end
+      fill(ones, 2)      -- the curve rule's two units costing 1
+      fill(units, 14)
+      fill(tactics, 20)
+      if #d == 20 and C.CheckCurve(d) then return d end
+    end
+    error("no legal deck for " .. tribe)
+  end
+  local T = Cards.TRIBE_ORDER
+  local decks = {}
+  for _, t in ipairs(T) do
+    decks[t] = {}
+    for i = 1, N do decks[t][i] = tribeDeck(t) end
+  end
+  local score, vs = {}, {}
+  for _, t in ipairs(T) do score[t], vs[t] = { w = 0, n = 0 }, {} end
+  for ai, a in ipairs(T) do
+    for bi = ai + 1, #T do
+      local b = T[bi]
+      local w, n = 0, 0
+      for i = 1, N do
+        for j = 1, N do
+          for g = 1, G do
+            local seed = ai * 7919 + bi * 104729 + i * 131 + j * 17 + g
+            local aFirst = g % 2 == 0
+            local st = aFirst and play(seed, { decks[a][i], decks[b][j] }, { "normal", "normal" })
+              or play(seed, { decks[b][j], decks[a][i] }, { "normal", "normal" })
+            local aSeat = aFirst and 1 or 2
+            w = w + (st.winner == aSeat and 1 or st.winner == 0 and 0.5 or 0)
+            n = n + 1
+          end
+        end
+      end
+      score[a].w, score[a].n = score[a].w + w, score[a].n + n
+      score[b].w, score[b].n = score[b].w + (n - w), score[b].n + n
+      vs[a][b], vs[b][a] = w / n, 1 - w / n
+    end
+  end
+  print(("Tribe decks against each other: %d decks a tribe, %d games a pairing of decks, normal AI"):format(N, G))
+  local head = "  " .. ("%-10s"):format("") .. "  all  "
+  for _, t in ipairs(T) do head = head .. (" %-9s"):format(t:sub(1, 9)) end
+  print(head)
+  for _, a in ipairs(T) do
+    local line = ("  %-10s %5.1f%% "):format(a, pct(score[a].w / score[a].n))
+    for _, b in ipairs(T) do
+      line = line .. (a == b and ("   %-7s"):format("-") or (" %6.1f%%  "):format(pct(vs[a][b])))
+    end
+    print(line)
+  end
 else
-  print("Unknown mode " .. mode .. ". Try ai, ladder or cards.")
+  print("Unknown mode " .. mode .. ". Try ai, ladder, cards or tribes.")
 end
 print(("(%.0f s)"):format(os.clock() - t0))

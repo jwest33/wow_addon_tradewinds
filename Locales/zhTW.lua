@@ -469,6 +469,293 @@ L["Mrgl?"] = "嗚啦？"
 -- bones
 L["Skeleton"] = "骷髏"
 L["Clack."] = "喀啦。"
+-- crawler
+L["Shore Crawler"] = "海岸爬行者"
+L["Westfall's beaches belong to it. Ask anyone."] = "西部荒野的海灘是牠的地盤。不信隨便問。"
+-- hyena
+L["Hecklefang Hyena"] = "嘲笑牙土狼"
+L["It laughs first. Then it bites."] = "牠先笑。然後才咬。"
+-- cougar
+L["Mountain Cougar"] = "山地美洲獅"
+L["Mulgore's other welcoming committee."] = "莫高雷的另一個迎賓團。"
+-- panther
+L["Shadowmaw Panther"] = "影喉豹"
+L["Stranglethorn's shadows have teeth."] = "荊棘谷的陰影是有牙齒的。"
+-- elderstrider
+L["Elder Plainstrider"] = "老邁的平原陸行鳥"
+L["Older, slower, and very much in the way."] = "更老、更慢，而且非常擋路。"
+-- ashbear
+L["Ashenvale Bear"] = "梣谷熊"
+L["The forest's quiet giant, until it isn't."] = "森林裡安靜的巨人——直到牠不再安靜。"
+-- tiger
+L["Stranglethorn Tiger"] = "荊棘谷猛虎"
+L["Hunters come here for its pelt. Some leave."] = "獵人們衝著牠的毛皮而來。有些人還能離開。"
+-- corehound
+L["Ancient Core Hound"] = "上古熔火惡犬"
+L["Two heads. Neither of them is friendly."] = "兩顆頭。沒有一顆是友善的。"
+-- footman
+L["Stormwind Footman"] = "暴風城步兵"
+L["Ready for anything. Mostly guard duty."] = "隨時準備好應付一切。主要是站崗。"
+-- sentinel
+L["Silverwing Sentinel"] = "銀翼哨兵"
+L["Warsong Gulch taught her to run."] = "戰歌峽谷教會了她奔跑。"
+-- defender
+L["Ironforge Defender"] = "鐵爐堡防衛者"
+L["The gates never fell on his watch."] = "有他站崗，城門從未失守。"
+-- veteran
+L["Kor'kron Veteran"] = "柯爾克隆老兵"
+L["Orgrimmar's elite, and he'll tell you so."] = "奧格瑪的精銳——他自己會告訴你。"
+-- streamrunner
+L["Murloc Streamrunner"] = "溪行魚人"
+L["Mrrgl? Mrrgl."] = "嗚啦？嗚啦。"
+-- tidewarrior
+L["Murloc Tidewarrior"] = "潮汐魚人戰士"
+L["Bigger than the rest, and twice as loud."] = "比其他魚人大一號，嗓門大一倍。"
+-- harpooner
+L["Murloc Harpooner"] = "魚人魚叉手"
+L["Throws first. Asks never."] = "先丟再說。問？從來不問。"
+-- zombie
+L["Tirisfal Zombie"] = "提里斯法殭屍"
+L["Slow, hungry, and in no hurry."] = "又慢、又餓，而且一點也不急。"
+-- deathguard
+L["Deathguard Lookout"] = "死亡守衛瞭望者"
+L["Brill's night watch. And day watch."] = "布瑞爾的大夜班。白天班也是。"
+-- hungryghoul
+L["Hungering Ghoul"] = "飢餓的食屍鬼"
+L["Always hungry. Never full."] = "永遠很餓。從來沒飽過。"
+-- warder
+L["Skeletal Warder"] = "骷髏看守"
+L["Stands its post. It has nothing better to do."] = "堅守崗位。反正它也沒別的事好做。"
+-- footsoldier
+L["Scourge Footsoldier"] = "天譴步兵"
+L["The Plaguelands' endless infantry."] = "瘟疫之地無窮無盡的步兵。"
+-- abomination
+L["Hulking Abomination"] = "巨大憎惡"
+L["Three of everything, stitched together."] = "什麼都有三份，全縫在一起。"
+-- lookout
+L["Defias Lookout"] = "迪菲亞把風者"
+L["Sees you coming. Tells everyone."] = "看見你來了。告訴了所有人。"
+-- cutpurse
+L["Defias Cutpurse"] = "迪菲亞扒手"
+L["Your coin purse feels lighter already."] = "你的錢袋好像已經變輕了。"
+-- highwayman
+L["Defias Highwayman"] = "迪菲亞劫匪"
+L["The road to Sentinel Hill has a toll."] = "通往哨兵嶺的路，要收過路費。"
+-- nightrunner
+L["Defias Night Runner"] = "迪菲亞夜行者"
+L["Westfall's nights belong to the Brotherhood."] = "西部荒野的夜晚屬於兄弟會。"
+-- pathstalker
+L["Defias Pathstalker"] = "迪菲亞追蹤者"
+L["Watches the Moonbrook road from the hills."] = "在山丘上盯著通往月溪鎮的路。"
+-- azurewhelp
+L["Azure Whelp"] = "碧藍雛龍"
+L["Bites first. Sneezes frost later."] = "先咬一口。待會兒再打個冰霜噴嚏。"
+-- drakonid
+L["Black Drakonid"] = "黑色龍獸"
+L["Bred in Blackwing Lair for one job."] = "在黑翼之巢培育，只為了做一件事。"
+-- drakeling
+L["Emerald Drakeling"] = "翡翠小飛龍"
+L["Dreams fast, wakes faster."] = "夢做得快，醒得更快。"
+-- broodling
+L["Black Broodling"] = "黑龍幼體"
+L["Spits fire before it can fly."] = "還不會飛，就先會噴火了。"
+-- wyrmguard
+L["Bronze Wyrmguard"] = "青銅龍衛"
+L["Guards the sands of time. And you, for now."] = "守護時光之沙。暫時也守護你。"
+-- reddragonspawn
+L["Red Dragonspawn"] = "紅龍人"
+L["Grim Batol's warden, on leave."] = "格瑞姆巴托的看守，休假中。"
+-- greendrake
+L["Green Drake"] = "綠色飛龍"
+L["Asleep until woken. Then very awake."] = "叫醒之前都在睡。叫醒之後清醒得很。"
+-- seether
+L["Death Talon Seether"] = "死爪狂怒者"
+L["Blackwing Lair's hall monitor."] = "黑翼之巢的糾察隊。"
+-- trackinghound
+L["Tracking Hound"] = "追蹤獵犬"
+L["Arrive: draw with another Beast"] = "登場：有野獸則抽一張牌"
+L["Arrive: draw a card if you have another Beast."] = "登場：若你有其他野獸，抽一張牌。"
+L["Already knows where you're going."] = "早就知道你要去哪裡了。"
+-- patriarch
+L["Silverback Patriarch"] = "銀背族長"
+L["Arrive: other Beasts +1/+1"] = "登場：其他野獸+1/+1"
+L["Arrive: your other Beasts get +1/+1."] = "登場：你的其他野獸獲得+1/+1。"
+L["The troop follows the grey."] = "族群追隨那身銀灰。"
+-- crier
+L["Town Crier"] = "城鎮傳令官"
+L["Arrive: draw with 2 other Humanoids"] = "登場：有兩個其他人型生物則抽牌"
+L["Arrive: draw a card if you have 2 other Humanoids."] = "登場：若你有兩個其他人型生物，抽一張牌。"
+L["Hear ye! Wanted: Hogger. Again."] = "聽好了！懸賞：霍格。又一次。"
+-- sergeant
+L["Militia Sergeant"] = "民兵中士"
+L["Arrive: other Humanoids +1 health"] = "登場：其他人型生物+1生命值"
+L["Arrive: your other Humanoids get +1 health."] = "登場：你的其他人型生物+1生命值。"
+L["Goldshire's finest. Goldshire's only."] = "閃金鎮最好的兵。也是閃金鎮唯一的兵。"
+-- captain
+L["Stormwind Captain"] = "暴風城隊長"
+L["Arrive: Humanoids beside it +1/+1"] = "登場：兩側的人型生物+1/+1"
+L["Arrive: your Humanoids in the neighbouring lanes get +1/+1."] = "登場：你相鄰戰線中的人型生物獲得+1/+1。"
+L["Leads from the front. Mostly."] = "身先士卒。大多時候啦。"
+-- bolvar
+L["Bolvar Fordragon"] = "柏瓦爾‧弗塔根"
+L["Arrive: other Humanoids +1/+1"] = "登場：其他人型生物+1/+1"
+L["Arrive: your other Humanoids get +1/+1."] = "登場：你的其他人型生物獲得+1/+1。"
+L["Regent of Stormwind, and nobody's pushover."] = "暴風城的攝政王，可不是好欺負的。"
+-- raider
+L["Murloc Raider"] = "魚人襲擊者"
+L["Arrive: +1 attack with a Murloc"] = "登場：有魚人則+1攻擊力"
+L["Arrive: +1 attack if you have another Murloc."] = "登場：若你有其他魚人，+1攻擊力。"
+L["Never raids alone. Wouldn't know how."] = "從不單獨打劫。牠根本不會。"
+-- flopper
+L["Murloc Flopper"] = "撲騰魚人"
+L["Fallen: leaves a 1/1 Murloc Scout"] = "陣亡：留下一個1/1魚人斥候"
+L["Fallen: summon a 1/1 Murloc Scout in its lane."] = "陣亡：在它的戰線召喚一個1/1的魚人斥候。"
+L["Flops in. Flops out. Leaves a friend."] = "撲騰進來，撲騰出去，留下一個朋友。"
+-- tidecaller
+L["Murloc Tidecaller"] = "魚人招潮者"
+L["Arrive: 1/1 Scouts beside it"] = "登場：兩側召喚1/1斥候"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."] = "登場：在你每條空的相鄰戰線各召喚一個1/1的魚人斥候。"
+L["It calls. They come. Every time."] = "牠一叫，牠們就來。每次都是。"
+-- netmaster
+L["Murloc Netmaster"] = "魚人撒網大師"
+L["Arrive: freeze what's across Murlocs"] = "登場：冰凍其他魚人對面的單位"
+L["Arrive: freeze the enemy units across from your other Murlocs."] = "登場：冰凍你其他魚人對面的敵方單位。"
+L["One net, many murlocs, no way out."] = "一張網，一群魚人，無路可逃。"
+-- hightide
+L["High Tide"] = "漲潮"
+L["Your Murlocs: +1/+1"] = "你的魚人：+1/+1"
+L["Your Murlocs get +1/+1."] = "你的魚人獲得+1/+1。"
+L["Everything floats. Especially murlocs."] = "水漲萬物浮。魚人尤其如此。"
+-- muckdweller
+L["Murloc Muckdweller"] = "淤泥魚人"
+L["+1/+1 when your Murloc dies"] = "你的魚人死亡時+1/+1"
+L["Whenever another of your Murlocs dies, gains +1/+1."] = "每當你的其他魚人死亡，獲得+1/+1。"
+L["Grows fat on the tide's leftovers."] = "靠潮水的殘羹剩飯養得白白胖胖。"
+-- murkdeep
+L["Murkdeep"] = "穆克迪普"
+L["1/1 Scouts beside. Murlocs +1 attack"] = "兩側召喚1/1斥候，其他魚人+1攻擊力"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."] = "登場：在你每條空的相鄰戰線各召喚一個1/1的魚人斥候。你的其他魚人+1攻擊力。"
+L["Darkshore's coast has one king, and he's wet."] = "黑海岸只有一位國王，而且他溼答答的。"
+-- squire
+L["Rotting Squire"] = "腐爛的侍從"
+L["Arrive: +1 attack with an Undead"] = "登場：有不死族則+1攻擊力"
+L["Arrive: +1 attack if you have another Undead."] = "登場：若你有其他不死族，+1攻擊力。"
+L["Still serving. Still squiring."] = "還在服役。還在當侍從。"
+-- bonecaller
+L["Bonecaller"] = "喚骨者"
+L["Fallen: other Undead +1 attack"] = "陣亡：其他不死族+1攻擊力"
+L["Fallen: your other Undead get +1 attack."] = "陣亡：你的其他不死族+1攻擊力。"
+L["Its last word is always 'rise'."] = "它的遺言永遠是「起來」。"
+-- plagueeater
+L["Plague Eater"] = "瘟疫吞噬者"
+L["+1/+1 when your Undead dies"] = "你的不死族死亡時+1/+1"
+L["Whenever another of your Undead dies, gains +1/+1."] = "每當你的其他不死族死亡，獲得+1/+1。"
+L["Nothing goes to waste in the Plaguelands."] = "在瘟疫之地，沒有東西會浪費。"
+-- bloated
+L["Bloated Zombie"] = "臃腫殭屍"
+L["Fallen: 1 damage to every enemy"] = "陣亡：對所有敵人造成1點傷害"
+L["Fallen: deal 1 damage to every enemy unit."] = "陣亡：對所有敵方單位造成1點傷害。"
+L["Do not poke."] = "請勿戳。"
+-- armydead
+L["Army of the Dead"] = "亡者大軍"
+L["1/1 Skeletons in your empty lanes"] = "在你的空戰線召喚1/1骷髏"
+L["Summon a 1/1 Skeleton in each of your empty lanes."] = "在你每條空的戰線各召喚一具1/1的骷髏。"
+L["They were already here. They just stood up."] = "它們本來就在這裡。只是站起來而已。"
+-- commander
+L["Scourge Commander"] = "天譴指揮官"
+L["Other Undead: +1 attack"] = "其他不死族：+1攻擊力"
+L["Your other Undead have +1 attack."] = "你的其他不死族+1攻擊力。"
+L["Orders from Naxxramas, delivered in person."] = "納克薩瑪斯的命令，親自送達。"
+-- gandling
+L["Darkmaster Gandling"] = "黑暗院長加丁"
+L["Round start: 1/1 Skeletons beside"] = "回合開始：兩側召喚1/1骷髏"
+L["Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."] = "回合開始：在你每條空的相鄰戰線各召喚一具1/1的骷髏。"
+L["Scholomance's headmaster. Attendance is mandatory."] = "通靈學院院長。不准缺席。"
+-- overseer
+L["Defias Overseer"] = "迪菲亞監督者"
+L["Arrive: +1 attack with a Defias"] = "登場：有迪菲亞則+1攻擊力"
+L["Arrive: +1 attack if you have another Defias."] = "登場：若你有其他迪菲亞，+1攻擊力。"
+L["Counts the loot. Twice."] = "清點戰利品。點兩遍。"
+-- conjurer
+L["Defias Conjurer"] = "迪菲亞咒術師"
+L["Arrive: enemy -1 Morale per Defias"] = "登場：每有其他迪菲亞，敵人-1士氣"
+L["Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."] = "登場：你每有一個其他迪菲亞，敵人就失去1點士氣（最多2點）。"
+L["Learned his tricks from a book he stole."] = "他的戲法是從一本偷來的書上學的。"
+-- blackguard
+L["Defias Blackguard"] = "迪菲亞惡棍"
+L["Arrive: other Defias get Stealth"] = "登場：其他迪菲亞獲得潛行"
+L["Arrive: your other Defias get Stealth."] = "登場：你的其他迪菲亞獲得潛行。"
+L["Teaches the new recruits to disappear."] = "教新兵怎麼憑空消失。"
+-- whelpling
+L["Brood Whelpling"] = "巢穴小雛龍"
+L["Arrive: +1 attack with a Dragonkin"] = "登場：有龍類則+1攻擊力"
+L["Arrive: +1 attack if you have another Dragonkin."] = "登場：若你有其他龍類，+1攻擊力。"
+L["Small, loud, and already hoarding."] = "個頭小，嗓門大，已經開始囤寶了。"
+-- firebrand
+L["Wyrmkin Firebrand"] = "龍人火焰使者"
+L["+1 attack per other Dragonkin"] = "每有其他龍類+1攻擊力"
+L["Has +1 attack for each other Dragonkin you have."] = "你每有一個其他龍類，就+1攻擊力。"
+L["The flame burns hotter in a crowd."] = "人越多，火燒得越旺。"
+-- wyrmkin
+L["Flamescale Wyrmkin"] = "焰鱗龍人"
+L["Arrive: 1 to all enemies, if Dragonkin"] = "登場：有龍類則對所有敵人造成1點傷害"
+L["Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."] = "登場：若你有其他龍類，對所有敵方單位造成1點傷害。"
+L["Breathes on everyone. Apologises to no one."] = "對誰都噴一口。對誰都不道歉。"
+-- nefarian
+L["Nefarian"] = "奈法利安"
+L["Arrive: other Dragonkin +2/+2"] = "登場：其他龍類+2/+2"
+L["Arrive: your other Dragonkin get +2/+2."] = "登場：你的其他龍類獲得+2/+2。"
+L["Blackwing Lair's host, and its worst landlord."] = "黑翼之巢的主人，也是最糟糕的包租公。"
+-- cutlass
+L["Bloodsail Cutlass"] = "血帆彎刀"
+L["+3/+1"] = "+3/+1"
+L["Give one of your units +3/+1."] = "使你的一個單位獲得+3/+1。"
+L["Rusty, notched, and still sharper than you'd like."] = "生鏽、滿是缺口，卻還是比你希望的鋒利。"
+-- swiftness
+L["Swiftness Potion"] = "迅捷藥水"
+L["Swift and +1/+1"] = "迅捷並+1/+1"
+L["Give one of your units Swift and +1/+1."] = "使你的一個單位獲得迅捷和+1/+1。"
+L["Drink it before the fight, not during."] = "開打前喝，別在打的時候喝。"
+-- scrollprot
+L["Scroll of Protection"] = "保護卷軸"
+L["+1/+4"] = "+1/+4"
+L["Give one of your units +1/+4."] = "使你的一個單位獲得+1/+4。"
+L["Read aloud. Slowly. Mind the long words."] = "大聲朗讀。慢慢唸。小心難字。"
+-- grenade
+L["Iron Grenade"] = "鐵製手榴彈"
+L["2 damage and freeze it"] = "2點傷害並冰凍"
+L["Deal 2 damage to the enemy unit in a lane and freeze it."] = "對一條戰線中的敵方單位造成2點傷害並冰凍它。"
+L["Pull pin. Throw. Do not hold."] = "拔掉插銷。丟出去。別拿在手上。"
+-- majorheal
+L["Major Healing Potion"] = "極效治療藥水"
+L["Restore 8 Morale"] = "恢復8點士氣"
+L["Restore 8 Morale."] = "恢復8點士氣。"
+L["The good stuff. Tastes worse."] = "好東西。味道更糟。"
+-- netomatic
+L["Gnomish Net-o-Matic Projector"] = "地精撒網器"
+L["Freeze an enemy unit. Draw a card"] = "冰凍一個敵方單位，抽一張牌"
+L["Freeze the enemy unit in a lane. Draw a card."] = "冰凍一條戰線中的敵方單位。抽一張牌。"
+L["Works every time. Sixty percent of the time."] = "每次都有效。十次裡有六次。"
+-- trollblood
+L["Mighty Troll's Blood Potion"] = "強力食人妖之血藥水"
+L["Regenerate and +1/+2"] = "再生並+1/+2"
+L["Give one of your units Regenerate and +1/+2."] = "使你的一個單位獲得再生和+1/+2。"
+L["Don't ask what's in it. Don't ask whose."] = "別問裡面裝了什麼。也別問是誰的。"
+-- giants
+L["Elixir of the Giants"] = "巨人藥劑"
+L["+3/+3"] = "+3/+3"
+L["Give one of your units +3/+3."] = "使你的一個單位獲得+3/+3。"
+L["Side effects include ducking under doorways."] = "副作用包括：過門要低頭。"
+-- lionheart
+L["Lionheart Helm"] = "獅心頭盔"
+L["+2/+2 and Rally"] = "+2/+2和鼓舞"
+L["Give one of your units +2/+2 and Rally."] = "使你的一個單位獲得+2/+2和鼓舞。"
+L["Whoever wears it, the rest stand taller."] = "不管誰戴上它，其他人都站得更挺。"
+-- thunderfury
+L["Thunderfury"] = "雷霆之怒"
+L["+2/+2, Swift and Cleave"] = "+2/+2、迅捷和順劈"
+L["Give one of your units +2/+2, Swift and Cleave."] = "使你的一個單位獲得+2/+2、迅捷和順劈。"
+L["Did someone say...?"] = "有人說……？"
 
 -- == Opponents == (name, short name, title, and what they say)
 -- dorn
@@ -587,12 +874,14 @@ L["Player %d"] = "玩家%d"
 
 -- == Engine/Cards.lua ==
 L["Beast"] = "野獸"
+L["Humanoid"] = "人型生物"
 L["Murloc"] = "魚人"
 L["Undead"] = "不死族"
 L["Defias"] = "迪菲亞"
 L["Dragonkin"] = "龍類"
 L["Core set"] = "核心系列"
 L["Roads of Azeroth"] = "艾澤拉斯之路"
+L["Tribes of Azeroth"] = "艾澤拉斯諸族"
 
 -- == Collection.lua ==
 L["That card can't be crafted."] = "這張牌無法製作。"
@@ -644,6 +933,8 @@ L["victory; games against %s have paid in full %d times today"] = "勝利；今�
 L["finishing the tutorial"] = "完成教學"
 L["reaching level %s"] = "達到等級%s"
 L["a new flight path"] = "新的飛行點"
+L["every star against %s"] = "取得對戰%s的所有星星"
+L["every %s card"] = "集齊所有%s卡牌"
 
 -- == Net.lua ==
 L["Another player"] = "其他玩家"
@@ -690,9 +981,13 @@ L["%d of them waits for your move."] = "其中%d場正等你出手。"
 L["%d of them wait for your move."] = "其中%d場正等你出手。"
 L["Your tutorial is waiting. Type /tradewinds to continue."] = "你的教學還在等你。輸入 /tradewinds 繼續。"
 L["Your game against %s is waiting. Type /tradewinds to continue."] = "你與%s的對局還在等你。輸入 /tradewinds 繼續。"
-L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."] = "第一次玩Tradewinds？輸入 /tradewinds tutorial 進行一場簡短的教學對戰，完成可獲得一個卡包。"
+L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."] = "第一次玩Tradewinds？輸入 /tradewinds tutorial 進行一場簡短的教學對戰，完成可獲得一個順風卡包。"
+L["You have %d unopened Windfall pack. Type /tradewinds packs to open it."] = "你有%d個未開啟的順風卡包。輸入 /tradewinds packs 開啟。"
+L["You have %d unopened Windfall packs. Type /tradewinds packs to open them."] = "你有%d個未開啟的順風卡包。輸入 /tradewinds packs 開啟。"
 L["You have %d unopened card pack. Type /tradewinds to play."] = "你有%d個未開啟的卡包。輸入 /tradewinds 開始玩。"
 L["You have %d unopened card packs. Type /tradewinds to play."] = "你有%d個未開啟的卡包。輸入 /tradewinds 開始玩。"
+L["+%d Windfall pack"] = "+%d個順風卡包"
+L["+%d Windfall packs"] = "+%d個順風卡包"
 L["|cff9fdfff%s|r (%s)."] = "|cff9fdfff%s|r（%s）。"
 L["+%d shard"] = "+%d個碎片"
 L["+%d shards"] = "+%d個碎片"
@@ -729,6 +1024,9 @@ L["click"] = "點擊"
 L["Tactic: enemy lane"] = "戰術：敵方戰線"
 L["Tactic: your unit"] = "戰術：我方單位"
 L["Tactic"] = "戰術"
+L["Item: enemy lane"] = "物品：敵方戰線"
+L["Item: your unit"] = "物品：我方單位"
+L["Item"] = "物品"
 L["Frozen"] = "冰凍"
 L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."] = "選擇一條敵方戰線。它在揭曉後才生效，所以會打中屆時在那裡的單位。"
 L["Pick one of your units, or a lane you're playing a unit into this round."] = "選擇你的一個單位，或你本回合要放入單位的戰線。"
@@ -771,6 +1069,8 @@ L["%d of your games wait for your move."] = "你有%d場對局正等你出手。
 L["Games in progress."] = "對局進行中。"
 L["%d unopened pack"] = "%d個未開啟的卡包"
 L["%d unopened packs"] = "%d個未開啟的卡包"
+L["%d unopened Windfall pack"] = "%d個未開啟的順風卡包"
+L["%d unopened Windfall packs"] = "%d個未開啟的順風卡包"
 L["Click: play.  Right-click: packs.  Drag: move."] = "點擊：對戰。右鍵：卡包。拖曳：移動。"
 
 -- == UI/Effects.lua ==
@@ -1068,8 +1368,11 @@ L["A tactic is played once, then it's gone. Its type line says what it targets:"
 L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."] = "|cffffffff戰術：敵方戰線|r  選擇上排的一條戰線。揭曉後它會打中那裡的單位；有些戰術在戰線為空時會有其他效果（火球術會改為攻擊士氣）。"
 L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."] = "|cffffffff戰術：我方單位|r  選擇你的一個單位，或你本回合要放入單位的戰線。"
 L["|cffffffffTactic|r  no target needed."] = "|cffffffff戰術|r  不需要目標。"
+L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."] = "|cffffffff物品|r（藥水、炸彈、武器）也是戰術，用法完全相同，只是有皮革邊框，類型欄寫著「物品」。裝備會一直留在單位身上，就像盾牆一樣。"
 L["Tribes"] = "種族"
-L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."] = "野獸、魚人、不死族、迪菲亞和龍類。有些卡牌在旁邊或場上有同種族的單位時會變得更強。卡牌的種族會顯示在名稱下方的那一行，「卡牌」分頁也能依種族篩選。"
+L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."] = "每個單位都屬於一個種族：野獸、人型生物、魚人、不死族、迪菲亞或龍類。有些卡牌在旁邊或場上有同種族的單位時會變得更強。卡牌的種族會顯示在名稱下方的那一行。"
+L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."] = "不同種族的單位可能有相同的數值：單獨來看它們打起來一模一樣，而種族決定了哪些卡牌會把它們算進去。將滑鼠指向一張會計算種族的卡牌，它所計算的單位就會亮起。"
+L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."] = "「卡牌」分頁可以依種族篩選。集齊一個種族的每種卡牌各一張，可獲得一個順風卡包。"
 L["Summoned units"] = "召喚單位"
 L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."] = "有些卡牌會讓額外的單位上場，例如霍格召喚的「矮小的河爪豺狼人」。它們不屬於任何牌組。"
 L["Winning"] = "勝利條件"
@@ -1079,11 +1382,13 @@ L["Eight opponents, from easy to hard. Beating one opens the next. Each has thre
 L["|cffffffffVictory|r  win. Pays a card pack."] = "|cffffffff勝利|r  獲勝。獎勵一個卡包。"
 L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."] = "|cffffffff大獲全勝|r  以至少多出%d點士氣的差距獲勝。獎勵對手的招牌卡。"
 L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."] = "|cffffffff小兵立大功|r  用不含精良、史詩或傳說卡的牌組獲勝。獎勵兩個卡包。"
-L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."] = "擊敗最後一位對手後，|cffffffff英雄再戰|r就會開放：所有對手再戰一次，他們會使用最強的牌組和最犀利的打法。首次在英雄再戰中戰勝每位對手，可獲得一個卡包和閃卡版的招牌卡。"
+L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."] = "取得對戰一位對手的全部三顆星星可獲得一個順風卡包，取得巡迴賽的所有星星也可以。"
+L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."] = "擊敗最後一位對手後，|cffffffff英雄再戰|r就會開放：所有對手再戰一次，他們會使用最強的牌組和最犀利的打法。首次在英雄再戰中戰勝每位對手，可獲得一個順風卡包和閃卡版的招牌卡。"
 L["Your deck"] = "你的牌組"
 L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."] = "剛好%d張牌，同一張牌最多2張（傳說卡1張）。至少需要2個費用1的單位、4張費用2的牌和3張費用3的牌，前幾回合的抽牌會從中挑選。請在「卡牌」分頁組牌。"
 L["Collecting"] = "收集"
 L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."] = "卡包可以從旅行（飛行、搭船和搭飛艇）、升級和獲勝中取得。重複卡牌和對局給的碎片可以購買卡包，或製作你想要的卡牌。「卡包」分頁列出了所有來源。"
+L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."] = "|cffff9933順風卡包|r有五張卡牌，最後一張一定是精良或更高。旅行每滿%d分鐘以及達成里程碑（教學、每升10級、星星、英雄勝利、集齊一個種族）時可獲得，無法購買。"
 L["The basics"] = "基本規則"
 L["A round"] = "回合"
 L["Keywords"] = "關鍵字"
@@ -1092,7 +1397,7 @@ L["Card text"] = "卡牌文字"
 L["Play the tutorial (+%d pack)"] = "進行教學（+%d個卡包）"
 L["Play the tutorial (+%d packs)"] = "進行教學（+%d個卡包）"
 L["Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."] = "左：對面沒有東西，所以你的單位攻擊對方的士氣。中：兩個單位正面相對，互相交戰。右：對面沒有你的單位，所以對方的單位攻擊你的士氣。"
-L["Finishing it the first time earns a card pack."] = "首次完成可獲得一個卡包。"
+L["Finishing it the first time earns a Windfall pack."] = "首次完成可獲得一個順風卡包。"
 
 -- == UI/Binder.lua ==
 L["Show"] = "顯示"
@@ -1111,6 +1416,8 @@ L["Cost"] = "費用"
 L["Type"] = "類型"
 L["units"] = "單位"
 L["tactics"] = "戰術"
+L["items"] = "物品"
+L["Tribe"] = "種族"
 L["Owned %d of %d.  In your deck: %d."] = "擁有%d/%d張。牌組中：%d張。"
 L["Left-click: add to deck.  Right-click: take one out."] = "左鍵：加入牌組。右鍵：移出一張。"
 L["Shift-click: craft a copy for %d shards (you have %d)."] = "Shift+左鍵：花費%d個碎片製作一張（你有%d個）。"
@@ -1121,6 +1428,7 @@ L["win from %s"] = "從%s贏得"
 L["not found yet"] = "尚未取得"
 L["not in packs"] = "不在卡包中"
 L["%d in deck"] = "牌組中%d張"
+L["%s: collected %d of %d"] = "%s：已收集%d/%d"
 L["Collected %d of %d cards"] = "已收集%d/%d張卡牌"
 L["%d %s"] = "%d張%s"
 L["%d shard"] = "%d個碎片"
@@ -1137,6 +1445,7 @@ L["Avg. cost %s"] = "平均費用%s"
 L["Click: take one out of the deck."] = "點擊：從牌組移出一張。"
 L["No cards match these filters."] = "沒有符合篩選條件的卡牌。"
 L["Click for the next choice, right-click for the one before."] = "點擊切換到下一個選項，右鍵切換回上一個。"
+L["One of every card of a tribe earns a Windfall pack."] = "集齊一個種族的每種卡牌各一張，可獲得一個順風卡包。"
 L["All"] = "全部"
 L["Clear the filters and show every card."] = "清除篩選條件，顯示所有卡牌。"
 L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."] = "左鍵點擊卡牌：加入牌組。   右鍵：移出。   Shift+左鍵：用碎片製作。"
@@ -1159,6 +1468,7 @@ L["Now holographic!"] = "升級為閃卡！"
 L["Holographic!"] = "閃卡！"
 L["Legendary!"] = "傳說！"
 L["Epic!"] = "史詩！"
+L["Rare or better"] = "精良或更高"
 L["No packs to open."] = "沒有可開啟的卡包。"
 L["Opened %s: %s, %s from extra copies."] = "開啟了%s：%s，重複卡轉換為%s。"
 L["%d pack"] = "%d個卡包"
@@ -1168,12 +1478,18 @@ L["%d new cards"] = "%d張新卡"
 L["New: %s"] = "新卡：%s"
 L["Open a pack"] = "開啟卡包"
 L["No packs"] = "沒有卡包"
+L["Windfall packs: %d"] = "順風卡包：%d"
 L["(in the air)"] = "（飛行中）"
 L["(on board)"] = "（航行中）"
 L["Travel time toward your next pack: %s / %s"] = "距離下一個卡包的旅行時間：%s / %s"
+L["Toward your next Windfall pack: %s / %s"] = "距離下一個順風卡包：%s / %s"
 L["Card packs"] = "卡包"
 L["Open all"] = "全部開啟"
-L["Opens every pack you have. The new cards are listed in chat."] = "開啟你所有的卡包。新卡牌會列在聊天視窗中。"
+L["Opens every pack you have, Windfall packs too. The new cards are listed in chat."] = "開啟你所有的卡包，包括順風卡包。新卡牌會列在聊天視窗中。"
+L["Open a Windfall pack"] = "開啟順風卡包"
+L["Windfall packs"] = "順風卡包"
+L["Five cards, and the last one is always rare or better."] = "五張卡牌，最後一張一定是精良或更高。"
+L["You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."] = "旅行每滿%d分鐘，以及達成里程碑時可獲得：完成教學、每升10級、取得對戰一位對手的全部三顆星星、英雄勝利，以及集齊一個種族的每種卡牌各一張。無法購買。"
 L["Shards"] = "碎片"
 L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."] = "已達擁有上限（2張，傳說卡1張）的卡牌會轉換為碎片：普通%d，優秀%d，精良%d，史詩%d。"
 L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."] = "對局、升級、飛行點和每日任務也會給予碎片。%d個碎片可以購買一個卡包。在「卡牌」分頁中，Shift+左鍵點擊卡牌即可用碎片製作。"
@@ -1182,13 +1498,13 @@ L["Open a pack to see what's inside. Click each card to turn it over."] = "開�
 L["Reveal all"] = "全部翻開"
 L["Ways to earn packs"] = "取得卡包的方式"
 L["- Every %d minutes on a flight path, boat or zeppelin"] = "- 飛行、搭船或搭飛艇每%d分鐘"
-L["- Your first win of the day, and every tenth level"] = "- 每日首勝，以及每升10級"
-L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- 星星：首次戰勝每位對手，以及用只有普通和優秀卡的牌組獲勝"
+L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- 每日首勝，以及星星：首次戰勝每位對手，以及用只有普通和優秀卡的牌組獲勝"
 L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"] = "- %d個碎片。勝利、每日任務、升級、新飛行點和重複卡牌都會給予碎片"
 L["What's in a pack"] = "卡包內容"
 L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"] = "- 兩張普通卡和一張優秀卡；那張優秀卡有時會是精良，偶爾是史詩，極少數情況下是傳說"
 L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"] = "- 非傳說的招牌卡不會出現在卡包中：請從對手手中贏得，或用碎片製作"
 L["- About 1 pack in %d has a %s card. It plays the same; it just shines"] = "- 大約每%d包會有一張%s。效果完全相同，只是會閃閃發亮"
+L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"] = "- 五張卡牌：兩張普通卡、一張優秀卡、一張與一般卡包中最好的那張同等級的卡，以及一張一定是精良或更高的卡。旅行每滿%d分鐘以及達成里程碑時獲得（將滑鼠指向上方按鈕查看）"
 
 -- == UI/Options.lua ==
 L["Card, combat and pack sounds."] = "卡牌、戰鬥和卡包音效。"

@@ -63,7 +63,7 @@ one:
 
 | Tribe | Cards that join it |
 |---|---|
-| Humanoid | Kobold Vermin, Riverpaw Gnoll, Ironforge Mountaineer, Darkspear Axe Thrower, Orgrimmar Grunt, Scarlet Crusader, Mosh'Ogg Brute, Gnomish Tinkerer, Witherbark Berserker, Dalaran Apprentice, Booty Bay Bruiser, Wildhammer Gryphon Rider, Dark Iron Demolitionist, Argent Dawn Medic, Frostwolf Warmaster, Hogger, Stranglethorn Tamer, Scholomance Necromancer, Lazy Peon, Northshire Chaplain, Goblin Sapper, Bloodhoof Brave, Darnassus Archer, Fleet Master Seahorn (24) |
+| Humanoid | Kobold Vermin, Riverpaw Gnoll, Ironforge Mountaineer, Darkspear Axe Thrower, Orgrimmar Grunt, Scarlet Crusader, Mosh'Ogg Brute, Gnomish Tinkerer, Witherbark Berserker, Dalaran Apprentice, Booty Bay Bruiser, Wildhammer Gryphon Rider, Dark Iron Demolitionist, Argent Dawn Medic, Frostwolf Warmaster, Hogger, Stranglethorn Tamer, Scholomance Necromancer, Lazy Peon, Northshire Chaplain, Goblin Sapper, Bloodhoof Brave, Darnassus Archer, Fleet Master Seahorn, Blackwing Technician (25) |
 | Mechanical | Harvest Watcher, Venture Co. Shredder |
 | Demon | Lord Kazzak |
 | Elemental | Ragnaros |
@@ -75,7 +75,7 @@ one:
   (as a Beast it would set off King Bangalash and other Beast cards).
 - Tactics, items and traps have no tribe. Some name one, as Call of the Wild
   does.
-- Humanoid starts as the biggest tribe (24), so its synergy cards ask for
+- Humanoid starts as the biggest tribe (25), so its synergy cards ask for
   more ("if you have 2 other Humanoids") or work only on neighbouring lanes.
 - Mechanical, Demon and Elemental get their cards in Wave 3. Until then
   their four cards keep no tribe, so the binder never shows a nearly empty
@@ -169,15 +169,19 @@ units it counts.
 | Tribe | Units now | Shared-line cards | Other new | Units after |
 |---|---|---|---|---|
 | Beast | 18 | 8 | 2 | 28 |
-| Humanoid | 24 | 4 | 4 | 32 |
-| Murloc | 8 | 3 | 7 | 18 |
-| Undead | 7 | 6 | 7 | 20 |
+| Humanoid | 25 | 4 | 4 | 33 |
+| Murloc | 8 | 3 | 6 (and the tactic High Tide) | 17 |
+| Undead | 7 | 6 | 6 (and the tactic Army of the Dead) | 19 |
 | Defias | 8 | 5 | 6 | 19 |
-| Dragonkin | 8 | 8 | 4 | 20 |
+| Dragonkin | 7 | 8 | 4 | 19 |
 | Mechanical | 2 | 8 | 10 | 20 |
 | Demon | 1 | 10 | 9 | 20 |
 | Elemental | 1 | 11 | 8 | 20 |
-| **Total** | **77** | **63** | **57** | **197** |
+| **Total** | **77** | **63** | **55** | **195** |
+
+(Corrected after Wave 1 was built: Blackwing Technician had no tribe, so it's a
+Humanoid and Dragonkin starts at 7; Murlocs and Undead each got a tribe tactic
+in place of one unit.)
 
 Plus about 6 new spells (tribe tactics like Call of the Wild for the tribes
 without one), 21 items and 8 traps. **The collection goes from 97 cards to
@@ -214,30 +218,30 @@ more hooks without new rules.
 
 | Item | Cost | Rarity | Kind | Text (starting point) |
 |---|---|---|---|---|
-| Bloodsail Cutlass | 1 | common | gear | Give one of your units +2 attack. |
-| Swiftness Potion | 1 | common | consumable | Give one of your units Swift and +1 attack. |
-| Scroll of Protection | 1 | common | consumable | Give one of your units +0/+3. |
-| Iron Grenade | 2 | common | consumable, enemy lane | Deal 2 damage to the enemy unit in a lane and freeze it. |
+| Bloodsail Cutlass (W1) | 1 | common | gear | Give one of your units +3/+1. |
+| Swiftness Potion (W1) | 1 | common | consumable | Give one of your units Swift and +1/+1. |
+| Scroll of Protection (W1) | 1 | common | consumable | Give one of your units +1/+4. |
+| Iron Grenade (W1) | 2 | common | consumable, enemy lane | Deal 2 damage to the enemy unit in a lane and freeze it. |
 | Goblin Sapper Charge | 2 | common | consumable, enemy lane | Deal 2 damage to the enemy unit in a lane and 1 to the ones next to it. |
 | Stratholme Holy Water | 2 | common | consumable, enemy lane | Deal 4 damage to the enemy unit in a lane if it's Undead or a Demon, otherwise 2. |
-| Major Healing Potion | 2 | common | consumable | Restore 6 Morale. |
+| Major Healing Potion (W1) | 2 | common | consumable | Restore 8 Morale. |
 | Target Dummy | 2 | common | gadget | Summon a 0/4 Mechanical Target Dummy with Guard in an empty lane of yours. |
 | Goblin Rocket Boots | 1 | uncommon | gear | Give one of your units Swift. |
-| Gnomish Net-o-Matic Projector | 1 | uncommon | gadget, enemy lane | Freeze the enemy unit in a lane. |
+| Gnomish Net-o-Matic Projector (W1) | 1 | uncommon | gadget, enemy lane | Freeze the enemy unit in a lane. Draw a card. |
 | Arclight Spanner | 1 | uncommon | gear | Give one of your units +1/+1, or +2/+2 if it's Mechanical. |
-| Mighty Troll's Blood Potion | 2 | uncommon | consumable | Give one of your units Regenerate and +2 health. |
-| Elixir of the Giants | 2 | uncommon | consumable | Give one of your units +2/+2. |
+| Mighty Troll's Blood Potion (W1) | 1 | uncommon | consumable | Give one of your units Regenerate and +1/+2. |
+| Elixir of the Giants (W1) | 2 | uncommon | consumable | Give one of your units +3/+3. |
 | Argent Dawn Commission | 2 | uncommon | gear | Give one of your units +1/+1 and Sturdy. |
-| Lionheart Helm | 2 | rare | gear | Give one of your units Rally and +1 health. |
+| Lionheart Helm (W1) | 2 | rare | gear | Give one of your units +2/+2 and Rally. |
 | Gnomish Battle Chicken | 3 | rare | gadget | Summon a 3/2 Mechanical Battle Chicken with Swift in an empty lane of yours. |
 | Flask of the Titans | 3 | rare | consumable | Give one of your units +4 health. Restore 3 Morale. |
 | Captain's Spyglass | 3 | rare | gadget | Draw 2 cards. |
 | Ironfoe | 3 | epic | gear | Give one of your units +2/+2 and Pierce. |
-| Thunderfury | 5 | legendary | gear | Give one of your units +2/+2, Swift and Cleave. |
+| Thunderfury (W1) | 4 | legendary | gear | Give one of your units +2/+2, Swift and Cleave. |
 | Corrupted Ashbringer | 5 | legendary | gear | Give one of your units +3 attack and Drain. |
 
-That takes the item roster from 2 to 23. Every number is a first guess for
-`balance cards` to settle.
+That takes the item roster from 2 to 23. (W1): built in Wave 1, with the
+numbers `balance cards` settled on; the rest are still first guesses.
 
 ---
 
@@ -370,12 +374,16 @@ one-time grant flagged in `db.progress`, no schema change).
 
 ### 5.1 Binder
 
-- A separate **Tribe** filter (all nine tribes). Today the tribes are mixed
-  into the Type filter; Type becomes Unit / Tactic / Item / Trap.
-- A **Tribes** page: one row per tribe with its icon, a progress bar and a
-  count ("Beasts 18/28"). Clicking a row filters the binder to that tribe.
-- **Tribe completion:** owning one of every card in a tribe pays a special
-  pack (5.2) and puts a gold mark on that tribe's row.
+As built in Wave 1 (simpler than the Tribes page first planned, which would
+have been a new view nobody had seen in game):
+- A separate **Tribe** filter. The tribes used to be mixed into the Type
+  filter; Type is now Unit / Tactic / Item (Trap comes with Wave 2).
+- Pointing at the Tribe filter lists every tribe's progress ("Murloc 9 / 17",
+  in orange when complete) and says what completing one pays.
+- With a tribe filtered, the header counts that tribe ("Murloc: collected 9
+  of 17"), with an orange mark when it's complete.
+- **Tribe completion:** owning one of every card in a tribe pays a Windfall
+  pack (5.2).
 - Cards with the same stat line sit next to each other when sorted by cost,
   which shows off the shared lines.
 
@@ -438,7 +446,13 @@ means about 2 hours of travel (2.7 packs) plus a milestone now and then.
 
 The absolute numbers are rough. The comparison is the useful part: with
 special packs, Wave 1 keeps today's pace even though the pool almost
-doubles. Re-tune the pace test in `tests/engine.lua` (section 8) around it.
+doubles.
+
+Built: the pace test in `tests/engine.lua` (section 8) now opens a Windfall
+pack for every 4 card packs. With Wave 1's cards it takes a median of 48 card
+packs to own three quarters of the pack cards (about 3.7 weeks at 13 a
+week) and 119 for one of everything (about 9 weeks). Its bounds are 36-60
+and 90-170.
 
 **Code:**
 - `db.specialPacks` (a count beside `db.packs`), `db.progress.specialTravel`
@@ -521,7 +535,30 @@ Wave 1 (decided 2026-11-23: no separate 0.16.1).**
 the cards back once they're known again, and a boat crossing keeps a game on
 screen from dock to dock.
 
-**Wave 1: tribes, items and special packs (0.17.0).** About 71 new cards.
+**Wave 1: tribes, items and special packs (0.17.0). Built 2026-11-23, not
+yet seen in game.** 71 new cards in `Engine/CardsTribes.lua`; the special
+packs are called **Windfall packs** in game.
+
+Balance, measured after building it:
+- `balance tribes` (6 random decks a tribe, 720 games each): Murloc 57.5%,
+  Defias 56.5%, Beast 49.0%, Undead 48.2%, Humanoid 44.4%, Dragonkin 44.4%.
+  Inside the target (no tribe much over 60%).
+- `balance ladder`: identical, game for game, to the commit before Wave 1
+  (the circuit's decks didn't change, and Humanoid changes no rules).
+- `balance cards` on the 37 new cards with effects: the cheap gear items were
+  well behind a plain unit (-8 to -12, as Blessing of Might once was) and
+  were raised: Bloodsail Cutlass +3/+1 (was +3 attack), Scroll of Protection
+  +1/+4 (was +4 health), Mighty Troll's Blood Potion Regenerate and +1/+2
+  (was +1/+1), Lionheart Helm +2/+2 and Rally (was +2 health), Gnomish
+  Net-o-Matic also draws a card, Major Healing Potion restores 8 (was 7).
+  Murloc Raider 2/2, Plague Eater 2/4, Wyrmkin Firebrand 2/4 and Darkmaster
+  Gandling 4/5 got a point each. After that every one of them measures
+  between -6.4 and +1.0, where the older cheap tactics sit. High Tide
+  (-15.8) is left alone: like Call of the Wild, it was tested in decks
+  without its tribe. Murkdeep (+8.5) and Thunderfury (+6.8) sit where epics
+  and legendaries usually do.
+
+What the wave contains:
 - Humanoid joins the five tribes, and the 24 Humanoids get it (2.1). The
   Guide's "Tribes" section lists all of them.
 - Binder: Tribe filter, Type filter with Item and Trap, the Tribes page,

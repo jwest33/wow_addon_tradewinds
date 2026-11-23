@@ -475,6 +475,293 @@ L["Mrgl?"] = "Мргл?"
 -- bones
 L["Skeleton"] = "Скелет"
 L["Clack."] = "Клац."
+-- crawler
+L["Shore Crawler"] = "Береговой ползун"
+L["Westfall's beaches belong to it. Ask anyone."] = "Пляжи Западного Края принадлежат ему. Спроси кого угодно."
+-- hyena
+L["Hecklefang Hyena"] = "Гиена-пересмешница"
+L["It laughs first. Then it bites."] = "Сначала смеётся. Потом кусает."
+-- cougar
+L["Mountain Cougar"] = "Горный кугуар"
+L["Mulgore's other welcoming committee."] = "Вторая приветственная делегация Мулгора."
+-- panther
+L["Shadowmaw Panther"] = "Пантера-тенепасть"
+L["Stranglethorn's shadows have teeth."] = "У теней Тернистой долины есть зубы."
+-- elderstrider
+L["Elder Plainstrider"] = "Старый долгоног"
+L["Older, slower, and very much in the way."] = "Старше, медлительнее — и вечно стоит на дороге."
+-- ashbear
+L["Ashenvale Bear"] = "Медведь Ясеневого леса"
+L["The forest's quiet giant, until it isn't."] = "Тихий великан леса. До поры до времени."
+-- tiger
+L["Stranglethorn Tiger"] = "Тигр Тернистой долины"
+L["Hunters come here for its pelt. Some leave."] = "Охотники приходят сюда за его шкурой. Некоторые даже уходят."
+-- corehound
+L["Ancient Core Hound"] = "Древняя гончая недр"
+L["Two heads. Neither of them is friendly."] = "Две головы. И обе недружелюбные."
+-- footman
+L["Stormwind Footman"] = "Солдат Штормграда"
+L["Ready for anything. Mostly guard duty."] = "Готов ко всему. В основном — к караулу."
+-- sentinel
+L["Silverwing Sentinel"] = "Часовой Среброкрылых"
+L["Warsong Gulch taught her to run."] = "Бегать её научило Ущелье Песни Войны."
+-- defender
+L["Ironforge Defender"] = "Защитник Стальгорна"
+L["The gates never fell on his watch."] = "В его дозор ворота не пали ни разу."
+-- veteran
+L["Kor'kron Veteran"] = "Ветеран Кор'крона"
+L["Orgrimmar's elite, and he'll tell you so."] = "Элита Оргриммара. И он не даст тебе об этом забыть."
+-- streamrunner
+L["Murloc Streamrunner"] = "Ручьевой мурлок"
+L["Mrrgl? Mrrgl."] = "Мрргл? Мрргл."
+-- tidewarrior
+L["Murloc Tidewarrior"] = "Мурлок-воин прилива"
+L["Bigger than the rest, and twice as loud."] = "Крупнее остальных и вдвое громче."
+-- harpooner
+L["Murloc Harpooner"] = "Мурлок-гарпунщик"
+L["Throws first. Asks never."] = "Бросает первым. Вопросов не задаёт."
+-- zombie
+L["Tirisfal Zombie"] = "Тирисфальский зомби"
+L["Slow, hungry, and in no hurry."] = "Медленный, голодный и никуда не спешит."
+-- deathguard
+L["Deathguard Lookout"] = "Дозорный страж смерти"
+L["Brill's night watch. And day watch."] = "Ночной дозор Брилла. И дневной тоже."
+-- hungryghoul
+L["Hungering Ghoul"] = "Голодный вурдалак"
+L["Always hungry. Never full."] = "Всегда голоден. Никогда не сыт."
+-- warder
+L["Skeletal Warder"] = "Скелет-страж"
+L["Stands its post. It has nothing better to do."] = "Стоит на посту. Ему всё равно больше нечем заняться."
+-- footsoldier
+L["Scourge Footsoldier"] = "Пехотинец Плети"
+L["The Plaguelands' endless infantry."] = "Бесконечная пехота Чумных земель."
+-- abomination
+L["Hulking Abomination"] = "Громадное поганище"
+L["Three of everything, stitched together."] = "Всего по три, и всё сшито вместе."
+-- lookout
+L["Defias Lookout"] = "Дозорный Братства"
+L["Sees you coming. Tells everyone."] = "Видит, что ты идёшь. Рассказывает всем."
+-- cutpurse
+L["Defias Cutpurse"] = "Карманник Братства"
+L["Your coin purse feels lighter already."] = "Твой кошелёк уже как-то полегчал."
+-- highwayman
+L["Defias Highwayman"] = "Разбойник Братства"
+L["The road to Sentinel Hill has a toll."] = "За проезд к Сторожевому холму надо платить."
+-- nightrunner
+L["Defias Night Runner"] = "Ночной бегун Братства"
+L["Westfall's nights belong to the Brotherhood."] = "Ночи Западного Края принадлежат Братству."
+-- pathstalker
+L["Defias Pathstalker"] = "Следопыт Братства"
+L["Watches the Moonbrook road from the hills."] = "С холмов следит за дорогой на Луноречье."
+-- azurewhelp
+L["Azure Whelp"] = "Лазурный дракончик"
+L["Bites first. Sneezes frost later."] = "Сначала кусает. Потом чихает инеем."
+-- drakonid
+L["Black Drakonid"] = "Черный драконоид"
+L["Bred in Blackwing Lair for one job."] = "Выведен в Логове Крыла Тьмы для одной-единственной работы."
+-- drakeling
+L["Emerald Drakeling"] = "Изумрудный драконыш"
+L["Dreams fast, wakes faster."] = "Быстро засыпает. Ещё быстрее просыпается."
+-- broodling
+L["Black Broodling"] = "Черный драконий птенец"
+L["Spits fire before it can fly."] = "Плюётся огнём раньше, чем научится летать."
+-- wyrmguard
+L["Bronze Wyrmguard"] = "Бронзовый змей-страж"
+L["Guards the sands of time. And you, for now."] = "Охраняет пески времени. И тебя — пока что."
+-- reddragonspawn
+L["Red Dragonspawn"] = "Красный драконид"
+L["Grim Batol's warden, on leave."] = "Страж Грим Батола в увольнительной."
+-- greendrake
+L["Green Drake"] = "Зеленый дракон"
+L["Asleep until woken. Then very awake."] = "Спит, пока не разбудят. А потом очень, очень не спит."
+-- seether
+L["Death Talon Seether"] = "Яростный Коготь Смерти"
+L["Blackwing Lair's hall monitor."] = "Дежурный по коридорам Логова Крыла Тьмы."
+-- trackinghound
+L["Tracking Hound"] = "Гончая-следопыт"
+L["Arrive: draw with another Beast"] = "Прибытие: карта, если есть зверь"
+L["Arrive: draw a card if you have another Beast."] = "Прибытие: возьми карту, если у тебя есть другой зверь."
+L["Already knows where you're going."] = "Уже знает, куда ты идёшь."
+-- patriarch
+L["Silverback Patriarch"] = "Сереброспинный патриарх"
+L["Arrive: other Beasts +1/+1"] = "Прибытие: другим зверям +1/+1"
+L["Arrive: your other Beasts get +1/+1."] = "Прибытие: другие твои звери получают +1/+1."
+L["The troop follows the grey."] = "Стая идёт за седым."
+-- crier
+L["Town Crier"] = "Глашатай"
+L["Arrive: draw with 2 other Humanoids"] = "Прибытие: карта, если есть 2 гуманоида"
+L["Arrive: draw a card if you have 2 other Humanoids."] = "Прибытие: возьми карту, если у тебя есть 2 других гуманоида."
+L["Hear ye! Wanted: Hogger. Again."] = "Слушайте все! Разыскивается Дробитель. Опять."
+-- sergeant
+L["Militia Sergeant"] = "Сержант ополчения"
+L["Arrive: other Humanoids +1 health"] = "Прибытие: другим гуманоидам +1 к здоровью"
+L["Arrive: your other Humanoids get +1 health."] = "Прибытие: другие твои гуманоиды получают +1 к здоровью."
+L["Goldshire's finest. Goldshire's only."] = "Лучший в Златоземье. Единственный в Златоземье."
+-- captain
+L["Stormwind Captain"] = "Капитан Штормграда"
+L["Arrive: Humanoids beside it +1/+1"] = "Прибытие: гуманоидам рядом +1/+1"
+L["Arrive: your Humanoids in the neighbouring lanes get +1/+1."] = "Прибытие: твои гуманоиды на соседних линиях получают +1/+1."
+L["Leads from the front. Mostly."] = "Ведёт за собой с передовой. Обычно."
+-- bolvar
+L["Bolvar Fordragon"] = "Болвар Фордрагон"
+L["Arrive: other Humanoids +1/+1"] = "Прибытие: другим гуманоидам +1/+1"
+L["Arrive: your other Humanoids get +1/+1."] = "Прибытие: другие твои гуманоиды получают +1/+1."
+L["Regent of Stormwind, and nobody's pushover."] = "Регент Штормграда. И его так просто не прогнёшь."
+-- raider
+L["Murloc Raider"] = "Мурлок-налетчик"
+L["Arrive: +1 attack with a Murloc"] = "Прибытие: +1 к атаке, если есть мурлок"
+L["Arrive: +1 attack if you have another Murloc."] = "Прибытие: +1 к атаке, если у тебя есть другой мурлок."
+L["Never raids alone. Wouldn't know how."] = "Никогда не нападает в одиночку. Просто не умеет."
+-- flopper
+L["Murloc Flopper"] = "Мурлок-шлепун"
+L["Fallen: leaves a 1/1 Murloc Scout"] = "Гибель: оставляет разведчика 1/1"
+L["Fallen: summon a 1/1 Murloc Scout in its lane."] = "Гибель: призови мурлока-разведчика 1/1 на его линию."
+L["Flops in. Flops out. Leaves a friend."] = "Шлёп — пришёл. Шлёп — ушёл. Друга оставил."
+-- tidecaller
+L["Murloc Tidecaller"] = "Мурлок-зазывала"
+L["Arrive: 1/1 Scouts beside it"] = "Прибытие: разведчики 1/1 рядом"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."] = "Прибытие: призови мурлока-разведчика 1/1 на каждую свою пустую соседнюю линию."
+L["It calls. They come. Every time."] = "Он зовёт. Они приходят. Всегда."
+-- netmaster
+L["Murloc Netmaster"] = "Мурлок-ловчий"
+L["Arrive: freeze what's across Murlocs"] = "Прибытие: заморозь напротив мурлоков"
+L["Arrive: freeze the enemy units across from your other Murlocs."] = "Прибытие: заморозь вражеских бойцов напротив других твоих мурлоков."
+L["One net, many murlocs, no way out."] = "Одна сеть, много мурлоков, выхода нет."
+-- hightide
+L["High Tide"] = "Прилив"
+L["Your Murlocs: +1/+1"] = "Твои мурлоки: +1/+1"
+L["Your Murlocs get +1/+1."] = "Твои мурлоки получают +1/+1."
+L["Everything floats. Especially murlocs."] = "Всё всплывает. Особенно мурлоки."
+-- muckdweller
+L["Murloc Muckdweller"] = "Мурлок-грязевик"
+L["+1/+1 when your Murloc dies"] = "+1/+1, когда гибнет твой мурлок"
+L["Whenever another of your Murlocs dies, gains +1/+1."] = "Получает +1/+1, когда гибнет другой твой мурлок."
+L["Grows fat on the tide's leftovers."] = "Жиреет на объедках прилива."
+-- murkdeep
+L["Murkdeep"] = "Глубомрак"
+L["1/1 Scouts beside. Murlocs +1 attack"] = "Разведчики 1/1 рядом, мурлоки +1 к атаке"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."] = "Прибытие: призови мурлока-разведчика 1/1 на каждую свою пустую соседнюю линию. Другие твои мурлоки получают +1 к атаке."
+L["Darkshore's coast has one king, and he's wet."] = "На Темных берегах один король. И он мокрый."
+-- squire
+L["Rotting Squire"] = "Гниющий оруженосец"
+L["Arrive: +1 attack with an Undead"] = "Прибытие: +1 к атаке, если есть нежить"
+L["Arrive: +1 attack if you have another Undead."] = "Прибытие: +1 к атаке, если у тебя есть другая нежить."
+L["Still serving. Still squiring."] = "Всё ещё служит. Всё ещё оруженосец."
+-- bonecaller
+L["Bonecaller"] = "Призыватель костей"
+L["Fallen: other Undead +1 attack"] = "Гибель: другой нежити +1 к атаке"
+L["Fallen: your other Undead get +1 attack."] = "Гибель: другая твоя нежить получает +1 к атаке."
+L["Its last word is always 'rise'."] = "Его последнее слово — всегда «восстаньте»."
+-- plagueeater
+L["Plague Eater"] = "Чумоед"
+L["+1/+1 when your Undead dies"] = "+1/+1, когда гибнет твоя нежить"
+L["Whenever another of your Undead dies, gains +1/+1."] = "Получает +1/+1, когда гибнет другой твой боец-нежить."
+L["Nothing goes to waste in the Plaguelands."] = "В Чумных землях ничего не пропадает зря."
+-- bloated
+L["Bloated Zombie"] = "Раздутый зомби"
+L["Fallen: 1 damage to every enemy"] = "Гибель: 1 урон всем врагам"
+L["Fallen: deal 1 damage to every enemy unit."] = "Гибель: нанеси 1 ед. урона всем вражеским бойцам."
+L["Do not poke."] = "Не тыкать."
+-- armydead
+L["Army of the Dead"] = "Войско мертвых"
+L["1/1 Skeletons in your empty lanes"] = "Скелеты 1/1 на пустые линии"
+L["Summon a 1/1 Skeleton in each of your empty lanes."] = "Призови скелета 1/1 на каждую свою пустую линию."
+L["They were already here. They just stood up."] = "Они уже были здесь. Просто встали."
+-- commander
+L["Scourge Commander"] = "Командир Плети"
+L["Other Undead: +1 attack"] = "Другая нежить: +1 к атаке"
+L["Your other Undead have +1 attack."] = "Другая твоя нежить получает +1 к атаке."
+L["Orders from Naxxramas, delivered in person."] = "Приказы из Наксрамаса — с личной доставкой."
+-- gandling
+L["Darkmaster Gandling"] = "Темный магистр Гандлинг"
+L["Round start: 1/1 Skeletons beside"] = "Начало раунда: скелеты 1/1 рядом"
+L["Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."] = "Начало раунда: призови скелета 1/1 на каждую свою пустую соседнюю линию."
+L["Scholomance's headmaster. Attendance is mandatory."] = "Директор Некроситета. Посещение обязательно."
+-- overseer
+L["Defias Overseer"] = "Надзиратель Братства"
+L["Arrive: +1 attack with a Defias"] = "Прибытие: +1 к атаке, если есть Братство"
+L["Arrive: +1 attack if you have another Defias."] = "Прибытие: +1 к атаке, если у тебя есть другой боец Братства."
+L["Counts the loot. Twice."] = "Пересчитывает добычу. Дважды."
+-- conjurer
+L["Defias Conjurer"] = "Заклинатель Братства"
+L["Arrive: enemy -1 Morale per Defias"] = "Прибытие: -1 к духу врага за Братство"
+L["Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."] = "Прибытие: враг теряет 1 ед. боевого духа за каждого другого твоего бойца Братства (не больше 2)."
+L["Learned his tricks from a book he stole."] = "Научился фокусам по книге, которую украл."
+-- blackguard
+L["Defias Blackguard"] = "Негодяй Братства"
+L["Arrive: other Defias get Stealth"] = "Прибытие: Братству — Незаметность"
+L["Arrive: your other Defias get Stealth."] = "Прибытие: другие твои бойцы Братства получают Незаметность."
+L["Teaches the new recruits to disappear."] = "Учит новобранцев исчезать."
+-- whelpling
+L["Brood Whelpling"] = "Дракончик из выводка"
+L["Arrive: +1 attack with a Dragonkin"] = "Прибытие: +1 к атаке, если есть дракон"
+L["Arrive: +1 attack if you have another Dragonkin."] = "Прибытие: +1 к атаке, если у тебя есть другой дракон."
+L["Small, loud, and already hoarding."] = "Маленький, громкий и уже копит сокровища."
+-- firebrand
+L["Wyrmkin Firebrand"] = "Драконий поджигатель"
+L["+1 attack per other Dragonkin"] = "+1 к атаке за каждого другого дракона"
+L["Has +1 attack for each other Dragonkin you have."] = "Получает +1 к атаке за каждого другого твоего дракона."
+L["The flame burns hotter in a crowd."] = "В толпе пламя горит жарче."
+-- wyrmkin
+L["Flamescale Wyrmkin"] = "Змей Пламенной Чешуи"
+L["Arrive: 1 to all enemies, if Dragonkin"] = "Прибытие: 1 урон всем, если есть дракон"
+L["Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."] = "Прибытие: нанеси 1 ед. урона всем вражеским бойцам, если у тебя есть другой дракон."
+L["Breathes on everyone. Apologises to no one."] = "Дышит огнём на всех. Ни перед кем не извиняется."
+-- nefarian
+L["Nefarian"] = "Нефариан"
+L["Arrive: other Dragonkin +2/+2"] = "Прибытие: другим драконам +2/+2"
+L["Arrive: your other Dragonkin get +2/+2."] = "Прибытие: другие твои драконы получают +2/+2."
+L["Blackwing Lair's host, and its worst landlord."] = "Хозяин Логова Крыла Тьмы. И худший домовладелец на свете."
+-- cutlass
+L["Bloodsail Cutlass"] = "Сабля Кровавого Паруса"
+L["+3/+1"] = "+3/+1"
+L["Give one of your units +3/+1."] = "Дай одному из своих бойцов +3/+1."
+L["Rusty, notched, and still sharper than you'd like."] = "Ржавая, щербатая — и всё равно острее, чем хотелось бы."
+-- swiftness
+L["Swiftness Potion"] = "Зелье скорости"
+L["Swift and +1/+1"] = "Быстрота и +1/+1"
+L["Give one of your units Swift and +1/+1."] = "Дай одному из своих бойцов Быстроту и +1/+1."
+L["Drink it before the fight, not during."] = "Пей до боя, а не во время."
+-- scrollprot
+L["Scroll of Protection"] = "Свиток защиты"
+L["+1/+4"] = "+1/+4"
+L["Give one of your units +1/+4."] = "Дай одному из своих бойцов +1/+4."
+L["Read aloud. Slowly. Mind the long words."] = "Читать вслух. Медленно. Осторожно с длинными словами."
+-- grenade
+L["Iron Grenade"] = "Железная граната"
+L["2 damage and freeze it"] = "2 урона и заморозка"
+L["Deal 2 damage to the enemy unit in a lane and freeze it."] = "Нанеси 2 ед. урона вражескому бойцу на линии и заморозь его."
+L["Pull pin. Throw. Do not hold."] = "Выдерни чеку. Бросай. Не держи."
+-- majorheal
+L["Major Healing Potion"] = "Огромное лечебное зелье"
+L["Restore 8 Morale"] = "+8 к боевому духу"
+L["Restore 8 Morale."] = "Восстанови 8 ед. боевого духа."
+L["The good stuff. Tastes worse."] = "Хорошая штука. На вкус ещё хуже."
+-- netomatic
+L["Gnomish Net-o-Matic Projector"] = "Гномский сетестрел"
+L["Freeze an enemy unit. Draw a card"] = "Заморозь врага. Возьми карту"
+L["Freeze the enemy unit in a lane. Draw a card."] = "Заморозь вражеского бойца на линии. Возьми карту."
+L["Works every time. Sixty percent of the time."] = "Срабатывает каждый раз. В шестидесяти процентах случаев."
+-- trollblood
+L["Mighty Troll's Blood Potion"] = "Мощное зелье тролльей крови"
+L["Regenerate and +1/+2"] = "Регенерация и +1/+2"
+L["Give one of your units Regenerate and +1/+2."] = "Дай одному из своих бойцов Регенерацию и +1/+2."
+L["Don't ask what's in it. Don't ask whose."] = "Не спрашивай, что внутри. И чьё."
+-- giants
+L["Elixir of the Giants"] = "Эликсир великанов"
+L["+3/+3"] = "+3/+3"
+L["Give one of your units +3/+3."] = "Дай одному из своих бойцов +3/+3."
+L["Side effects include ducking under doorways."] = "Побочные эффекты: приходится пригибаться в дверях."
+-- lionheart
+L["Lionheart Helm"] = "Шлем Львиного Сердца"
+L["+2/+2 and Rally"] = "+2/+2 и Сплочение"
+L["Give one of your units +2/+2 and Rally."] = "Дай одному из своих бойцов +2/+2 и Сплочение."
+L["Whoever wears it, the rest stand taller."] = "Кто бы его ни надел, остальные расправляют плечи."
+-- thunderfury
+L["Thunderfury"] = "Громовая Ярость"
+L["+2/+2, Swift and Cleave"] = "+2/+2, Быстрота и Размах"
+L["Give one of your units +2/+2, Swift and Cleave."] = "Дай одному из своих бойцов +2/+2, Быстроту и Размах."
+L["Did someone say...?"] = "Кто-то сказал...?"
 
 -- == Opponents == (name, short name, title, and what they say)
 -- dorn
@@ -593,12 +880,14 @@ L["Player %d"] = "Игрок %d"
 
 -- == Engine/Cards.lua ==
 L["Beast"] = "Зверь"
+L["Humanoid"] = "Гуманоид"
 L["Murloc"] = "Мурлок"
 L["Undead"] = "Нежить"
 L["Defias"] = "Братство"
 L["Dragonkin"] = "Дракон"
 L["Core set"] = "Базовый выпуск"
 L["Roads of Azeroth"] = "Дороги Азерота"
+L["Tribes of Azeroth"] = "Племена Азерота"
 
 -- == Collection.lua ==
 L["That card can't be crafted."] = "Эту карту нельзя создать."
@@ -650,6 +939,8 @@ L["victory; games against %s have paid in full %d times today"] = "победа;
 L["finishing the tutorial"] = "прохождение обучения"
 L["reaching level %s"] = "достижение уровня %s"
 L["a new flight path"] = "новый маршрут полета"
+L["every star against %s"] = "все звёзды: %s"
+L["every %s card"] = "все карты племени: %s"
 
 -- == Net.lua ==
 L["Another player"] = "Другой игрок"
@@ -696,9 +987,13 @@ L["%d of them waits for your move."] = "%d из них ждёт твоего х�
 L["%d of them wait for your move."] = "Ждут твоего хода: %d."
 L["Your tutorial is waiting. Type /tradewinds to continue."] = "Обучение ждёт тебя. Введи /tradewinds, чтобы продолжить."
 L["Your game against %s is waiting. Type /tradewinds to continue."] = "Партия (соперник: %s) ждёт тебя. Введи /tradewinds, чтобы продолжить."
-L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."] = "Впервые в Tradewinds? Введи /tradewinds tutorial, чтобы сыграть короткую обучающую партию. За неё дают набор карт."
+L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."] = "Впервые в Tradewinds? Введи /tradewinds tutorial, чтобы сыграть короткую обучающую партию. За неё дают дар ветров."
+L["You have %d unopened Windfall pack. Type /tradewinds packs to open it."] = "У тебя %d неоткрытый дар ветров. Введи /tradewinds packs, чтобы открыть его."
+L["You have %d unopened Windfall packs. Type /tradewinds packs to open them."] = "Неоткрытых даров ветров: %d. Введи /tradewinds packs, чтобы открыть их."
 L["You have %d unopened card pack. Type /tradewinds to play."] = "У тебя %d неоткрытый набор карт. Введи /tradewinds, чтобы играть."
 L["You have %d unopened card packs. Type /tradewinds to play."] = "Неоткрытых наборов карт: %d. Введи /tradewinds, чтобы играть."
+L["+%d Windfall pack"] = "Дары ветров: +%d"
+L["+%d Windfall packs"] = "Дары ветров: +%d"
 L["|cff9fdfff%s|r (%s)."] = "|cff9fdfff%s|r (%s)."
 L["+%d shard"] = "Осколки: +%d"
 L["+%d shards"] = "Осколки: +%d"
@@ -735,6 +1030,9 @@ L["click"] = "нажми"
 L["Tactic: enemy lane"] = "Тактика: линия врага"
 L["Tactic: your unit"] = "Тактика: твой боец"
 L["Tactic"] = "Тактика"
+L["Item: enemy lane"] = "Предмет: линия врага"
+L["Item: your unit"] = "Предмет: твой боец"
+L["Item"] = "Предмет"
 L["Frozen"] = "Заморозка"
 L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."] = "Выбери вражескую линию. Тактика сработает после вскрытия и попадёт в того, кто там к тому моменту окажется."
 L["Pick one of your units, or a lane you're playing a unit into this round."] = "Выбери своего бойца или линию, на которую выставляешь бойца в этом раунде."
@@ -777,6 +1075,8 @@ L["%d of your games wait for your move."] = "Игр, ждущих твоего �
 L["Games in progress."] = "Игры в процессе."
 L["%d unopened pack"] = "%d неоткрытый набор"
 L["%d unopened packs"] = "Неоткрытых наборов: %d"
+L["%d unopened Windfall pack"] = "%d неоткрытый дар ветров"
+L["%d unopened Windfall packs"] = "Неоткрытых даров ветров: %d"
 L["Click: play.  Right-click: packs.  Drag: move."] = "Щелчок: играть.  Правый щелчок: наборы.  Перетащить: сдвинуть."
 
 -- == UI/Effects.lua ==
@@ -1074,8 +1374,11 @@ L["A tactic is played once, then it's gone. Its type line says what it targets:"
 L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."] = "|cffffffffТактика: линия врага|r  выбери линию в верхнем ряду. Тактика попадёт в бойца на ней после вскрытия; некоторые тактики действуют иначе, если линия пуста (Огненный шар тогда бьёт по боевому духу)."
 L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."] = "|cffffffffТактика: твой боец|r  выбери своего бойца или линию, на которую выставляешь бойца в этом раунде."
 L["|cffffffffTactic|r  no target needed."] = "|cffffffffТактика|r  цель не нужна."
+L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."] = "|cffffffffПредметы|r (зелья, бомбы, оружие) — это тоже тактики, и разыгрываются они так же, только у них кожаная рамка и «Предмет» в строке типа. Снаряжение остаётся на бойце, как Глухая оборона."
 L["Tribes"] = "Племена"
-L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."] = "Звери, мурлоки, нежить, Братство и драконы. Некоторые карты становятся сильнее, если рядом или в игре есть другие представители их племени. Племя карты указано в строке под её названием, а на вкладке «Карты» можно отфильтровать карты по племени."
+L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."] = "Каждый боец принадлежит к какому-нибудь племени: звери, гуманоиды, мурлоки, нежить, Братство или драконы. Некоторые карты становятся сильнее, если рядом или в игре есть другие представители их племени. Племя карты указано в строке под её названием."
+L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."] = "У бойцов разных племён могут быть одинаковые характеристики: сами по себе они играют одинаково, а от племени зависит, какие карты их учитывают. Наведи курсор на карту, которая учитывает племя, — и подходящие бойцы подсветятся."
+L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."] = "На вкладке «Карты» можно отфильтровать карты по племени. Собери по одной копии всех карт племени — и получишь дар ветров."
 L["Summoned units"] = "Призванные бойцы"
 L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."] = "Некоторые карты выводят на поле дополнительных бойцов — например, заморышей Речной Лапы у Дробителя. Они не входят ни в одну колоду."
 L["Winning"] = "Победа"
@@ -1085,11 +1388,13 @@ L["Eight opponents, from easy to hard. Beating one opens the next. Each has thre
 L["|cffffffffVictory|r  win. Pays a card pack."] = "|cffffffffПобеда|r  выиграй. Награда — набор карт."
 L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."] = "|cffffffffРазгром|r  победи, опередив соперника по боевому духу хотя бы на %d. Награда — его фирменная карта."
 L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."] = "|cffffffffРядовой состав|r  победи колодой без редких, эпических и легендарных карт. Награда — 2 набора."
-L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."] = "Победи последнего — и откроются |cffffffffгероические реванши|r: все соперники заново, с лучшими колодами и самой сильной игрой. Первая героическая победа над каждым приносит набор и его фирменную карту в голографическом виде."
+L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."] = "Все три звезды у одного соперника приносят дар ветров. Как и все звёзды турнира."
+L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."] = "Победи последнего — и откроются |cffffffffгероические реванши|r: все соперники заново, с лучшими колодами и самой сильной игрой. Первая героическая победа над каждым приносит дар ветров и его фирменную карту в голографическом виде."
 L["Your deck"] = "Твоя колода"
 L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."] = "Карт в колоде — ровно %d, не больше 2 копий каждой (легендарной — 1). В ней должно быть не меньше 2 бойцов стоимостью 1, 4 карт стоимостью 2 и 3 карт стоимостью 3: из них выбираются карты первых раундов. Колоды собираются на вкладке «Карты»."
 L["Collecting"] = "Коллекция"
 L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."] = "Наборы даются за путешествия (полёты, корабли и дирижабли), повышение уровня и победы. Осколки за лишние копии и игры можно потратить на наборы или на создание нужной карты. Все источники перечислены на вкладке «Наборы»."
+L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."] = "В |cffff9933дарах ветров|r по пять карт, и последняя всегда редкая или лучше. Их дают за каждые %d мин. в пути и за достижения (обучение, каждый десятый уровень, звёзды, героические победы, целое племя), а купить их нельзя."
 L["The basics"] = "Основы"
 L["A round"] = "Раунд"
 L["Keywords"] = "Ключевые слова"
@@ -1098,7 +1403,7 @@ L["Card text"] = "Текст карт"
 L["Play the tutorial (+%d pack)"] = "Пройти обучение (+%d набор)"
 L["Play the tutorial (+%d packs)"] = "Пройти обучение (наборы: +%d)"
 L["Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."] = "Слева: напротив пусто, и твой боец бьёт по боевому духу врага. В центре: два бойца стоят друг напротив друга и сражаются. Справа: напротив нет твоих бойцов, и вражеский боец бьёт по твоему боевому духу."
-L["Finishing it the first time earns a card pack."] = "За первое прохождение — набор карт."
+L["Finishing it the first time earns a Windfall pack."] = "За первое прохождение — дар ветров."
 
 -- == UI/Binder.lua ==
 L["Show"] = "Показать"
@@ -1117,6 +1422,8 @@ L["Cost"] = "Стоимость"
 L["Type"] = "Тип"
 L["units"] = "бойцы"
 L["tactics"] = "тактики"
+L["items"] = "предметы"
+L["Tribe"] = "Племя"
 L["Owned %d of %d.  In your deck: %d."] = "Есть %d из %d.  В колоде: %d."
 L["Left-click: add to deck.  Right-click: take one out."] = "Левый щелчок: добавить в колоду.  Правый щелчок: убрать одну."
 L["Shift-click: craft a copy for %d shards (you have %d)."] = "Shift+щелчок: создать копию за осколки (%d, у тебя %d)."
@@ -1127,6 +1434,7 @@ L["win from %s"] = "победи: %s"
 L["not found yet"] = "ещё не найдена"
 L["not in packs"] = "нет в наборах"
 L["%d in deck"] = "в колоде: %d"
+L["%s: collected %d of %d"] = "%s: собрано %d из %d"
 L["Collected %d of %d cards"] = "Собрано карт: %d из %d"
 L["%d %s"] = "%d × %s"
 L["%d shard"] = "%d осколок"
@@ -1143,6 +1451,7 @@ L["Avg. cost %s"] = "Ср. стоимость %s"
 L["Click: take one out of the deck."] = "Щелчок: убрать одну из колоды."
 L["No cards match these filters."] = "Нет карт, подходящих под эти фильтры."
 L["Click for the next choice, right-click for the one before."] = "Щелчок — следующий вариант, правый щелчок — предыдущий."
+L["One of every card of a tribe earns a Windfall pack."] = "Собери по одной копии всех карт племени — и получишь дар ветров."
 L["All"] = "Все"
 L["Clear the filters and show every card."] = "Сбросить фильтры и показать все карты."
 L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."] = "Левый щелчок по карте: добавить в колоду.   Правый щелчок: убрать.   Shift+щелчок: создать за осколки."
@@ -1165,6 +1474,7 @@ L["Now holographic!"] = "Теперь голографическая!"
 L["Holographic!"] = "Голографическая!"
 L["Legendary!"] = "Легендарная!"
 L["Epic!"] = "Эпическая!"
+L["Rare or better"] = "Редкая или лучше"
 L["No packs to open."] = "Нет наборов для открытия."
 L["Opened %s: %s, %s from extra copies."] = "Открыто! %s. %s. %s (за лишние копии)."
 L["%d pack"] = "%d набор"
@@ -1174,12 +1484,18 @@ L["%d new cards"] = "Новые карты: %d"
 L["New: %s"] = "Новое: %s"
 L["Open a pack"] = "Открыть набор"
 L["No packs"] = "Нет наборов"
+L["Windfall packs: %d"] = "Дары ветров: %d"
 L["(in the air)"] = "(в полёте)"
 L["(on board)"] = "(на борту)"
 L["Travel time toward your next pack: %s / %s"] = "Время в пути до следующего набора: %s / %s"
+L["Toward your next Windfall pack: %s / %s"] = "До следующего дара ветров: %s / %s"
 L["Card packs"] = "Наборы карт"
 L["Open all"] = "Открыть все"
-L["Opens every pack you have. The new cards are listed in chat."] = "Открывает все твои наборы. Новые карты будут перечислены в чате."
+L["Opens every pack you have, Windfall packs too. The new cards are listed in chat."] = "Открывает все твои наборы, включая дары ветров. Новые карты будут перечислены в чате."
+L["Open a Windfall pack"] = "Открыть дар ветров"
+L["Windfall packs"] = "Дары ветров"
+L["Five cards, and the last one is always rare or better."] = "Пять карт, и последняя всегда редкая или лучше."
+L["You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."] = "Их дают за каждые %d мин. в пути и за достижения: обучение, каждый десятый уровень, все три звезды у соперника, героические победы и по одной копии всех карт племени. Купить их нельзя."
 L["Shards"] = "Осколки"
 L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."] = "Карта, которой у тебя уже максимум (2, а легендарной — 1), превращается в осколки: обычная — %d, необычная — %d, редкая — %d, эпическая — %d."
 L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."] = "Осколки дают также за игры, уровни, маршруты полетов и ежедневное задание. Набор стоит осколков: %d. На вкладке «Карты» Shift+щелчок по карте создаёт её за осколки."
@@ -1188,13 +1504,13 @@ L["Open a pack to see what's inside. Click each card to turn it over."] = "От�
 L["Reveal all"] = "Перевернуть все"
 L["Ways to earn packs"] = "Как получить наборы"
 L["- Every %d minutes on a flight path, boat or zeppelin"] = "- Каждые %d мин. в полёте, на корабле или дирижабле"
-L["- Your first win of the day, and every tenth level"] = "- Первая победа за день и каждый десятый уровень"
-L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Звёзды: первая победа над каждым соперником и победа колодой из обычных и необычных карт"
+L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Первая победа за день и звёзды: первая победа над каждым соперником и победа колодой из обычных и необычных карт"
 L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"] = "- Осколки (%d). Их дают за победы, ежедневное задание, уровни, новые маршруты полетов и лишние копии"
 L["What's in a pack"] = "Что в наборе"
 L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"] = "- Две обычные карты и одна необычная, вместо которой иногда попадается редкая, порой эпическая и очень редко легендарная"
 L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"] = "- Нелегендарных фирменных карт в наборах нет: выигрывай их у соперников или создавай"
 L["- About 1 pack in %d has a %s card. It plays the same; it just shines"] = "- Примерно в 1 наборе из %d попадается %s карта. Играет она так же, просто блестит"
+L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"] = "- Пять карт: две обычные, одна необычная, одна как лучшая карта обычного набора и одна всегда редкая или лучше. За каждые %d мин. в пути и за достижения (наведи курсор на кнопку выше)"
 
 -- == UI/Options.lua ==
 L["Card, combat and pack sounds."] = "Звуки карт, боя и наборов."

@@ -38,6 +38,7 @@ local function summonBeside(st, u, id)
     if not st.players[u.owner].board[l] then return R.Summon(st, u.owner, l, id) end
   end
 end
+Cards.Others, Cards.PerOther, Cards.SummonBeside = others, perOther, summonBeside
 
 -- ---------------------------------------------------------------------------
 -- Beasts
@@ -342,4 +343,3 @@ add { id = "scout", name = "Murloc Scout", cost = 1, type = "unit", rarity = "co
 add { id = "bones", name = "Skeleton", cost = 1, type = "unit", rarity = "common", atk = 1, hp = 1, tribe = "undead", collectible = false,
   flavor = "Clack.", icon = icons("INV_Misc_Bone_HumanSkull_01", "Spell_Shadow_RaiseDead") }
 
-Cards.Finish()

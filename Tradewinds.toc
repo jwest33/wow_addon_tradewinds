@@ -32,6 +32,7 @@ Locales\zhTW.lua
 Engine\Rules.lua
 Engine\Cards.lua
 Engine\CardsRoads.lua
+Engine\CardsTribes.lua
 Engine\AI.lua
 Data\Opponents.lua
 Data\Tutorial.lua

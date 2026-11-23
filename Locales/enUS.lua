@@ -50,7 +50,7 @@ L["Stealth"] = "Stealth"   -- keyword
 L["Enemy tactics can't target it until it has struck."] = "Enemy tactics can't target it until it has struck."   -- what "Stealth" does
 
 -- == Cards == (name, card face text, tooltip text, flavour)
--- kobold: unit 1/2, cost 1, common
+-- kobold: unit 1/2, cost 1, common, humanoid
 L["Kobold Vermin"] = "Kobold Vermin"   -- name
 L["You no take candle!"] = "You no take candle!"   -- flavour
 -- murloc: unit 2/1, cost 1, common, murloc
@@ -65,10 +65,10 @@ L["Durotar's welcoming committee."] = "Durotar's welcoming committee."   -- flav
 -- thug: unit 2/3, cost 2, common, defias
 L["Defias Thug"] = "Defias Thug"   -- name
 L["Westfall's finest, by default."] = "Westfall's finest, by default."   -- flavour
--- gnoll: unit 3/2, cost 2, common
+-- gnoll: unit 3/2, cost 2, common, humanoid
 L["Riverpaw Gnoll"] = "Riverpaw Gnoll"   -- name
 L["Hogger sends his regards."] = "Hogger sends his regards."   -- flavour
--- mountaineer: unit 1/4, cost 2, common
+-- mountaineer: unit 1/4, cost 2, common, humanoid
 L["Ironforge Mountaineer"] = "Ironforge Mountaineer"   -- name
 L["Nothing gets past Dun Morogh. Nothing."] = "Nothing gets past Dun Morogh. Nothing."   -- flavour
 -- strider: unit 1/3, cost 2, common, beast
@@ -82,10 +82,10 @@ L["Duskwood's welcome mat."] = "Duskwood's welcome mat."   -- flavour
 -- croc: unit 2/5, cost 3, common, beast
 L["Loch Crocolisk"] = "Loch Crocolisk"   -- name
 L["Loch Modan's lazy landlord."] = "Loch Modan's lazy landlord."   -- flavour
--- axe: unit 2/3, cost 3, common
+-- axe: unit 2/3, cost 3, common, humanoid
 L["Darkspear Axe Thrower"] = "Darkspear Axe Thrower"   -- name
 L["Never misses the weak link."] = "Never misses the weak link."   -- flavour
--- grunt: unit 3/4, cost 3, common
+-- grunt: unit 3/4, cost 3, common, humanoid
 L["Orgrimmar Grunt"] = "Orgrimmar Grunt"   -- name
 L["Lok'tar!"] = "Lok'tar!"   -- flavour
 -- raptor: unit 3/2, cost 3, common, beast
@@ -94,10 +94,10 @@ L["The Barrens' fastest grudge."] = "The Barrens' fastest grudge."   -- flavour
 -- bear: unit 3/6, cost 4, common, beast
 L["Grizzled Black Bear"] = "Grizzled Black Bear"   -- name
 L["Old, grumpy, and in your way."] = "Old, grumpy, and in your way."   -- flavour
--- crusader: unit 4/4, cost 4, common
+-- crusader: unit 4/4, cost 4, common, humanoid
 L["Scarlet Crusader"] = "Scarlet Crusader"   -- name
 L["Zeal in its purest, worst form."] = "Zeal in its purest, worst form."   -- flavour
--- ogre: unit 4/5, cost 5, common
+-- ogre: unit 4/5, cost 5, common, humanoid
 L["Mosh'Ogg Brute"] = "Mosh'Ogg Brute"   -- name
 L["Swings first. Counts never."] = "Swings first. Counts never."   -- flavour
 -- fireball: tactic, cost 2, common
@@ -130,7 +130,7 @@ L["Carrion Vulture"] = "Carrion Vulture"   -- name
 L["+1 attack when a unit dies"] = "+1 attack when a unit dies"   -- card face (short)
 L["Whenever another unit dies, gains +1 attack."] = "Whenever another unit dies, gains +1 attack."   -- tooltip
 L["Patience is a virtue. So is lunch."] = "Patience is a virtue. So is lunch."   -- flavour
--- tinker: unit 1/2, cost 2, uncommon
+-- tinker: unit 1/2, cost 2, uncommon, humanoid
 L["Gnomish Tinkerer"] = "Gnomish Tinkerer"   -- name
 L["Arrive: draw a card"] = "Arrive: draw a card"   -- card face (short)
 L["Arrive: draw a card."] = "Arrive: draw a card."   -- tooltip
@@ -138,7 +138,7 @@ L["Results not guaranteed. Explosions likely."] = "Results not guaranteed. Explo
 -- ghoul: unit 2/2, cost 2, uncommon, undead
 L["Rotting Ghoul"] = "Rotting Ghoul"   -- name
 L["Already dead. Not done."] = "Already dead. Not done."   -- flavour
--- troll: unit 3/3, cost 3, uncommon
+-- troll: unit 3/3, cost 3, uncommon, humanoid
 L["Witherbark Berserker"] = "Witherbark Berserker"   -- name
 L["Arathi's trolls grow back. Mostly."] = "Arathi's trolls grow back. Mostly."   -- flavour
 -- kodo: unit 3/8, cost 5, uncommon, beast
@@ -150,7 +150,7 @@ L["Tirisfal's night shift."] = "Tirisfal's night shift."   -- flavour
 -- scorpid: unit 2/4, cost 3, uncommon, beast
 L["Venomtail Scorpid"] = "Venomtail Scorpid"   -- name
 L["Watch your step in the Valley of Trials."] = "Watch your step in the Valley of Trials."   -- flavour
--- apprentice: unit 2/2, cost 3, uncommon
+-- apprentice: unit 2/2, cost 3, uncommon, humanoid
 L["Dalaran Apprentice"] = "Dalaran Apprentice"   -- name
 L["Arrive: 1 damage to a random enemy"] = "Arrive: 1 damage to a random enemy"   -- card face (short)
 L["Arrive: deal 1 damage to a random enemy unit."] = "Arrive: deal 1 damage to a random enemy unit."   -- tooltip
@@ -170,23 +170,23 @@ L["Shield Wall"] = "Shield Wall"   -- name
 L["+3 health and Guard"] = "+3 health and Guard"   -- card face (short)
 L["Give one of your units +3 health and Guard."] = "Give one of your units +3 health and Guard."   -- tooltip
 L["Plant your feet."] = "Plant your feet."   -- flavour
--- bruiser: unit 3/5, cost 4, rare
+-- bruiser: unit 3/5, cost 4, rare, humanoid
 L["Booty Bay Bruiser"] = "Booty Bay Bruiser"   -- name
 L["Keeps the peace. Breaks the rest."] = "Keeps the peace. Breaks the rest."   -- flavour
--- gryphon: unit 3/3, cost 4, rare
+-- gryphon: unit 3/3, cost 4, rare, humanoid
 L["Wildhammer Gryphon Rider"] = "Wildhammer Gryphon Rider"   -- name
 L["Straight down, straight through."] = "Straight down, straight through."   -- flavour
--- demo: unit 2/2, cost 3, rare
+-- demo: unit 2/2, cost 3, rare, humanoid
 L["Dark Iron Demolitionist"] = "Dark Iron Demolitionist"   -- name
 L["Fallen: 3 damage across"] = "Fallen: 3 damage across"   -- card face (short)
 L["Fallen: deal 3 damage to the enemy unit across."] = "Fallen: deal 3 damage to the enemy unit across."   -- tooltip
 L["Short fuse, long memory."] = "Short fuse, long memory."   -- flavour
--- medic: unit 1/4, cost 3, rare
+-- medic: unit 1/4, cost 3, rare, humanoid
 L["Argent Dawn Medic"] = "Argent Dawn Medic"   -- name
 L["Round start: heal neighbours 2"] = "Round start: heal neighbours 2"   -- card face (short)
 L["Round start: restore 2 health to your units in the neighbouring lanes."] = "Round start: restore 2 health to your units in the neighbouring lanes."   -- tooltip
 L["Triage, Light-style."] = "Triage, Light-style."   -- flavour
--- warmaster: unit 3/4, cost 4, rare
+-- warmaster: unit 3/4, cost 4, rare, humanoid
 L["Frostwolf Warmaster"] = "Frostwolf Warmaster"   -- name
 L["Arrive: neighbours +1 health"] = "Arrive: neighbours +1 health"   -- card face (short)
 L["Arrive: your units in the neighbouring lanes get +1 health."] = "Arrive: your units in the neighbouring lanes get +1 health."   -- tooltip
@@ -209,7 +209,7 @@ L["Chain Lightning"] = "Chain Lightning"   -- name
 L["3 damage, 1 to those beside"] = "3 damage, 1 to those beside"   -- card face (short)
 L["Deal 3 damage to the enemy unit in a lane and 1 damage to the enemy units next to it."] = "Deal 3 damage to the enemy unit in a lane and 1 damage to the enemy units next to it."   -- tooltip
 L["Bounces are free."] = "Bounces are free."   -- flavour
--- hogger: unit 4/4, cost 4, epic
+-- hogger: unit 4/4, cost 4, epic, humanoid
 L["Hogger"] = "Hogger"   -- name
 L["Arrive: 1/1 Runts beside him"] = "Arrive: 1/1 Runts beside him"   -- card face (short)
 L["Arrive: summon a 1/1 Riverpaw Runt in each of your empty neighbouring lanes."] = "Arrive: summon a 1/1 Riverpaw Runt in each of your empty neighbouring lanes."   -- tooltip
@@ -240,7 +240,7 @@ L["Too soon, executus."] = "Too soon, executus."   -- flavour
 -- vancleef: unit 4/3, cost 4, legendary, defias
 L["Edwin VanCleef"] = "Edwin VanCleef"   -- name
 L["The Brotherhood remembers."] = "The Brotherhood remembers."   -- flavour
--- runt: unit 1/1, cost 1, token
+-- runt: unit 1/1, cost 1, token, humanoid
 L["Riverpaw Runt"] = "Riverpaw Runt"   -- name
 L["Hogger's nephew. Allegedly."] = "Hogger's nephew. Allegedly."   -- flavour
 -- sheep: unit 0/1, cost 1, token
@@ -263,7 +263,7 @@ L["Worg Packleader"] = "Worg Packleader"   -- name
 L["Other Beasts: +1 attack"] = "Other Beasts: +1 attack"   -- card face (short)
 L["Your other Beasts have +1 attack."] = "Your other Beasts have +1 attack."   -- tooltip
 L["The pack eats when he says."] = "The pack eats when he says."   -- flavour
--- tamer: unit 1/3, cost 2, uncommon
+-- tamer: unit 1/3, cost 2, uncommon, humanoid
 L["Stranglethorn Tamer"] = "Stranglethorn Tamer"   -- name
 L["Arrive: a 1/1 Hound beside it"] = "Arrive: a 1/1 Hound beside it"   -- card face (short)
 L["Arrive: summon a 1/1 Hound in an empty neighbouring lane."] = "Arrive: summon a 1/1 Hound in an empty neighbouring lane."   -- tooltip
@@ -332,7 +332,7 @@ L["There's more of him in there."] = "There's more of him in there."   -- flavou
 -- patchwork: unit 4/5, cost 4, common, undead
 L["Patchwork Horror"] = "Patchwork Horror"   -- name
 L["Some assembly required."] = "Some assembly required."   -- flavour
--- necro: unit 2/3, cost 3, rare
+-- necro: unit 2/3, cost 3, rare, humanoid
 L["Scholomance Necromancer"] = "Scholomance Necromancer"   -- name
 L["Round start: a 1/1 Skeleton beside"] = "Round start: a 1/1 Skeleton beside"   -- card face (short)
 L["Round start: summon a 1/1 Skeleton in an empty neighbouring lane."] = "Round start: summon a 1/1 Skeleton in an empty neighbouring lane."   -- tooltip
@@ -410,7 +410,7 @@ L["Searscale Drake"] = "Searscale Drake"   -- name
 L["Arrive: 1 damage to every enemy"] = "Arrive: 1 damage to every enemy"   -- card face (short)
 L["Arrive: deal 1 damage to every enemy unit."] = "Arrive: deal 1 damage to every enemy unit."   -- tooltip
 L["Arrives warm."] = "Arrives warm."   -- flavour
--- technician: unit 2/3, cost 3, rare
+-- technician: unit 2/3, cost 3, rare, humanoid
 L["Blackwing Technician"] = "Blackwing Technician"   -- name
 L["Your Dragonkin: +1 attack"] = "Your Dragonkin: +1 attack"   -- card face (short)
 L["Your Dragonkin have +1 attack."] = "Your Dragonkin have +1 attack."   -- tooltip
@@ -425,28 +425,28 @@ L["Flame Breath"] = "Flame Breath"   -- name
 L["4 damage, 2 to those beside"] = "4 damage, 2 to those beside"   -- card face (short)
 L["Deal 4 damage to the enemy unit in a lane and 2 damage to the enemy units next to it."] = "Deal 4 damage to the enemy unit in a lane and 2 damage to the enemy units next to it."   -- tooltip
 L["Stand anywhere else."] = "Stand anywhere else."   -- flavour
--- peon: unit 2/2, cost 1, common
+-- peon: unit 2/2, cost 1, common, humanoid
 L["Lazy Peon"] = "Lazy Peon"   -- name
 L["Arrive: you lose 1 Morale"] = "Arrive: you lose 1 Morale"   -- card face (short)
 L["Arrive: you lose 1 Morale."] = "Arrive: you lose 1 Morale."   -- tooltip
 L["Work, work."] = "Work, work."   -- flavour
--- chaplain: unit 1/3, cost 2, uncommon
+-- chaplain: unit 1/3, cost 2, uncommon, humanoid
 L["Northshire Chaplain"] = "Northshire Chaplain"   -- name
 L["Round start: restore 1 Morale"] = "Round start: restore 1 Morale"   -- card face (short)
 L["Round start: restore 1 Morale."] = "Round start: restore 1 Morale."   -- tooltip
 L["A kind word every morning."] = "A kind word every morning."   -- flavour
--- sapper: unit 2/1, cost 2, common
+-- sapper: unit 2/1, cost 2, common, humanoid
 L["Goblin Sapper"] = "Goblin Sapper"   -- name
 L["Fallen: 1 damage across and beside"] = "Fallen: 1 damage across and beside"   -- card face (short)
 L["Fallen: deal 1 damage to the enemy unit across and the ones next to it."] = "Fallen: deal 1 damage to the enemy unit across and the ones next to it."   -- tooltip
 L["Refunds not available."] = "Refunds not available."   -- flavour
--- brave: unit 5/6, cost 5, common
+-- brave: unit 5/6, cost 5, common, humanoid
 L["Bloodhoof Brave"] = "Bloodhoof Brave"   -- name
 L["Mulgore's idea of a welcome."] = "Mulgore's idea of a welcome."   -- flavour
--- archer: unit 2/2, cost 3, uncommon
+-- archer: unit 2/2, cost 3, uncommon, humanoid
 L["Darnassus Archer"] = "Darnassus Archer"   -- name
 L["She already let go."] = "She already let go."   -- flavour
--- seahorn: unit 3/3, cost 4, epic
+-- seahorn: unit 3/3, cost 4, epic, humanoid
 L["Fleet Master Seahorn"] = "Fleet Master Seahorn"   -- name
 L["Arrive: draw 2 cards"] = "Arrive: draw 2 cards"   -- card face (short)
 L["Arrive: draw 2 cards."] = "Arrive: draw 2 cards."   -- tooltip
@@ -475,6 +475,293 @@ L["Mrgl?"] = "Mrgl?"   -- flavour
 -- bones: unit 1/1, cost 1, token, undead
 L["Skeleton"] = "Skeleton"   -- name
 L["Clack."] = "Clack."   -- flavour
+-- crawler: unit 1/2, cost 1, common, beast
+L["Shore Crawler"] = "Shore Crawler"   -- name
+L["Westfall's beaches belong to it. Ask anyone."] = "Westfall's beaches belong to it. Ask anyone."   -- flavour
+-- hyena: unit 2/1, cost 1, common, beast
+L["Hecklefang Hyena"] = "Hecklefang Hyena"   -- name
+L["It laughs first. Then it bites."] = "It laughs first. Then it bites."   -- flavour
+-- cougar: unit 2/3, cost 2, common, beast
+L["Mountain Cougar"] = "Mountain Cougar"   -- name
+L["Mulgore's other welcoming committee."] = "Mulgore's other welcoming committee."   -- flavour
+-- panther: unit 3/2, cost 2, common, beast
+L["Shadowmaw Panther"] = "Shadowmaw Panther"   -- name
+L["Stranglethorn's shadows have teeth."] = "Stranglethorn's shadows have teeth."   -- flavour
+-- elderstrider: unit 1/4, cost 2, common, beast
+L["Elder Plainstrider"] = "Elder Plainstrider"   -- name
+L["Older, slower, and very much in the way."] = "Older, slower, and very much in the way."   -- flavour
+-- ashbear: unit 3/4, cost 3, common, beast
+L["Ashenvale Bear"] = "Ashenvale Bear"   -- name
+L["The forest's quiet giant, until it isn't."] = "The forest's quiet giant, until it isn't."   -- flavour
+-- tiger: unit 4/5, cost 4, common, beast
+L["Stranglethorn Tiger"] = "Stranglethorn Tiger"   -- name
+L["Hunters come here for its pelt. Some leave."] = "Hunters come here for its pelt. Some leave."   -- flavour
+-- corehound: unit 5/6, cost 5, common, beast
+L["Ancient Core Hound"] = "Ancient Core Hound"   -- name
+L["Two heads. Neither of them is friendly."] = "Two heads. Neither of them is friendly."   -- flavour
+-- footman: unit 2/3, cost 2, common, humanoid
+L["Stormwind Footman"] = "Stormwind Footman"   -- name
+L["Ready for anything. Mostly guard duty."] = "Ready for anything. Mostly guard duty."   -- flavour
+-- sentinel: unit 3/2, cost 3, common, humanoid
+L["Silverwing Sentinel"] = "Silverwing Sentinel"   -- name
+L["Warsong Gulch taught her to run."] = "Warsong Gulch taught her to run."   -- flavour
+-- defender: unit 3/6, cost 4, common, humanoid
+L["Ironforge Defender"] = "Ironforge Defender"   -- name
+L["The gates never fell on his watch."] = "The gates never fell on his watch."   -- flavour
+-- veteran: unit 4/5, cost 4, common, humanoid
+L["Kor'kron Veteran"] = "Kor'kron Veteran"   -- name
+L["Orgrimmar's elite, and he'll tell you so."] = "Orgrimmar's elite, and he'll tell you so."   -- flavour
+-- streamrunner: unit 1/2, cost 1, common, murloc
+L["Murloc Streamrunner"] = "Murloc Streamrunner"   -- name
+L["Mrrgl? Mrrgl."] = "Mrrgl? Mrrgl."   -- flavour
+-- tidewarrior: unit 3/4, cost 3, common, murloc
+L["Murloc Tidewarrior"] = "Murloc Tidewarrior"   -- name
+L["Bigger than the rest, and twice as loud."] = "Bigger than the rest, and twice as loud."   -- flavour
+-- harpooner: unit 2/3, cost 3, common, murloc
+L["Murloc Harpooner"] = "Murloc Harpooner"   -- name
+L["Throws first. Asks never."] = "Throws first. Asks never."   -- flavour
+-- zombie: unit 2/1, cost 1, common, undead
+L["Tirisfal Zombie"] = "Tirisfal Zombie"   -- name
+L["Slow, hungry, and in no hurry."] = "Slow, hungry, and in no hurry."   -- flavour
+-- deathguard: unit 2/3, cost 2, common, undead
+L["Deathguard Lookout"] = "Deathguard Lookout"   -- name
+L["Brill's night watch. And day watch."] = "Brill's night watch. And day watch."   -- flavour
+-- hungryghoul: unit 3/2, cost 2, common, undead
+L["Hungering Ghoul"] = "Hungering Ghoul"   -- name
+L["Always hungry. Never full."] = "Always hungry. Never full."   -- flavour
+-- warder: unit 1/4, cost 2, common, undead
+L["Skeletal Warder"] = "Skeletal Warder"   -- name
+L["Stands its post. It has nothing better to do."] = "Stands its post. It has nothing better to do."   -- flavour
+-- footsoldier: unit 3/4, cost 3, common, undead
+L["Scourge Footsoldier"] = "Scourge Footsoldier"   -- name
+L["The Plaguelands' endless infantry."] = "The Plaguelands' endless infantry."   -- flavour
+-- abomination: unit 3/6, cost 4, common, undead
+L["Hulking Abomination"] = "Hulking Abomination"   -- name
+L["Three of everything, stitched together."] = "Three of everything, stitched together."   -- flavour
+-- lookout: unit 1/2, cost 1, common, defias
+L["Defias Lookout"] = "Defias Lookout"   -- name
+L["Sees you coming. Tells everyone."] = "Sees you coming. Tells everyone."   -- flavour
+-- cutpurse: unit 2/1, cost 1, common, defias
+L["Defias Cutpurse"] = "Defias Cutpurse"   -- name
+L["Your coin purse feels lighter already."] = "Your coin purse feels lighter already."   -- flavour
+-- highwayman: unit 3/2, cost 2, common, defias
+L["Defias Highwayman"] = "Defias Highwayman"   -- name
+L["The road to Sentinel Hill has a toll."] = "The road to Sentinel Hill has a toll."   -- flavour
+-- nightrunner: unit 3/2, cost 3, common, defias
+L["Defias Night Runner"] = "Defias Night Runner"   -- name
+L["Westfall's nights belong to the Brotherhood."] = "Westfall's nights belong to the Brotherhood."   -- flavour
+-- pathstalker: unit 2/3, cost 3, common, defias
+L["Defias Pathstalker"] = "Defias Pathstalker"   -- name
+L["Watches the Moonbrook road from the hills."] = "Watches the Moonbrook road from the hills."   -- flavour
+-- azurewhelp: unit 3/2, cost 2, common, dragonkin
+L["Azure Whelp"] = "Azure Whelp"   -- name
+L["Bites first. Sneezes frost later."] = "Bites first. Sneezes frost later."   -- flavour
+-- drakonid: unit 3/4, cost 3, common, dragonkin
+L["Black Drakonid"] = "Black Drakonid"   -- name
+L["Bred in Blackwing Lair for one job."] = "Bred in Blackwing Lair for one job."   -- flavour
+-- drakeling: unit 3/2, cost 3, common, dragonkin
+L["Emerald Drakeling"] = "Emerald Drakeling"   -- name
+L["Dreams fast, wakes faster."] = "Dreams fast, wakes faster."   -- flavour
+-- broodling: unit 2/3, cost 3, common, dragonkin
+L["Black Broodling"] = "Black Broodling"   -- name
+L["Spits fire before it can fly."] = "Spits fire before it can fly."   -- flavour
+-- wyrmguard: unit 3/6, cost 4, common, dragonkin
+L["Bronze Wyrmguard"] = "Bronze Wyrmguard"   -- name
+L["Guards the sands of time. And you, for now."] = "Guards the sands of time. And you, for now."   -- flavour
+-- reddragonspawn: unit 4/5, cost 4, common, dragonkin
+L["Red Dragonspawn"] = "Red Dragonspawn"   -- name
+L["Grim Batol's warden, on leave."] = "Grim Batol's warden, on leave."   -- flavour
+-- greendrake: unit 5/6, cost 5, common, dragonkin
+L["Green Drake"] = "Green Drake"   -- name
+L["Asleep until woken. Then very awake."] = "Asleep until woken. Then very awake."   -- flavour
+-- seether: unit 4/5, cost 5, common, dragonkin
+L["Death Talon Seether"] = "Death Talon Seether"   -- name
+L["Blackwing Lair's hall monitor."] = "Blackwing Lair's hall monitor."   -- flavour
+-- trackinghound: unit 2/2, cost 2, uncommon, beast
+L["Tracking Hound"] = "Tracking Hound"   -- name
+L["Arrive: draw with another Beast"] = "Arrive: draw with another Beast"   -- card face (short)
+L["Arrive: draw a card if you have another Beast."] = "Arrive: draw a card if you have another Beast."   -- tooltip
+L["Already knows where you're going."] = "Already knows where you're going."   -- flavour
+-- patriarch: unit 4/6, cost 5, rare, beast
+L["Silverback Patriarch"] = "Silverback Patriarch"   -- name
+L["Arrive: other Beasts +1/+1"] = "Arrive: other Beasts +1/+1"   -- card face (short)
+L["Arrive: your other Beasts get +1/+1."] = "Arrive: your other Beasts get +1/+1."   -- tooltip
+L["The troop follows the grey."] = "The troop follows the grey."   -- flavour
+-- crier: unit 1/3, cost 2, uncommon, humanoid
+L["Town Crier"] = "Town Crier"   -- name
+L["Arrive: draw with 2 other Humanoids"] = "Arrive: draw with 2 other Humanoids"   -- card face (short)
+L["Arrive: draw a card if you have 2 other Humanoids."] = "Arrive: draw a card if you have 2 other Humanoids."   -- tooltip
+L["Hear ye! Wanted: Hogger. Again."] = "Hear ye! Wanted: Hogger. Again."   -- flavour
+-- sergeant: unit 2/4, cost 3, common, humanoid
+L["Militia Sergeant"] = "Militia Sergeant"   -- name
+L["Arrive: other Humanoids +1 health"] = "Arrive: other Humanoids +1 health"   -- card face (short)
+L["Arrive: your other Humanoids get +1 health."] = "Arrive: your other Humanoids get +1 health."   -- tooltip
+L["Goldshire's finest. Goldshire's only."] = "Goldshire's finest. Goldshire's only."   -- flavour
+-- captain: unit 3/4, cost 4, rare, humanoid
+L["Stormwind Captain"] = "Stormwind Captain"   -- name
+L["Arrive: Humanoids beside it +1/+1"] = "Arrive: Humanoids beside it +1/+1"   -- card face (short)
+L["Arrive: your Humanoids in the neighbouring lanes get +1/+1."] = "Arrive: your Humanoids in the neighbouring lanes get +1/+1."   -- tooltip
+L["Leads from the front. Mostly."] = "Leads from the front. Mostly."   -- flavour
+-- bolvar: unit 4/6, cost 5, legendary, humanoid
+L["Bolvar Fordragon"] = "Bolvar Fordragon"   -- name
+L["Arrive: other Humanoids +1/+1"] = "Arrive: other Humanoids +1/+1"   -- card face (short)
+L["Arrive: your other Humanoids get +1/+1."] = "Arrive: your other Humanoids get +1/+1."   -- tooltip
+L["Regent of Stormwind, and nobody's pushover."] = "Regent of Stormwind, and nobody's pushover."   -- flavour
+-- raider: unit 2/2, cost 2, common, murloc
+L["Murloc Raider"] = "Murloc Raider"   -- name
+L["Arrive: +1 attack with a Murloc"] = "Arrive: +1 attack with a Murloc"   -- card face (short)
+L["Arrive: +1 attack if you have another Murloc."] = "Arrive: +1 attack if you have another Murloc."   -- tooltip
+L["Never raids alone. Wouldn't know how."] = "Never raids alone. Wouldn't know how."   -- flavour
+-- flopper: unit 2/2, cost 2, common, murloc
+L["Murloc Flopper"] = "Murloc Flopper"   -- name
+L["Fallen: leaves a 1/1 Murloc Scout"] = "Fallen: leaves a 1/1 Murloc Scout"   -- card face (short)
+L["Fallen: summon a 1/1 Murloc Scout in its lane."] = "Fallen: summon a 1/1 Murloc Scout in its lane."   -- tooltip
+L["Flops in. Flops out. Leaves a friend."] = "Flops in. Flops out. Leaves a friend."   -- flavour
+-- tidecaller: unit 1/2, cost 3, uncommon, murloc
+L["Murloc Tidecaller"] = "Murloc Tidecaller"   -- name
+L["Arrive: 1/1 Scouts beside it"] = "Arrive: 1/1 Scouts beside it"   -- card face (short)
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."] = "Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."   -- tooltip
+L["It calls. They come. Every time."] = "It calls. They come. Every time."   -- flavour
+-- netmaster: unit 2/3, cost 3, uncommon, murloc
+L["Murloc Netmaster"] = "Murloc Netmaster"   -- name
+L["Arrive: freeze what's across Murlocs"] = "Arrive: freeze what's across Murlocs"   -- card face (short)
+L["Arrive: freeze the enemy units across from your other Murlocs."] = "Arrive: freeze the enemy units across from your other Murlocs."   -- tooltip
+L["One net, many murlocs, no way out."] = "One net, many murlocs, no way out."   -- flavour
+-- hightide: tactic, cost 2, uncommon
+L["High Tide"] = "High Tide"   -- name
+L["Your Murlocs: +1/+1"] = "Your Murlocs: +1/+1"   -- card face (short)
+L["Your Murlocs get +1/+1."] = "Your Murlocs get +1/+1."   -- tooltip
+L["Everything floats. Especially murlocs."] = "Everything floats. Especially murlocs."   -- flavour
+-- muckdweller: unit 2/4, cost 3, rare, murloc
+L["Murloc Muckdweller"] = "Murloc Muckdweller"   -- name
+L["+1/+1 when your Murloc dies"] = "+1/+1 when your Murloc dies"   -- card face (short)
+L["Whenever another of your Murlocs dies, gains +1/+1."] = "Whenever another of your Murlocs dies, gains +1/+1."   -- tooltip
+L["Grows fat on the tide's leftovers."] = "Grows fat on the tide's leftovers."   -- flavour
+-- murkdeep: unit 4/5, cost 5, epic, murloc
+L["Murkdeep"] = "Murkdeep"   -- name
+L["1/1 Scouts beside. Murlocs +1 attack"] = "1/1 Scouts beside. Murlocs +1 attack"   -- card face (short)
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."] = "Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."   -- tooltip
+L["Darkshore's coast has one king, and he's wet."] = "Darkshore's coast has one king, and he's wet."   -- flavour
+-- squire: unit 1/2, cost 1, common, undead
+L["Rotting Squire"] = "Rotting Squire"   -- name
+L["Arrive: +1 attack with an Undead"] = "Arrive: +1 attack with an Undead"   -- card face (short)
+L["Arrive: +1 attack if you have another Undead."] = "Arrive: +1 attack if you have another Undead."   -- tooltip
+L["Still serving. Still squiring."] = "Still serving. Still squiring."   -- flavour
+-- bonecaller: unit 1/3, cost 2, uncommon, undead
+L["Bonecaller"] = "Bonecaller"   -- name
+L["Fallen: other Undead +1 attack"] = "Fallen: other Undead +1 attack"   -- card face (short)
+L["Fallen: your other Undead get +1 attack."] = "Fallen: your other Undead get +1 attack."   -- tooltip
+L["Its last word is always 'rise'."] = "Its last word is always 'rise'."   -- flavour
+-- plagueeater: unit 2/4, cost 3, uncommon, undead
+L["Plague Eater"] = "Plague Eater"   -- name
+L["+1/+1 when your Undead dies"] = "+1/+1 when your Undead dies"   -- card face (short)
+L["Whenever another of your Undead dies, gains +1/+1."] = "Whenever another of your Undead dies, gains +1/+1."   -- tooltip
+L["Nothing goes to waste in the Plaguelands."] = "Nothing goes to waste in the Plaguelands."   -- flavour
+-- bloated: unit 3/2, cost 3, uncommon, undead
+L["Bloated Zombie"] = "Bloated Zombie"   -- name
+L["Fallen: 1 damage to every enemy"] = "Fallen: 1 damage to every enemy"   -- card face (short)
+L["Fallen: deal 1 damage to every enemy unit."] = "Fallen: deal 1 damage to every enemy unit."   -- tooltip
+L["Do not poke."] = "Do not poke."   -- flavour
+-- armydead: tactic, cost 3, uncommon
+L["Army of the Dead"] = "Army of the Dead"   -- name
+L["1/1 Skeletons in your empty lanes"] = "1/1 Skeletons in your empty lanes"   -- card face (short)
+L["Summon a 1/1 Skeleton in each of your empty lanes."] = "Summon a 1/1 Skeleton in each of your empty lanes."   -- tooltip
+L["They were already here. They just stood up."] = "They were already here. They just stood up."   -- flavour
+-- commander: unit 3/4, cost 4, rare, undead
+L["Scourge Commander"] = "Scourge Commander"   -- name
+L["Other Undead: +1 attack"] = "Other Undead: +1 attack"   -- card face (short)
+L["Your other Undead have +1 attack."] = "Your other Undead have +1 attack."   -- tooltip
+L["Orders from Naxxramas, delivered in person."] = "Orders from Naxxramas, delivered in person."   -- flavour
+-- gandling: unit 4/5, cost 5, epic, undead
+L["Darkmaster Gandling"] = "Darkmaster Gandling"   -- name
+L["Round start: 1/1 Skeletons beside"] = "Round start: 1/1 Skeletons beside"   -- card face (short)
+L["Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."] = "Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."   -- tooltip
+L["Scholomance's headmaster. Attendance is mandatory."] = "Scholomance's headmaster. Attendance is mandatory."   -- flavour
+-- overseer: unit 2/2, cost 2, common, defias
+L["Defias Overseer"] = "Defias Overseer"   -- name
+L["Arrive: +1 attack with a Defias"] = "Arrive: +1 attack with a Defias"   -- card face (short)
+L["Arrive: +1 attack if you have another Defias."] = "Arrive: +1 attack if you have another Defias."   -- tooltip
+L["Counts the loot. Twice."] = "Counts the loot. Twice."   -- flavour
+-- conjurer: unit 2/3, cost 3, uncommon, defias
+L["Defias Conjurer"] = "Defias Conjurer"   -- name
+L["Arrive: enemy -1 Morale per Defias"] = "Arrive: enemy -1 Morale per Defias"   -- card face (short)
+L["Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."] = "Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."   -- tooltip
+L["Learned his tricks from a book he stole."] = "Learned his tricks from a book he stole."   -- flavour
+-- blackguard: unit 3/4, cost 4, rare, defias
+L["Defias Blackguard"] = "Defias Blackguard"   -- name
+L["Arrive: other Defias get Stealth"] = "Arrive: other Defias get Stealth"   -- card face (short)
+L["Arrive: your other Defias get Stealth."] = "Arrive: your other Defias get Stealth."   -- tooltip
+L["Teaches the new recruits to disappear."] = "Teaches the new recruits to disappear."   -- flavour
+-- whelpling: unit 1/2, cost 1, common, dragonkin
+L["Brood Whelpling"] = "Brood Whelpling"   -- name
+L["Arrive: +1 attack with a Dragonkin"] = "Arrive: +1 attack with a Dragonkin"   -- card face (short)
+L["Arrive: +1 attack if you have another Dragonkin."] = "Arrive: +1 attack if you have another Dragonkin."   -- tooltip
+L["Small, loud, and already hoarding."] = "Small, loud, and already hoarding."   -- flavour
+-- firebrand: unit 2/4, cost 3, uncommon, dragonkin
+L["Wyrmkin Firebrand"] = "Wyrmkin Firebrand"   -- name
+L["+1 attack per other Dragonkin"] = "+1 attack per other Dragonkin"   -- card face (short)
+L["Has +1 attack for each other Dragonkin you have."] = "Has +1 attack for each other Dragonkin you have."   -- tooltip
+L["The flame burns hotter in a crowd."] = "The flame burns hotter in a crowd."   -- flavour
+-- wyrmkin: unit 3/4, cost 4, uncommon, dragonkin
+L["Flamescale Wyrmkin"] = "Flamescale Wyrmkin"   -- name
+L["Arrive: 1 to all enemies, if Dragonkin"] = "Arrive: 1 to all enemies, if Dragonkin"   -- card face (short)
+L["Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."] = "Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."   -- tooltip
+L["Breathes on everyone. Apologises to no one."] = "Breathes on everyone. Apologises to no one."   -- flavour
+-- nefarian: unit 5/7, cost 6, legendary, dragonkin
+L["Nefarian"] = "Nefarian"   -- name
+L["Arrive: other Dragonkin +2/+2"] = "Arrive: other Dragonkin +2/+2"   -- card face (short)
+L["Arrive: your other Dragonkin get +2/+2."] = "Arrive: your other Dragonkin get +2/+2."   -- tooltip
+L["Blackwing Lair's host, and its worst landlord."] = "Blackwing Lair's host, and its worst landlord."   -- flavour
+-- cutlass: tactic, cost 1, common
+L["Bloodsail Cutlass"] = "Bloodsail Cutlass"   -- name
+L["+3/+1"] = "+3/+1"   -- card face (short)
+L["Give one of your units +3/+1."] = "Give one of your units +3/+1."   -- tooltip
+L["Rusty, notched, and still sharper than you'd like."] = "Rusty, notched, and still sharper than you'd like."   -- flavour
+-- swiftness: tactic, cost 1, common
+L["Swiftness Potion"] = "Swiftness Potion"   -- name
+L["Swift and +1/+1"] = "Swift and +1/+1"   -- card face (short)
+L["Give one of your units Swift and +1/+1."] = "Give one of your units Swift and +1/+1."   -- tooltip
+L["Drink it before the fight, not during."] = "Drink it before the fight, not during."   -- flavour
+-- scrollprot: tactic, cost 1, common
+L["Scroll of Protection"] = "Scroll of Protection"   -- name
+L["+1/+4"] = "+1/+4"   -- card face (short)
+L["Give one of your units +1/+4."] = "Give one of your units +1/+4."   -- tooltip
+L["Read aloud. Slowly. Mind the long words."] = "Read aloud. Slowly. Mind the long words."   -- flavour
+-- grenade: tactic, cost 2, common
+L["Iron Grenade"] = "Iron Grenade"   -- name
+L["2 damage and freeze it"] = "2 damage and freeze it"   -- card face (short)
+L["Deal 2 damage to the enemy unit in a lane and freeze it."] = "Deal 2 damage to the enemy unit in a lane and freeze it."   -- tooltip
+L["Pull pin. Throw. Do not hold."] = "Pull pin. Throw. Do not hold."   -- flavour
+-- majorheal: tactic, cost 2, common
+L["Major Healing Potion"] = "Major Healing Potion"   -- name
+L["Restore 8 Morale"] = "Restore 8 Morale"   -- card face (short)
+L["Restore 8 Morale."] = "Restore 8 Morale."   -- tooltip
+L["The good stuff. Tastes worse."] = "The good stuff. Tastes worse."   -- flavour
+-- netomatic: tactic, cost 1, uncommon
+L["Gnomish Net-o-Matic Projector"] = "Gnomish Net-o-Matic Projector"   -- name
+L["Freeze an enemy unit. Draw a card"] = "Freeze an enemy unit. Draw a card"   -- card face (short)
+L["Freeze the enemy unit in a lane. Draw a card."] = "Freeze the enemy unit in a lane. Draw a card."   -- tooltip
+L["Works every time. Sixty percent of the time."] = "Works every time. Sixty percent of the time."   -- flavour
+-- trollblood: tactic, cost 1, uncommon
+L["Mighty Troll's Blood Potion"] = "Mighty Troll's Blood Potion"   -- name
+L["Regenerate and +1/+2"] = "Regenerate and +1/+2"   -- card face (short)
+L["Give one of your units Regenerate and +1/+2."] = "Give one of your units Regenerate and +1/+2."   -- tooltip
+L["Don't ask what's in it. Don't ask whose."] = "Don't ask what's in it. Don't ask whose."   -- flavour
+-- giants: tactic, cost 2, uncommon
+L["Elixir of the Giants"] = "Elixir of the Giants"   -- name
+L["+3/+3"] = "+3/+3"   -- card face (short)
+L["Give one of your units +3/+3."] = "Give one of your units +3/+3."   -- tooltip
+L["Side effects include ducking under doorways."] = "Side effects include ducking under doorways."   -- flavour
+-- lionheart: tactic, cost 2, rare
+L["Lionheart Helm"] = "Lionheart Helm"   -- name
+L["+2/+2 and Rally"] = "+2/+2 and Rally"   -- card face (short)
+L["Give one of your units +2/+2 and Rally."] = "Give one of your units +2/+2 and Rally."   -- tooltip
+L["Whoever wears it, the rest stand taller."] = "Whoever wears it, the rest stand taller."   -- flavour
+-- thunderfury: tactic, cost 4, legendary
+L["Thunderfury"] = "Thunderfury"   -- name
+L["+2/+2, Swift and Cleave"] = "+2/+2, Swift and Cleave"   -- card face (short)
+L["Give one of your units +2/+2, Swift and Cleave."] = "Give one of your units +2/+2, Swift and Cleave."   -- tooltip
+L["Did someone say...?"] = "Did someone say...?"   -- flavour
 
 -- == Opponents == (name, short name, title, and what they say)
 -- dorn
@@ -593,12 +880,14 @@ L["Player %d"] = "Player %d"
 
 -- == Engine/Cards.lua ==
 L["Beast"] = "Beast"
+L["Humanoid"] = "Humanoid"
 L["Murloc"] = "Murloc"
 L["Undead"] = "Undead"
 L["Defias"] = "Defias"
 L["Dragonkin"] = "Dragonkin"
 L["Core set"] = "Core set"
 L["Roads of Azeroth"] = "Roads of Azeroth"
+L["Tribes of Azeroth"] = "Tribes of Azeroth"
 
 -- == Collection.lua ==
 L["That card can't be crafted."] = "That card can't be crafted."
@@ -653,6 +942,8 @@ L["victory; games against %s have paid in full %d times today"] = "victory; game
 L["finishing the tutorial"] = "finishing the tutorial"
 L["reaching level %s"] = "reaching level %s"
 L["a new flight path"] = "a new flight path"
+L["every star against %s"] = "every star against %s"
+L["every %s card"] = "every %s card"
 
 -- == Net.lua ==
 L["Another player"] = "Another player"
@@ -721,9 +1012,13 @@ L["%d of them waits for your move."] = "%d of them waits for your move."   -- pl
 L["%d of them wait for your move."] = "%d of them wait for your move."   -- plural of "%d of them waits for your move."
 L["Your tutorial is waiting. Type /tradewinds to continue."] = "Your tutorial is waiting. Type /tradewinds to continue."
 L["Your game against %s is waiting. Type /tradewinds to continue."] = "Your game against %s is waiting. Type /tradewinds to continue."
-L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."] = "New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."
+L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."] = "New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."
+L["You have %d unopened Windfall pack. Type /tradewinds packs to open it."] = "You have %d unopened Windfall pack. Type /tradewinds packs to open it."   -- plural: one of a pair, see below
+L["You have %d unopened Windfall packs. Type /tradewinds packs to open them."] = "You have %d unopened Windfall packs. Type /tradewinds packs to open them."   -- plural of "You have %d unopened Windfall pack. Type /tradewinds packs to open it."
 L["You have %d unopened card pack. Type /tradewinds to play."] = "You have %d unopened card pack. Type /tradewinds to play."   -- plural: one of a pair, see below
 L["You have %d unopened card packs. Type /tradewinds to play."] = "You have %d unopened card packs. Type /tradewinds to play."   -- plural of "You have %d unopened card pack. Type /tradewinds to play."
+L["+%d Windfall pack"] = "+%d Windfall pack"   -- plural: one of a pair, see below
+L["+%d Windfall packs"] = "+%d Windfall packs"   -- plural of "+%d Windfall pack"
 L["|cff9fdfff%s|r (%s)."] = "|cff9fdfff%s|r (%s)."
 L["+%d shard"] = "+%d shard"   -- plural: one of a pair, see below
 L["+%d shards"] = "+%d shards"   -- plural of "+%d shard"
@@ -762,6 +1057,9 @@ L["click"] = "click"   -- on the back of an unopened card
 L["Tactic: enemy lane"] = "Tactic: enemy lane"
 L["Tactic: your unit"] = "Tactic: your unit"
 L["Tactic"] = "Tactic"
+L["Item: enemy lane"] = "Item: enemy lane"
+L["Item: your unit"] = "Item: your unit"
+L["Item"] = "Item"
 L["%s unit"] = "%s unit"   -- a tribe's unit: "Beast unit"
 L["Unit"] = "Unit"
 L["Frozen"] = "Frozen"
@@ -804,6 +1102,8 @@ L["%d of your games wait for your move."] = "%d of your games wait for your move
 L["Games in progress."] = "Games in progress."
 L["%d unopened pack"] = "%d unopened pack"   -- plural: one of a pair, see below
 L["%d unopened packs"] = "%d unopened packs"   -- plural of "%d unopened pack"
+L["%d unopened Windfall pack"] = "%d unopened Windfall pack"   -- plural: one of a pair, see below
+L["%d unopened Windfall packs"] = "%d unopened Windfall packs"   -- plural of "%d unopened Windfall pack"
 L["Click: play.  Right-click: packs.  Drag: move."] = "Click: play.  Right-click: packs.  Drag: move."
 
 -- == UI/Effects.lua ==
@@ -1101,8 +1401,11 @@ L["A tactic is played once, then it's gone. Its type line says what it targets:"
 L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."] = "|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."
 L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."] = "|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."
 L["|cffffffffTactic|r  no target needed."] = "|cffffffffTactic|r  no target needed."
+L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."] = "|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."
 L["Tribes"] = "Tribes"
-L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."] = "Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."
+L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."] = "Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."
+L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."] = "Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."
+L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."] = "The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."
 L["Summoned units"] = "Summoned units"
 L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."] = "Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."
 L["Winning"] = "Winning"
@@ -1112,11 +1415,13 @@ L["Eight opponents, from easy to hard. Beating one opens the next. Each has thre
 L["|cffffffffVictory|r  win. Pays a card pack."] = "|cffffffffVictory|r  win. Pays a card pack."
 L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."] = "|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."
 L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."] = "|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."
-L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."] = "Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."
+L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."] = "All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."
+L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."] = "Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."
 L["Your deck"] = "Your deck"
 L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."] = "Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."
 L["Collecting"] = "Collecting"
 L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."] = "Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."
+L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."] = "|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."
 L["You can also trade cards with friends who have Tradewinds: the Trade button in the Cards tab."] = "You can also trade cards with friends who have Tradewinds: the Trade button in the Cards tab."
 L["The basics"] = "The basics"
 L["A round"] = "A round"
@@ -1126,7 +1431,7 @@ L["Card text"] = "Card text"
 L["Play the tutorial (+%d pack)"] = "Play the tutorial (+%d pack)"   -- plural: one of a pair, see below
 L["Play the tutorial (+%d packs)"] = "Play the tutorial (+%d packs)"   -- plural of "Play the tutorial (+%d pack)"
 L["Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."] = "Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."
-L["Finishing it the first time earns a card pack."] = "Finishing it the first time earns a card pack."
+L["Finishing it the first time earns a Windfall pack."] = "Finishing it the first time earns a Windfall pack."
 
 -- == UI/Trading.lua ==
 L["Trade request sent to %s. They have %d seconds to answer."] = "Trade request sent to %s. They have %d seconds to answer."
@@ -1172,13 +1477,13 @@ L["The trade happens once you've both accepted. Any change to either side takes 
 L["You cancelled the trade."] = "You cancelled the trade."
 
 -- == UI/Binder.lua ==
+L["any"] = "any"
 L["Show"] = "Show"
 L["all cards"] = "all cards"
 L["owned"] = "owned"
 L["missing"] = "missing"
 L["in deck"] = "in deck"
 L["Rarity"] = "Rarity"
-L["any"] = "any"
 L["common"] = "common"
 L["uncommon"] = "uncommon"
 L["rare"] = "rare"
@@ -1188,6 +1493,8 @@ L["Cost"] = "Cost"
 L["Type"] = "Type"
 L["units"] = "units"
 L["tactics"] = "tactics"
+L["items"] = "items"
+L["Tribe"] = "Tribe"
 L["Owned %d of %d.  In your deck: %d."] = "Owned %d of %d.  In your deck: %d."
 L["Left-click: add to deck.  Right-click: take one out."] = "Left-click: add to deck.  Right-click: take one out."
 L["Shift-click: craft a copy for %d shards (you have %d)."] = "Shift-click: craft a copy for %d shards (you have %d)."
@@ -1198,6 +1505,7 @@ L["win from %s"] = "win from %s"
 L["not found yet"] = "not found yet"
 L["not in packs"] = "not in packs"
 L["%d in deck"] = "%d in deck"
+L["%s: collected %d of %d"] = "%s: collected %d of %d"
 L["Collected %d of %d cards"] = "Collected %d of %d cards"
 L["%d %s"] = "%d %s"   -- a number and a word: "3 holographic"
 L["%d shard"] = "%d shard"   -- plural: one of a pair, see below
@@ -1215,6 +1523,7 @@ L["Ready to play."] = "Ready to play."
 L["Click: take one out of the deck."] = "Click: take one out of the deck."
 L["No cards match these filters."] = "No cards match these filters."
 L["Click for the next choice, right-click for the one before."] = "Click for the next choice, right-click for the one before."
+L["One of every card of a tribe earns a Windfall pack."] = "One of every card of a tribe earns a Windfall pack."
 L["All"] = "All"
 L["Clear the filters and show every card."] = "Clear the filters and show every card."
 L["Deck"] = "Deck"
@@ -1240,6 +1549,7 @@ L["Now holographic!"] = "Now holographic!"
 L["Holographic!"] = "Holographic!"
 L["Legendary!"] = "Legendary!"
 L["Epic!"] = "Epic!"
+L["Rare or better"] = "Rare or better"
 L["No packs to open."] = "No packs to open."
 L["Opened %s: %s, %s from extra copies."] = "Opened %s: %s, %s from extra copies."
 L["%d pack"] = "%d pack"   -- plural: one of a pair, see below
@@ -1249,12 +1559,18 @@ L["%d new cards"] = "%d new cards"   -- plural of "%d new card"
 L["New: %s"] = "New: %s"
 L["Open a pack"] = "Open a pack"
 L["No packs"] = "No packs"
+L["Windfall packs: %d"] = "Windfall packs: %d"
 L["(in the air)"] = "(in the air)"
 L["(on board)"] = "(on board)"
 L["Travel time toward your next pack: %s / %s"] = "Travel time toward your next pack: %s / %s"
+L["Toward your next Windfall pack: %s / %s"] = "Toward your next Windfall pack: %s / %s"
 L["Card packs"] = "Card packs"
 L["Open all"] = "Open all"
-L["Opens every pack you have. The new cards are listed in chat."] = "Opens every pack you have. The new cards are listed in chat."
+L["Opens every pack you have, Windfall packs too. The new cards are listed in chat."] = "Opens every pack you have, Windfall packs too. The new cards are listed in chat."
+L["Open a Windfall pack"] = "Open a Windfall pack"
+L["Windfall packs"] = "Windfall packs"
+L["Five cards, and the last one is always rare or better."] = "Five cards, and the last one is always rare or better."
+L["You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."] = "You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."
 L["Shards"] = "Shards"
 L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."] = "A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."
 L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."] = "Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."
@@ -1263,13 +1579,13 @@ L["Open a pack to see what's inside. Click each card to turn it over."] = "Open 
 L["Reveal all"] = "Reveal all"
 L["Ways to earn packs"] = "Ways to earn packs"
 L["- Every %d minutes on a flight path, boat or zeppelin"] = "- Every %d minutes on a flight path, boat or zeppelin"
-L["- Your first win of the day, and every tenth level"] = "- Your first win of the day, and every tenth level"
-L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"
+L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"
 L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"] = "- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"
 L["What's in a pack"] = "What's in a pack"
 L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"] = "- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"
 L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"] = "- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"
 L["- About 1 pack in %d has a %s card. It plays the same; it just shines"] = "- About 1 pack in %d has a %s card. It plays the same; it just shines"
+L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"] = "- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"
 
 -- == UI/Options.lua ==
 L["Card, combat and pack sounds."] = "Card, combat and pack sounds."

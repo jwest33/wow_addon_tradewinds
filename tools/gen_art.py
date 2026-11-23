@@ -111,12 +111,14 @@ ART = [14, 14, 242, 146]       # the picture: a glow in the body's colours
 ICON = [78, 25, 178, 125]      # the icon, whole and square, framed in its middle
 NAME = [8, 136, 248, 170]      # name banner, over the art's bottom edge
 TYPE = [20, 170, 236, 195]     # type line: "Beast unit", "Tactic: enemy lane"
-TEXT = {"unit": [16, 199, 240, 310], "tactic": [16, 199, 240, 332]}   # rules box
-GEM_Y = {"unit": 333, "tactic": 342}                                  # rarity gem
+TEXT = {"unit": [16, 199, 240, 310], "tactic": [16, 199, 240, 332], "item": [16, 199, 240, 332]}   # rules box
+GEM_Y = {"unit": 333, "tactic": 342, "item": 342}                                                  # rarity gem
 GLOW_PAD = 22                  # CardGlow: the card plus this much on every side
 
 # Units: warm wood and bronze, parchment. Tactics: deep indigo and silver,
-# cool vellum. The shapes are the same on both, in the body's own colours.
+# cool vellum. Items (tactics with item = true): oxblood leather, stitched,
+# with brass fittings and warm parchment. The shapes are the same on all
+# three, in the body's own colours.
 PAL = {
     "unit": dict(
         body=((70, 54, 40), (34, 26, 19)), edge=(206, 168, 100), edge2=(120, 88, 46),
@@ -128,7 +130,14 @@ PAL = {
         banner=((44, 38, 86), (20, 17, 44)), plate=((84, 70, 156), (50, 41, 104)),
         box=((232, 232, 244), (206, 204, 228)), boxedge=(86, 80, 140), shade=(60, 56, 110),
         glow=(90, 82, 180), dark=(15, 13, 38)),
+    "item": dict(
+        body=((96, 46, 32), (42, 18, 12)), edge=(222, 184, 104), edge2=(128, 88, 38),
+        banner=((74, 34, 22), (34, 15, 10)), plate=((156, 106, 48), (100, 64, 26)),
+        box=((246, 236, 210), (224, 208, 172)), boxedge=(124, 86, 44), shade=(104, 72, 40),
+        glow=(176, 118, 56), dark=(32, 14, 9)),
 }
+
+BODY_NAME = {"unit": "CardUnit", "tactic": "CardTactic", "item": "CardItem"}
 
 
 def grow(box, d):
@@ -172,8 +181,32 @@ def card_body(kind):
     p = PAL[kind]
     img = new(CW, CH)
     body = vgrad(CW, CH, *p["body"])
-    body = grain(grain(body, 7, stretch=(1, 18 * S)), 3) if kind == "unit" else grain(grain(body, 5, blur=6), 3)
+    if kind == "unit":
+        body = grain(grain(body, 7, stretch=(1, 18 * S)), 3)
+    elif kind == "item":   # pebbled leather
+        body = grain(grain(body, 9, blur=1.5), 4)
+    else:
+        body = grain(grain(body, 5, blur=6), 3)
     put(img, body, rmask(CW, CH, [3, 3, CW - 3, CH - 3], 13))
+    if kind == "item":   # a stitched seam inside the edge, and brass rivets at the corners
+        d = ImageDraw.Draw(img)
+        x0, y0, x1, y1 = 9, 9, CW - 9, CH - 9
+        dash, gap = 5, 3.5
+        for (ax, ay, bx, by) in ((x0 + 8, y0, x1 - 8, y0), (x0 + 8, y1, x1 - 8, y1), (x0, y0 + 8, x0, y1 - 8),
+                                 (x1, y0 + 8, x1, y1 - 8)):
+            length = math.hypot(bx - ax, by - ay)
+            t = 0.0
+            while t < length:
+                t2 = min(length, t + dash)
+                px, py = ax + (bx - ax) * t / length, ay + (by - ay) * t / length
+                qx, qy = ax + (bx - ax) * t2 / length, ay + (by - ay) * t2 / length
+                d.line([px * S, py * S, qx * S, qy * S], fill=(196, 156, 96, 255), width=int(1.3 * S))
+                t = t2 + gap
+        for cx, cy in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)):
+            r = 3.2
+            d.ellipse([(cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S], fill=(120, 86, 36, 255))
+            r = 2.3
+            d.ellipse([(cx - r) * S, (cy - r - 0.4) * S, (cx + r) * S, (cy + r - 0.4) * S], fill=(232, 196, 116, 255))
     if kind == "tactic":   # faint arcane circles behind the panels
         d = ImageDraw.Draw(img)
         for r, wdt in ((150, 1.2), (128, 0.8)):
@@ -216,7 +249,7 @@ def card_body(kind):
     put(img, grain(grain(vgrad(CW, CH, *p["box"], t[1], t[3]), 8, blur=3), 4), rmask(CW, CH, t, 6))
     img = overlay(img, p["shade"], inner_shadow(rmask(CW, CH, t, 6), 5, 0.35))
     stroke(img, CW, CH, t, 6, p["boxedge"], 1.5)
-    return finish(img, CW, CH, "CardUnit" if kind == "unit" else "CardTactic", (256, 512))
+    return finish(img, CW, CH, BODY_NAME[kind], (256, 512))
 
 
 def card_rim():
@@ -365,7 +398,8 @@ def card_back():
 def card_art():
     """Every texture of the card face. Returns them for the preview sheet."""
     return {
-        "unit": card_body("unit"), "tactic": card_body("tactic"), "rim": card_rim(), "glow": card_glow(),
+        "unit": card_body("unit"), "tactic": card_body("tactic"), "item": card_body("item"), "rim": card_rim(),
+        "glow": card_glow(),
         "back": card_back(), "pill": pill(),
         "cost": jewel("StatCost", "circle", (52, 112, 236), facets=8),
         "atk": jewel("StatAttack", "hex", (236, 162, 42)),
@@ -740,7 +774,7 @@ def mock_card(c, art, R):
         return (b[0] + inset[0]) * K, (b[1] + inset[1]) * K, (b[2] - b[0] - inset[0] - inset[2]) * K, \
             (b[3] - b[1] - inset[1] - inset[3]) * K
     unit = c["type"] == "unit"
-    kind = "unit" if unit else "tactic"
+    kind = "unit" if unit else ("item" if c.get("item") else "tactic")
     img = Image.new("RGBA", (int(CARD_W * R), int(CARD_H * R)), (0, 0, 0, 0))
     ax, ay, aw, ah = units(ICON)
     pic = vgrad(64, 64, c["hue"], tuple(v // 3 for v in c["hue"])).resize((64, 64)).convert("RGBA")
@@ -788,6 +822,8 @@ def mock(path, art, R=2.1):
              short="Fully heal a unit. Restore 2 Morale", hue=(160, 150, 128)),
         dict(name="Blizzard", type="tactic", typeline="Tactic", rarity="epic", cost=5,
              short="2 damage to every enemy unit", hue=(70, 124, 190)),
+        dict(name="Elixir of the Giants", type="tactic", item=True, typeline="Item: your unit", rarity="uncommon",
+             cost=2, short="+3/+3", hue=(70, 150, 90)),
     ]
     faces = [mock_card(c, art, R) for c in cards]
     back = art["back"].resize(faces[0].size, Image.LANCZOS)

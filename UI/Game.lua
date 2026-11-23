@@ -819,6 +819,9 @@ local function showGameOver()
       lines[#lines + 1] = L["|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"]
     elseif r.packs then
       lines[#lines + 1] = ("|cffffd100%s|r (%s)"):format(ns.Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
+    elseif r.special then
+      lines[#lines + 1] = ("|cffff9933%s|r (%s)"):format(ns.Plural(r.special, "+%d Windfall pack", "+%d Windfall packs"):format(r.special),
+        r.why)
     elseif r.shards then
       lines[#lines + 1] = ("|cff9fdfff%s|r (%s)"):format(ns.Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
     end
@@ -1989,6 +1992,7 @@ end
 function G.OnHide()
   sel = nil
   if UI.FX then UI.FX.Clear() end
+  G.CardHover({}, false)   -- no unit stays lit up
 end
 
 -- ---------------------------------------------------------------------------
@@ -2397,6 +2401,28 @@ local function badge(parent, size)
   b:Hide()
   return b
 end
+
+-- Pointing at a card whose effect counts a tribe (c.synergy: "your other
+-- Beasts") lights up the units it counts: its owner's units of that tribe on
+-- the board, itself left out. Cards in your hand count for you.
+function G.CardHover(card, on)
+  local c = on and card.cardId and Cards.byId[card.cardId]
+  local tribe = c and c.synergy
+  local owner = card.unit and card.unit.owner or ME
+  for p = 1, 2 do
+    for l = 1, R.LANES do
+      local s = slots[p][l]
+      if s then
+        local id = s.card:IsShown() and s.card.cardId
+        local itself = s.card == card or (card.unit and s.card.unit and s.card.unit.uid == card.unit.uid)
+        local lit = tribe and p == owner and id and not itself and Cards.byId[id] and Cards.byId[id].tribe == tribe
+        s.card:SetKin(lit)
+      end
+    end
+  end
+end
+UI.CardHover = G.CardHover
+function G.KinLit(p, l) return slots[p][l] and slots[p][l].card.kin:IsShown() or false end
 
 local function buildSlot(p, l)
   local s = CreateFrame("Button", nil, board, UI.TEMPLATE)

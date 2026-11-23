@@ -473,6 +473,293 @@ L["Mrgl?"] = "Mrgl?"
 -- bones
 L["Skeleton"] = "Esqueleto"
 L["Clack."] = "Clec."
+-- crawler
+L["Shore Crawler"] = "Rastejador Costeiro"
+L["Westfall's beaches belong to it. Ask anyone."] = "As praias de Cerro Oeste são dele. Pergunte a qualquer um."
+-- hyena
+L["Hecklefang Hyena"] = "Hiena Presa-zombeteira"
+L["It laughs first. Then it bites."] = "Primeiro ela ri. Depois ela morde."
+-- cougar
+L["Mountain Cougar"] = "Puma da Montanha"
+L["Mulgore's other welcoming committee."] = "O outro comitê de boas-vindas de Mulgore."
+-- panther
+L["Shadowmaw Panther"] = "Pantera Bocassombra"
+L["Stranglethorn's shadows have teeth."] = "As sombras do Espinhaço têm dentes."
+-- elderstrider
+L["Elder Plainstrider"] = "Pinote Ancião"
+L["Older, slower, and very much in the way."] = "Mais velho, mais lento e bem no meio do caminho."
+-- ashbear
+L["Ashenvale Bear"] = "Urso do Vale Gris"
+L["The forest's quiet giant, until it isn't."] = "O gigante silencioso da floresta. Até deixar de ser."
+-- tiger
+L["Stranglethorn Tiger"] = "Tigre do Espinhaço"
+L["Hunters come here for its pelt. Some leave."] = "Caçadores vêm aqui atrás da pele dele. Alguns até voltam."
+-- corehound
+L["Ancient Core Hound"] = "Cão-magma Ancião"
+L["Two heads. Neither of them is friendly."] = "Duas cabeças. Nenhuma delas é amigável."
+-- footman
+L["Stormwind Footman"] = "Infante de Ventobravo"
+L["Ready for anything. Mostly guard duty."] = "Pronto para tudo. Principalmente para ficar de guarda."
+-- sentinel
+L["Silverwing Sentinel"] = "Sentinela da Asa de Prata"
+L["Warsong Gulch taught her to run."] = "Foi a Ravina Brado Guerreiro que a ensinou a correr."
+-- defender
+L["Ironforge Defender"] = "Defensor de Altaforja"
+L["The gates never fell on his watch."] = "Os portões nunca caíram no turno dele."
+-- veteran
+L["Kor'kron Veteran"] = "Veterano Kor'kron"
+L["Orgrimmar's elite, and he'll tell you so."] = "A elite de Orgrimmar, e ele faz questão de dizer."
+-- streamrunner
+L["Murloc Streamrunner"] = "Murloc Correriacho"
+L["Mrrgl? Mrrgl."] = "Mrrgl? Mrrgl."
+-- tidewarrior
+L["Murloc Tidewarrior"] = "Murloc Guerreiro da Maré"
+L["Bigger than the rest, and twice as loud."] = "Maior que os outros, e duas vezes mais barulhento."
+-- harpooner
+L["Murloc Harpooner"] = "Murloc Arpoador"
+L["Throws first. Asks never."] = "Arremessa primeiro. Pergunta nunca."
+-- zombie
+L["Tirisfal Zombie"] = "Zumbi de Tirisfal"
+L["Slow, hungry, and in no hurry."] = "Lento, faminto e sem a menor pressa."
+-- deathguard
+L["Deathguard Lookout"] = "Vigia Necroguarda"
+L["Brill's night watch. And day watch."] = "A ronda noturna de Montalvo. E a diurna também."
+-- hungryghoul
+L["Hungering Ghoul"] = "Carniçal Faminto"
+L["Always hungry. Never full."] = "Sempre com fome. Nunca satisfeito."
+-- warder
+L["Skeletal Warder"] = "Guardião Esquelético"
+L["Stands its post. It has nothing better to do."] = "Fica no seu posto. Não tem nada melhor para fazer."
+-- footsoldier
+L["Scourge Footsoldier"] = "Soldado do Flagelo"
+L["The Plaguelands' endless infantry."] = "A infantaria sem fim das Terras Pestilentas."
+-- abomination
+L["Hulking Abomination"] = "Abominação Colossal"
+L["Three of everything, stitched together."] = "Três de tudo, costurados juntos."
+-- lookout
+L["Defias Lookout"] = "Vigia Défias"
+L["Sees you coming. Tells everyone."] = "Vê você chegando. Avisa todo mundo."
+-- cutpurse
+L["Defias Cutpurse"] = "Punguista Défias"
+L["Your coin purse feels lighter already."] = "Sua bolsa de moedas já parece mais leve."
+-- highwayman
+L["Defias Highwayman"] = "Bandoleiro Défias"
+L["The road to Sentinel Hill has a toll."] = "A estrada para o Morro da Sentinela tem pedágio."
+-- nightrunner
+L["Defias Night Runner"] = "Corredor Noturno Défias"
+L["Westfall's nights belong to the Brotherhood."] = "As noites de Cerro Oeste pertencem à Irmandade."
+-- pathstalker
+L["Defias Pathstalker"] = "Espreita-trilhas Défias"
+L["Watches the Moonbrook road from the hills."] = "Vigia a estrada do Arroio da Lua do alto das colinas."
+-- azurewhelp
+L["Azure Whelp"] = "Dragonete Azul"
+L["Bites first. Sneezes frost later."] = "Primeiro morde. Depois espirra gelo."
+-- drakonid
+L["Black Drakonid"] = "Draconídeo Negro"
+L["Bred in Blackwing Lair for one job."] = "Criado no Covil Asa Negra para um único trabalho."
+-- drakeling
+L["Emerald Drakeling"] = "Dracozinho Esmeralda"
+L["Dreams fast, wakes faster."] = "Sonha rápido, acorda mais rápido ainda."
+-- broodling
+L["Black Broodling"] = "Cria Negra"
+L["Spits fire before it can fly."] = "Cospe fogo antes mesmo de saber voar."
+-- wyrmguard
+L["Bronze Wyrmguard"] = "Guardião Dracônico de Bronze"
+L["Guards the sands of time. And you, for now."] = "Guarda as areias do tempo. E você, por enquanto."
+-- reddragonspawn
+L["Red Dragonspawn"] = "Dragomorfo Vermelho"
+L["Grim Batol's warden, on leave."] = "O guardião de Grim Batol, de folga."
+-- greendrake
+L["Green Drake"] = "Draco Verde"
+L["Asleep until woken. Then very awake."] = "Dorme até ser acordado. Aí fica bem acordado."
+-- seether
+L["Death Talon Seether"] = "Garra da Morte Fervente"
+L["Blackwing Lair's hall monitor."] = "O bedel dos corredores do Covil Asa Negra."
+-- trackinghound
+L["Tracking Hound"] = "Canaz Rastreador"
+L["Arrive: draw with another Beast"] = "Chegada: compra se houver outra Fera"
+L["Arrive: draw a card if you have another Beast."] = "Chegada: compra uma carta se você tiver outra Fera."
+L["Already knows where you're going."] = "Já sabe para onde você vai."
+-- patriarch
+L["Silverback Patriarch"] = "Patriarca Costa-prateada"
+L["Arrive: other Beasts +1/+1"] = "Chegada: outras Feras +1/+1"
+L["Arrive: your other Beasts get +1/+1."] = "Chegada: suas outras Feras recebem +1/+1."
+L["The troop follows the grey."] = "O bando segue o grisalho."
+-- crier
+L["Town Crier"] = "Pregoeiro da Vila"
+L["Arrive: draw with 2 other Humanoids"] = "Chegada: compra com 2 outros Humanoides"
+L["Arrive: draw a card if you have 2 other Humanoids."] = "Chegada: compra uma carta se você tiver 2 outros Humanoides."
+L["Hear ye! Wanted: Hogger. Again."] = "Ouçam todos! Procura-se: Hogger. De novo."
+-- sergeant
+L["Militia Sergeant"] = "Sargento da Milícia"
+L["Arrive: other Humanoids +1 health"] = "Chegada: outros Humanoides +1 de vida"
+L["Arrive: your other Humanoids get +1 health."] = "Chegada: seus outros Humanoides recebem +1 de vida."
+L["Goldshire's finest. Goldshire's only."] = "O melhor de Vila d'Ouro. O único de Vila d'Ouro."
+-- captain
+L["Stormwind Captain"] = "Capitão de Ventobravo"
+L["Arrive: Humanoids beside it +1/+1"] = "Chegada: Humanoides ao lado +1/+1"
+L["Arrive: your Humanoids in the neighbouring lanes get +1/+1."] = "Chegada: seus Humanoides nas faixas vizinhas recebem +1/+1."
+L["Leads from the front. Mostly."] = "Lidera na linha de frente. Quase sempre."
+-- bolvar
+L["Bolvar Fordragon"] = "Bolvar Fordragon"
+L["Arrive: other Humanoids +1/+1"] = "Chegada: outros Humanoides +1/+1"
+L["Arrive: your other Humanoids get +1/+1."] = "Chegada: seus outros Humanoides recebem +1/+1."
+L["Regent of Stormwind, and nobody's pushover."] = "Regente de Ventobravo, e não leva desaforo para casa."
+-- raider
+L["Murloc Raider"] = "Murloc Saqueador"
+L["Arrive: +1 attack with a Murloc"] = "Chegada: +1 de ataque com um Murloc"
+L["Arrive: +1 attack if you have another Murloc."] = "Chegada: +1 de ataque se você tiver outro Murloc."
+L["Never raids alone. Wouldn't know how."] = "Nunca saqueia sozinho. Nem saberia como."
+-- flopper
+L["Murloc Flopper"] = "Murloc Debatedor"
+L["Fallen: leaves a 1/1 Murloc Scout"] = "Despedida: deixa um Batedor 1/1"
+L["Fallen: summon a 1/1 Murloc Scout in its lane."] = "Despedida: evoca um Batedor Murloc 1/1 na própria faixa."
+L["Flops in. Flops out. Leaves a friend."] = "Entra se debatendo. Sai se debatendo. Deixa um amigo."
+-- tidecaller
+L["Murloc Tidecaller"] = "Murloc Chamamaré"
+L["Arrive: 1/1 Scouts beside it"] = "Chegada: Batedores 1/1 ao lado"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes."] = "Chegada: evoca um Batedor Murloc 1/1 em cada faixa vizinha vazia sua."
+L["It calls. They come. Every time."] = "Ele chama. Eles vêm. Toda vez."
+-- netmaster
+L["Murloc Netmaster"] = "Murloc Mestre-redeiro"
+L["Arrive: freeze what's across Murlocs"] = "Chegada: congela à frente dos Murlocs"
+L["Arrive: freeze the enemy units across from your other Murlocs."] = "Chegada: congela as unidades inimigas à frente dos seus outros Murlocs."
+L["One net, many murlocs, no way out."] = "Uma rede, muitos murlocs, nenhuma saída."
+-- hightide
+L["High Tide"] = "Maré Alta"
+L["Your Murlocs: +1/+1"] = "Seus Murlocs: +1/+1"
+L["Your Murlocs get +1/+1."] = "Seus Murlocs recebem +1/+1."
+L["Everything floats. Especially murlocs."] = "Tudo flutua. Principalmente murlocs."
+-- muckdweller
+L["Murloc Muckdweller"] = "Murloc Lamacento"
+L["+1/+1 when your Murloc dies"] = "+1/+1 quando seu Murloc morre"
+L["Whenever another of your Murlocs dies, gains +1/+1."] = "Sempre que outro Murloc seu morre, ganha +1/+1."
+L["Grows fat on the tide's leftovers."] = "Engorda com as sobras da maré."
+-- murkdeep
+L["Murkdeep"] = "Lodofundo"
+L["1/1 Scouts beside. Murlocs +1 attack"] = "Batedores 1/1 ao lado. Murlocs +1 ataque"
+L["Arrive: summon a 1/1 Murloc Scout in each of your empty neighbouring lanes. Your other Murlocs have +1 attack."] = "Chegada: evoca um Batedor Murloc 1/1 em cada faixa vizinha vazia sua. Seus outros Murlocs têm +1 de ataque."
+L["Darkshore's coast has one king, and he's wet."] = "A Costa Negra tem um só rei, e ele vive molhado."
+-- squire
+L["Rotting Squire"] = "Escudeiro Putrefato"
+L["Arrive: +1 attack with an Undead"] = "Chegada: +1 de ataque com Morto-vivo"
+L["Arrive: +1 attack if you have another Undead."] = "Chegada: +1 de ataque se você tiver outro Morto-vivo."
+L["Still serving. Still squiring."] = "Ainda servindo. Ainda escudeirando."
+-- bonecaller
+L["Bonecaller"] = "Chamador de Ossos"
+L["Fallen: other Undead +1 attack"] = "Despedida: Mortos-vivos +1 de ataque"
+L["Fallen: your other Undead get +1 attack."] = "Despedida: seus outros Mortos-vivos recebem +1 de ataque."
+L["Its last word is always 'rise'."] = "A última palavra dele é sempre 'levantem'."
+-- plagueeater
+L["Plague Eater"] = "Devorador da Peste"
+L["+1/+1 when your Undead dies"] = "+1/+1 quando seu Morto-vivo morre"
+L["Whenever another of your Undead dies, gains +1/+1."] = "Sempre que outro Morto-vivo seu morre, ganha +1/+1."
+L["Nothing goes to waste in the Plaguelands."] = "Nas Terras Pestilentas, nada se desperdiça."
+-- bloated
+L["Bloated Zombie"] = "Zumbi Inchado"
+L["Fallen: 1 damage to every enemy"] = "Despedida: 1 de dano a cada inimigo"
+L["Fallen: deal 1 damage to every enemy unit."] = "Despedida: causa 1 de dano a cada unidade inimiga."
+L["Do not poke."] = "Não cutuque."
+-- armydead
+L["Army of the Dead"] = "Exército dos Mortos"
+L["1/1 Skeletons in your empty lanes"] = "Esqueletos 1/1 nas suas faixas vazias"
+L["Summon a 1/1 Skeleton in each of your empty lanes."] = "Evoca um Esqueleto 1/1 em cada faixa vazia sua."
+L["They were already here. They just stood up."] = "Eles já estavam aqui. Só se levantaram."
+-- commander
+L["Scourge Commander"] = "Comandante do Flagelo"
+L["Other Undead: +1 attack"] = "Outros Mortos-vivos: +1 de ataque"
+L["Your other Undead have +1 attack."] = "Seus outros Mortos-vivos têm +1 de ataque."
+L["Orders from Naxxramas, delivered in person."] = "Ordens de Naxxramas, entregues em mãos."
+-- gandling
+L["Darkmaster Gandling"] = "Umbromestre Gandling"
+L["Round start: 1/1 Skeletons beside"] = "Início da rodada: Esqueletos 1/1 ao lado"
+L["Round start: summon a 1/1 Skeleton in each of your empty neighbouring lanes."] = "Início da rodada: evoca um Esqueleto 1/1 em cada faixa vizinha vazia sua."
+L["Scholomance's headmaster. Attendance is mandatory."] = "O diretor de Scolomântia. A presença é obrigatória."
+-- overseer
+L["Defias Overseer"] = "Supervisor Défias"
+L["Arrive: +1 attack with a Defias"] = "Chegada: +1 de ataque com um Défias"
+L["Arrive: +1 attack if you have another Defias."] = "Chegada: +1 de ataque se você tiver outro Défias."
+L["Counts the loot. Twice."] = "Conta o saque. Duas vezes."
+-- conjurer
+L["Defias Conjurer"] = "Conjurador Défias"
+L["Arrive: enemy -1 Morale per Defias"] = "Chegada: inimigo -1 de Moral por Défias"
+L["Arrive: the enemy loses 1 Morale for each other Defias you have (at most 2)."] = "Chegada: o inimigo perde 1 de Moral para cada outro Défias seu (no máximo 2)."
+L["Learned his tricks from a book he stole."] = "Aprendeu os truques num livro que roubou."
+-- blackguard
+L["Defias Blackguard"] = "Patife Défias"
+L["Arrive: other Defias get Stealth"] = "Chegada: Furtividade aos outros Défias"
+L["Arrive: your other Defias get Stealth."] = "Chegada: seus outros Défias recebem Furtividade."
+L["Teaches the new recruits to disappear."] = "Ensina os novos recrutas a sumir."
+-- whelpling
+L["Brood Whelpling"] = "Dragonete da Ninhada"
+L["Arrive: +1 attack with a Dragonkin"] = "Chegada: +1 de ataque com Draconiano"
+L["Arrive: +1 attack if you have another Dragonkin."] = "Chegada: +1 de ataque se você tiver outro Draconiano."
+L["Small, loud, and already hoarding."] = "Pequeno, barulhento e já juntando tesouros."
+-- firebrand
+L["Wyrmkin Firebrand"] = "Tição Dracônico"
+L["+1 attack per other Dragonkin"] = "+1 de ataque por outro Draconiano"
+L["Has +1 attack for each other Dragonkin you have."] = "Tem +1 de ataque para cada outro Draconiano seu."
+L["The flame burns hotter in a crowd."] = "A chama arde mais forte em grupo."
+-- wyrmkin
+L["Flamescale Wyrmkin"] = "Dracônico Escamaflama"
+L["Arrive: 1 to all enemies, if Dragonkin"] = "Chegada: 1 aos inimigos com Draconiano"
+L["Arrive: deal 1 damage to every enemy unit if you have another Dragonkin."] = "Chegada: causa 1 de dano a cada unidade inimiga se você tiver outro Draconiano."
+L["Breathes on everyone. Apologises to no one."] = "Bafeja fogo em todo mundo. Não pede desculpas a ninguém."
+-- nefarian
+L["Nefarian"] = "Nefarian"
+L["Arrive: other Dragonkin +2/+2"] = "Chegada: outros Draconianos +2/+2"
+L["Arrive: your other Dragonkin get +2/+2."] = "Chegada: seus outros Draconianos recebem +2/+2."
+L["Blackwing Lair's host, and its worst landlord."] = "O anfitrião do Covil Asa Negra, e o pior senhorio de todos."
+-- cutlass
+L["Bloodsail Cutlass"] = "Cutelo da Vela Sangrenta"
+L["+3/+1"] = "+3/+1"
+L["Give one of your units +3/+1."] = "Dá +3/+1 a uma de suas unidades."
+L["Rusty, notched, and still sharper than you'd like."] = "Enferrujado, dentado e ainda mais afiado do que você gostaria."
+-- swiftness
+L["Swiftness Potion"] = "Poção de Rapidez"
+L["Swift and +1/+1"] = "Veloz e +1/+1"
+L["Give one of your units Swift and +1/+1."] = "Dá Veloz e +1/+1 a uma de suas unidades."
+L["Drink it before the fight, not during."] = "Beba antes da luta, não durante."
+-- scrollprot
+L["Scroll of Protection"] = "Pergaminho de Proteção"
+L["+1/+4"] = "+1/+4"
+L["Give one of your units +1/+4."] = "Dá +1/+4 a uma de suas unidades."
+L["Read aloud. Slowly. Mind the long words."] = "Leia em voz alta. Devagar. Cuidado com as palavras compridas."
+-- grenade
+L["Iron Grenade"] = "Granada de Ferro"
+L["2 damage and freeze it"] = "2 de dano e congela"
+L["Deal 2 damage to the enemy unit in a lane and freeze it."] = "Causa 2 de dano à unidade inimiga numa faixa e a congela."
+L["Pull pin. Throw. Do not hold."] = "Puxe o pino. Arremesse. Não segure."
+-- majorheal
+L["Major Healing Potion"] = "Poção Elevada de Cura"
+L["Restore 8 Morale"] = "Restaura 8 de Moral"
+L["Restore 8 Morale."] = "Restaura 8 de Moral."
+L["The good stuff. Tastes worse."] = "É da boa. O gosto é pior."
+-- netomatic
+L["Gnomish Net-o-Matic Projector"] = "Projetor Gnômico Redomático"
+L["Freeze an enemy unit. Draw a card"] = "Congela um inimigo. Compra uma carta"
+L["Freeze the enemy unit in a lane. Draw a card."] = "Congela a unidade inimiga numa faixa. Compra uma carta."
+L["Works every time. Sixty percent of the time."] = "Funciona sempre. Em sessenta por cento das vezes."
+-- trollblood
+L["Mighty Troll's Blood Potion"] = "Poção Potente de Sangue Troll"
+L["Regenerate and +1/+2"] = "Regenerar e +1/+2"
+L["Give one of your units Regenerate and +1/+2."] = "Dá Regenerar e +1/+2 a uma de suas unidades."
+L["Don't ask what's in it. Don't ask whose."] = "Não pergunte o que tem dentro. Nem de quem."
+-- giants
+L["Elixir of the Giants"] = "Elixir de Gigantes"
+L["+3/+3"] = "+3/+3"
+L["Give one of your units +3/+3."] = "Dá +3/+3 a uma de suas unidades."
+L["Side effects include ducking under doorways."] = "Efeitos colaterais incluem abaixar a cabeça para passar pelas portas."
+-- lionheart
+L["Lionheart Helm"] = "Elmo Coração de Leão"
+L["+2/+2 and Rally"] = "+2/+2 e Inspirar"
+L["Give one of your units +2/+2 and Rally."] = "Dá +2/+2 e Inspirar a uma de suas unidades."
+L["Whoever wears it, the rest stand taller."] = "Seja quem for que o use, os outros se aprumam."
+-- thunderfury
+L["Thunderfury"] = "Tormentária"
+L["+2/+2, Swift and Cleave"] = "+2/+2, Veloz e Cutilada"
+L["Give one of your units +2/+2, Swift and Cleave."] = "Dá +2/+2, Veloz e Cutilada a uma de suas unidades."
+L["Did someone say...?"] = "Alguém disse...?"
 
 -- == Opponents ==
 -- dorn
@@ -591,12 +878,14 @@ L["Player %d"] = "Jogador %d"
 
 -- == Engine/Cards.lua ==
 L["Beast"] = "Fera"
+L["Humanoid"] = "Humanoide"
 L["Murloc"] = "Murloc"
 L["Undead"] = "Morto-vivo"
 L["Defias"] = "Défias"
 L["Dragonkin"] = "Draconiano"
 L["Core set"] = "Coleção básica"
 L["Roads of Azeroth"] = "Estradas de Azeroth"
+L["Tribes of Azeroth"] = "Tribos de Azeroth"
 
 -- == Collection.lua ==
 L["That card can't be crafted."] = "Essa carta não pode ser criada."
@@ -648,6 +937,8 @@ L["victory; games against %s have paid in full %d times today"] = "vitória; jog
 L["finishing the tutorial"] = "tutorial concluído"
 L["reaching level %s"] = "nível %s alcançado"
 L["a new flight path"] = "nova rota de voo"
+L["every star against %s"] = "todas as estrelas contra %s"
+L["every %s card"] = "todas as cartas da tribo %s"
 
 -- == Net.lua ==
 L["Another player"] = "Outro jogador"
@@ -694,9 +985,13 @@ L["%d of them waits for your move."] = "%d deles espera a sua jogada."
 L["%d of them wait for your move."] = "%d deles esperam a sua jogada."
 L["Your tutorial is waiting. Type /tradewinds to continue."] = "Seu tutorial está esperando. Digite /tradewinds para continuar."
 L["Your game against %s is waiting. Type /tradewinds to continue."] = "Seu jogo contra %s está esperando. Digite /tradewinds para continuar."
-L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a card pack."] = "Novo no Tradewinds? Digite /tradewinds tutorial para uma curta partida guiada. Ela vale um pacote de cartas."
+L["New to Tradewinds? Type /tradewinds tutorial for a short guided match. It earns a Windfall pack."] = "Novo no Tradewinds? Digite /tradewinds tutorial para uma curta partida guiada. Ela vale um pacote Bons Ventos."
+L["You have %d unopened Windfall pack. Type /tradewinds packs to open it."] = "Você tem %d pacote Bons Ventos fechado. Digite /tradewinds packs para abri-lo."
+L["You have %d unopened Windfall packs. Type /tradewinds packs to open them."] = "Você tem %d pacotes Bons Ventos fechados. Digite /tradewinds packs para abri-los."
 L["You have %d unopened card pack. Type /tradewinds to play."] = "Você tem %d pacote de cartas fechado. Digite /tradewinds para jogar."
 L["You have %d unopened card packs. Type /tradewinds to play."] = "Você tem %d pacotes de cartas fechados. Digite /tradewinds para jogar."
+L["+%d Windfall pack"] = "+%d pacote Bons Ventos"
+L["+%d Windfall packs"] = "+%d pacotes Bons Ventos"
 L["|cff9fdfff%s|r (%s)."] = "|cff9fdfff%s|r (%s)."
 L["+%d shard"] = "+%d fragmento"
 L["+%d shards"] = "+%d fragmentos"
@@ -733,6 +1028,9 @@ L["click"] = "clique"
 L["Tactic: enemy lane"] = "Tática: faixa inimiga"
 L["Tactic: your unit"] = "Tática: sua unidade"
 L["Tactic"] = "Tática"
+L["Item: enemy lane"] = "Item: faixa inimiga"
+L["Item: your unit"] = "Item: sua unidade"
+L["Item"] = "Item"
 L["Frozen"] = "Congelado"
 L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."] = "Escolha uma faixa inimiga. A tática cai depois da revelação, então atinge o que estiver lá nesse momento."
 L["Pick one of your units, or a lane you're playing a unit into this round."] = "Escolha uma de suas unidades, ou uma faixa onde você vai jogar uma unidade nesta rodada."
@@ -775,6 +1073,8 @@ L["%d of your games wait for your move."] = "%d dos seus jogos esperam a sua jog
 L["Games in progress."] = "Jogos em andamento."
 L["%d unopened pack"] = "%d pacote fechado"
 L["%d unopened packs"] = "%d pacotes fechados"
+L["%d unopened Windfall pack"] = "%d pacote Bons Ventos fechado"
+L["%d unopened Windfall packs"] = "%d pacotes Bons Ventos fechados"
 L["Click: play.  Right-click: packs.  Drag: move."] = "Clique: jogar.  Botão direito: pacotes.  Arrastar: mover."
 
 -- == UI/Effects.lua ==
@@ -1072,8 +1372,11 @@ L["A tactic is played once, then it's gone. Its type line says what it targets:"
 L["|cffffffffTactic: enemy lane|r  pick a lane in the top row. It hits the unit there after the reveal; some tactics do something else if the lane is empty (Fireball hits Morale instead)."] = "|cffffffffTática: faixa inimiga|r  escolha uma faixa na fileira de cima. Ela atinge a unidade que estiver lá após a revelação; algumas táticas fazem outra coisa se a faixa estiver vazia (Bola de Fogo atinge o Moral)."
 L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."] = "|cffffffffTática: sua unidade|r  escolha uma de suas unidades, ou uma faixa onde você vai jogar uma unidade nesta rodada."
 L["|cffffffffTactic|r  no target needed."] = "|cffffffffTática|r  não precisa de alvo."
+L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."] = "|cffffffffItens|r (poções, bombas, armas) também são táticas e são jogados do mesmo jeito, com moldura de couro e “Item” na linha de tipo. Equipamentos ficam na unidade, como Muralha de Escudos."
 L["Tribes"] = "Tribos"
-L["Beasts, Murlocs, Undead, Defias and Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name, and the Cards tab can filter by tribe."] = "Feras, Murlocs, Mortos-vivos, Défias e Draconianos. Algumas cartas ficam mais fortes com outras da mesma tribo ao lado ou em jogo. A tribo de uma carta aparece na linha abaixo do nome, e a aba Cartas pode filtrar por tribo."
+L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."] = "Toda unidade pertence a uma tribo: Feras, Humanoides, Murlocs, Mortos-vivos, Défias ou Draconianos. Algumas cartas ficam mais fortes com outras da mesma tribo ao lado ou em jogo. A tribo de uma carta aparece na linha abaixo do nome."
+L["Units of different tribes can have the same stats: on their own they play the same, and their tribe decides which cards count them. Point at a card that counts a tribe and the units it counts light up."] = "Unidades de tribos diferentes podem ter os mesmos atributos: sozinhas, elas jogam igual, e a tribo decide quais cartas as contam. Passe o mouse sobre uma carta que conta uma tribo, e as unidades que ela conta se acendem."
+L["The Cards tab can filter by tribe. One of every card of a tribe earns a Windfall pack."] = "A aba Cartas pode filtrar por tribo. Ter uma de cada carta de uma tribo vale um pacote Bons Ventos."
 L["Summoned units"] = "Unidades evocadas"
 L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."] = "Algumas cartas trazem unidades extras ao tabuleiro, como os Pata Molhada Miúdos do Hogger. Elas não fazem parte de nenhum deck."
 L["Winning"] = "Como vencer"
@@ -1083,11 +1386,13 @@ L["Eight opponents, from easy to hard. Beating one opens the next. Each has thre
 L["|cffffffffVictory|r  win. Pays a card pack."] = "|cffffffffVitória|r  vença. Paga um pacote de cartas."
 L["|cffffffffDecisive|r  win with at least %d more Morale than them. Pays their signature card."] = "|cffffffffDecisiva|r  vença com pelo menos %d de Moral a mais. Paga a carta assinatura do oponente."
 L["|cffffffffRank and file|r  win with a deck that has no rare, epic or legendary cards. Pays 2 packs."] = "|cffffffffSoldados rasos|r  vença com um deck sem cartas raras, épicas ou lendárias. Paga 2 pacotes."
-L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a pack and their signature card, holographic."] = "Vença o último e as |cffffffffrevanches heroicas|r são liberadas: todos de novo, com os melhores decks e as jogadas mais afiadas. A primeira vitória heroica contra cada um paga um pacote e a respectiva carta assinatura, holográfica."
+L["All three stars against an opponent pay a Windfall pack, and so does every star on the circuit."] = "As três estrelas contra um oponente pagam um pacote Bons Ventos, e todas as estrelas do circuito também."
+L["Beat the last of them and |cffffffffheroic rematches|r open: everyone again, with their best deck and sharpest play. The first heroic win against each pays a Windfall pack and their signature card, holographic."] = "Vença o último e as |cffffffffrevanches heroicas|r são liberadas: todos de novo, com os melhores decks e as jogadas mais afiadas. A primeira vitória heroica contra cada um paga um pacote Bons Ventos e a respectiva carta assinatura, holográfica."
 L["Your deck"] = "Seu deck"
 L["Exactly %d cards, at most 2 copies of a card (1 of a legendary). It needs at least 2 units costing 1, 4 cards costing 2 and 3 cards costing 3, which is what the early draws pick from. Build decks in the Cards tab."] = "Exatamente %d cartas, no máximo 2 cópias de cada carta (1 de cada lendária). Ele precisa de pelo menos 2 unidades de custo 1, 4 cartas de custo 2 e 3 cartas de custo 3, que é de onde saem as primeiras compras. Monte decks na aba Cartas."
 L["Collecting"] = "Coleção"
 L["Packs come from travelling (flights, boats and zeppelins), levelling and winning. Shards from duplicates and games buy packs or craft the card you want. The Packs tab lists every source."] = "Pacotes vêm de viagens (voos, barcos e zepelins), de subir de nível e de vitórias. Fragmentos de cartas repetidas e de jogos compram pacotes ou criam a carta que você quiser. A aba Pacotes lista todas as fontes."
+L["|cffff9933Windfall packs|r have five cards, and the last one is always rare or better. They come every %d minutes of travel and with milestones (the tutorial, every tenth level, stars, heroic wins, a whole tribe), and they can't be bought."] = "|cffff9933Pacotes Bons Ventos|r têm cinco cartas, e a última é sempre rara ou melhor. Eles vêm a cada %d minutos de viagem e com marcos (o tutorial, a cada dez níveis, estrelas, vitórias heroicas, uma tribo completa), e não podem ser comprados."
 L["The basics"] = "O básico"
 L["A round"] = "Uma rodada"
 L["Keywords"] = "Palavras-chave"
@@ -1096,7 +1401,7 @@ L["Card text"] = "Texto das cartas"
 L["Play the tutorial (+%d pack)"] = "Jogar o tutorial (+%d pacote)"
 L["Play the tutorial (+%d packs)"] = "Jogar o tutorial (+%d pacotes)"
 L["Left: nothing across, so your unit hits their Morale. Middle: two units face each other and fight. Right: nothing of yours across, so their unit hits your Morale."] = "Esquerda: nada à frente, então sua unidade atinge o Moral do oponente. Meio: duas unidades frente a frente lutam. Direita: nada seu à frente, então a unidade do oponente atinge seu Moral."
-L["Finishing it the first time earns a card pack."] = "Concluir pela primeira vez vale um pacote de cartas."
+L["Finishing it the first time earns a Windfall pack."] = "Concluir pela primeira vez vale um pacote Bons Ventos."
 
 -- == UI/Binder.lua ==
 L["Show"] = "Mostrar"
@@ -1115,6 +1420,8 @@ L["Cost"] = "Custo"
 L["Type"] = "Tipo"
 L["units"] = "unidades"
 L["tactics"] = "táticas"
+L["items"] = "itens"
+L["Tribe"] = "Tribo"
 L["Owned %d of %d.  In your deck: %d."] = "Você tem %d de %d.  No seu deck: %d."
 L["Left-click: add to deck.  Right-click: take one out."] = "Clique: adiciona ao deck.  Botão direito: tira uma."
 L["Shift-click: craft a copy for %d shards (you have %d)."] = "Shift-clique: cria uma cópia por %d fragmentos (você tem %d)."
@@ -1125,6 +1432,7 @@ L["win from %s"] = "ganhe de %s"
 L["not found yet"] = "ainda não encontrada"
 L["not in packs"] = "fora dos pacotes"
 L["%d in deck"] = "%d no deck"
+L["%s: collected %d of %d"] = "%s: %d de %d coletadas"
 L["Collected %d of %d cards"] = "%d de %d cartas coletadas"
 L["%d %s"] = "%d em versão %s"
 L["%d shard"] = "%d fragmento"
@@ -1141,6 +1449,7 @@ L["Avg. cost %s"] = "Custo médio %s"
 L["Click: take one out of the deck."] = "Clique: tira uma do deck."
 L["No cards match these filters."] = "Nenhuma carta corresponde a esses filtros."
 L["Click for the next choice, right-click for the one before."] = "Clique para a próxima opção, botão direito para a anterior."
+L["One of every card of a tribe earns a Windfall pack."] = "Ter uma de cada carta de uma tribo vale um pacote Bons Ventos."
 L["All"] = "Todas"
 L["Clear the filters and show every card."] = "Limpa os filtros e mostra todas as cartas."
 L["Left-click a card: add to deck.   Right-click: take out.   Shift-click: craft with shards."] = "Clique numa carta: adiciona ao deck.   Botão direito: tira.   Shift-clique: cria com fragmentos."
@@ -1163,6 +1472,7 @@ L["Now holographic!"] = "Agora holográfica!"
 L["Holographic!"] = "Holográfica!"
 L["Legendary!"] = "Lendária!"
 L["Epic!"] = "Épica!"
+L["Rare or better"] = "Rara ou melhor"
 L["No packs to open."] = "Nenhum pacote para abrir."
 L["Opened %s: %s, %s from extra copies."] = "Você abriu %s: %s e %s de cópias extras."
 L["%d pack"] = "%d pacote"
@@ -1172,12 +1482,18 @@ L["%d new cards"] = "%d cartas novas"
 L["New: %s"] = "Novidades: %s"
 L["Open a pack"] = "Abrir um pacote"
 L["No packs"] = "Sem pacotes"
+L["Windfall packs: %d"] = "Pacotes Bons Ventos: %d"
 L["(in the air)"] = "(no ar)"
 L["(on board)"] = "(a bordo)"
 L["Travel time toward your next pack: %s / %s"] = "Tempo de viagem até o próximo pacote: %s / %s"
+L["Toward your next Windfall pack: %s / %s"] = "Até o próximo pacote Bons Ventos: %s / %s"
 L["Card packs"] = "Pacotes de cartas"
 L["Open all"] = "Abrir todos"
-L["Opens every pack you have. The new cards are listed in chat."] = "Abre todos os seus pacotes. As cartas novas aparecem no chat."
+L["Opens every pack you have, Windfall packs too. The new cards are listed in chat."] = "Abre todos os seus pacotes, inclusive os Bons Ventos. As cartas novas aparecem no chat."
+L["Open a Windfall pack"] = "Abrir um pacote Bons Ventos"
+L["Windfall packs"] = "Pacotes Bons Ventos"
+L["Five cards, and the last one is always rare or better."] = "Cinco cartas, e a última é sempre rara ou melhor."
+L["You earn them every %d minutes of travel and for milestones: the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."] = "Você os ganha a cada %d minutos de viagem e por marcos: o tutorial, a cada dez níveis, as três estrelas contra um oponente, vitórias heroicas e uma de cada carta de uma tribo. Não podem ser comprados."
 L["Shards"] = "Fragmentos"
 L["A card you already have the maximum of (2, or 1 for legendaries) turns into shards: common %d, uncommon %d, rare %d, epic %d."] = "Uma carta que você já tem no máximo (2, ou 1 das lendárias) vira fragmentos: comum %d, incomum %d, rara %d, épica %d."
 L["Games, levels, flight paths and the daily task give shards too. %d shards buy a pack. In the Cards tab, shift-click a card to craft it with shards."] = "Jogos, níveis, rotas de voo e a tarefa diária também dão fragmentos. %d fragmentos compram um pacote. Na aba Cartas, use Shift-clique numa carta para criá-la com fragmentos."
@@ -1186,13 +1502,13 @@ L["Open a pack to see what's inside. Click each card to turn it over."] = "Abra 
 L["Reveal all"] = "Revelar todas"
 L["Ways to earn packs"] = "Como ganhar pacotes"
 L["- Every %d minutes on a flight path, boat or zeppelin"] = "- A cada %d minutos em rota de voo, barco ou zepelim"
-L["- Your first win of the day, and every tenth level"] = "- Sua primeira vitória do dia, e a cada dez níveis"
-L["- Stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Estrelas: sua primeira vitória contra cada oponente, e vencer com um deck só de comuns e incomuns"
+L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"] = "- Sua primeira vitória do dia, e estrelas: sua primeira vitória contra cada oponente, e vencer com um deck só de comuns e incomuns"
 L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"] = "- %d fragmentos. Vitórias, a tarefa diária, níveis, novas rotas de voo e cópias extras dão fragmentos"
 L["What's in a pack"] = "O que vem num pacote"
 L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"] = "- Duas comuns e uma incomum, que às vezes é uma rara, de vez em quando uma épica e muito raramente uma lendária"
 L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"] = "- Cartas assinatura que não são lendárias não vêm em pacotes: ganhe-as dos oponentes ou crie-as"
 L["- About 1 pack in %d has a %s card. It plays the same; it just shines"] = "- Cerca de 1 pacote a cada %d tem uma carta %s. Ela joga igual; só brilha mais"
+L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"] = "- Cinco cartas: duas comuns, uma incomum, uma como a melhor carta de um pacote e uma que é sempre rara ou melhor. A cada %d minutos de viagem, e por marcos (passe o mouse sobre o botão acima)"
 
 -- == UI/Options.lua ==
 L["Card, combat and pack sounds."] = "Sons de cartas, combate e pacotes."
