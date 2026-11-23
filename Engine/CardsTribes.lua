@@ -320,7 +320,7 @@ add { id = "conjurer", name = "Defias Conjurer", cost = 3, type = "unit", rarity
 
 add { id = "blackguard", name = "Defias Blackguard", cost = 4, type = "unit", rarity = "rare", atk = 3, hp = 4,
   tribe = "defias", synergy = "defias", kw = { stealth = true }, text = "Arrive: your other Defias get Stealth.",
-  flavor = "Teaches the new recruits to disappear.", icon = icons("Ability_Rogue_FeintFlurry", "Ability_Stealth"),
+  flavor = "Teaches the new recruits to disappear.", icon = icons("Ability_Rogue_Feint", "Ability_Sap", "Ability_Stealth"),
   arrive = function(st, u)
     for _, x in ipairs(others(st, u, "defias")) do R.Buff(st, x, 0, 0, "stealth") end
   end }
