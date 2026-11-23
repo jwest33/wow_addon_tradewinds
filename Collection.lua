@@ -179,11 +179,161 @@ local function playable(m)
   return true
 end
 
+-- The set-aside store, db.stash. Cards this version doesn't know (from a
+-- newer version, or renamed or removed) go here instead of being deleted,
+-- and come back at the first login with a version that knows them again: a
+-- player who tries a newer version and goes back loses nothing. The shape is
+-- the one 0.17 (never released) gave it, which some saves already have:
+--   collection[id] = copies    holo[id] = true (one of them is holographic)
+--   decks[slot] = the deck as it was before unknown cards were taken out
+--   deckLeft[slot] = how many cards that deck had left (added in 0.17.0)
+--   trades[tid] = a deal waiting for an answer that names an unknown card
+-- Anything else in it (0.17's stash.finish) is left as it is. What's set
+-- aside never shrinks, and nothing that comes back lowers a count.
+local function known(id)
+  local c = Cards.byId[id]
+  return c ~= nil and c.collectible and true or false
+end
+
+local function tableAt(t, k)
+  if type(t[k]) ~= "table" then t[k] = {} end
+  return t[k]
+end
+
+local function allKnown(list)
+  for _, id in ipairs(list) do
+    if not known(id) then return false end
+  end
+  return true
+end
+
+local function copies(n)
+  return math.max(0, math.floor(tonumber(n) or 0))
+end
+
+-- Is `cur` the list `whole` with some cards taken out, the rest in order?
+local function trimmedFrom(cur, whole)
+  local j = 1
+  for _, id in ipairs(cur) do
+    while whole[j] ~= nil and whole[j] ~= id do j = j + 1 end
+    if whole[j] == nil then return false end
+    j = j + 1
+  end
+  return true
+end
+
+-- A deal waiting for an answer, with the card ids it names (nil if it isn't
+-- one).
+local function dealCards(tid, d)
+  if not (type(tid) == "string" and type(d) == "table" and type(d.name) == "string") then return nil end
+  local ids = {}
+  for _, side in ipairs({ "give", "get" }) do
+    local list = d[side]
+    if type(list) ~= "table" then return nil end
+    for _, e in ipairs(list) do
+      if type(e) ~= "table" or type(e.id) ~= "string" then return nil end
+      ids[#ids + 1] = e.id
+    end
+  end
+  return ids
+end
+
+-- Runs at every login (C.Init). Returns how many copies it set aside this
+-- time.
+function C.SetAside(db)
+  local stash = tableAt(db, "stash")
+  local cards, holo = tableAt(stash, "collection"), tableAt(stash, "holo")
+  local decks, trades = tableAt(stash, "decks"), tableAt(stash, "trades")
+  local left = tableAt(stash, "deckLeft")
+  -- back: what this version knows again
+  for id, n in pairs(cards) do
+    if known(id) then
+      local count = copies(n)
+      if count > 0 then db.collection[id] = math.max(copies(db.collection[id]), count) end
+      if holo[id] then db.holo[id] = true end
+      cards[id], holo[id] = nil, nil
+    end
+  end
+  for id in pairs(holo) do
+    if cards[id] == nil then holo[id] = nil end
+  end
+  for slot, whole in pairs(decks) do
+    local ok = type(slot) == "number" and slot >= 1 and slot <= C.DECK_SLOTS and slot == math.floor(slot)
+      and type(whole) == "table"
+    if not ok then
+      decks[slot], left[slot] = nil, nil
+    elseif allKnown(whole) then
+      -- (unless the deck was changed meanwhile: then it stays as it is now)
+      local cur, n = db.decks[slot], tonumber(left[slot])
+      if cur == nil or (type(cur) == "table" and (n == nil or #cur == n) and trimmedFrom(cur, whole)) then
+        db.decks[slot] = whole
+        if db.deckSlot == slot then db.deck = whole end
+      end
+      decks[slot], left[slot] = nil, nil
+    end
+  end
+  for slot in pairs(left) do
+    if decks[slot] == nil then left[slot] = nil end
+  end
+  for tid, d in pairs(trades) do
+    local ids = dealCards(tid, d)
+    if not ids then
+      trades[tid] = nil
+    elseif allKnown(ids) then
+      if db.tradePending[tid] == nil then db.tradePending[tid] = d end
+      trades[tid] = nil
+    end
+  end
+  -- aside: what this version doesn't know
+  local moved = 0
+  for id, n in pairs(db.collection) do
+    if not known(id) then
+      local count = copies(n)
+      if type(id) == "string" and count > 0 then
+        cards[id] = math.max(copies(cards[id]), count)
+        if db.holo[id] then holo[id] = true end
+        moved = moved + count
+      end
+      db.collection[id] = nil
+    end
+  end
+  for slot = 1, C.DECK_SLOTS do
+    local deck = db.decks[slot]
+    if type(deck) == "table" then
+      local whole, keep, trimmed = {}, true, false
+      for i, id in ipairs(deck) do whole[i] = id end
+      for i = #deck, 1, -1 do
+        if not known(deck[i]) then
+          if type(deck[i]) ~= "string" then keep = false end
+          table.remove(deck, i)
+          trimmed = true
+        end
+      end
+      if trimmed and keep and type(decks[slot]) ~= "table" then decks[slot], left[slot] = whole, #deck end
+    else
+      db.decks[slot] = nil
+    end
+  end
+  for tid, d in pairs(db.tradePending) do
+    local ids = dealCards(tid, d)
+    if not ids then
+      db.tradePending[tid] = nil
+    elseif not allKnown(ids) then
+      if trades[tid] == nil then trades[tid] = d end
+      db.tradePending[tid] = nil
+    end
+  end
+  for id in pairs(db.holo) do
+    if not db.collection[id] then db.holo[id] = nil end
+  end
+  return moved
+end
+
 -- rules: the rules version (Rules.RULES_VERSION). A saved match from another
 -- one, or one that's damaged, is ended without counting. Returns the opponent
 -- id of a computer match it ended (if any), how many games against players it
--- ended, and whether the computer match was damaged (rather than from other
--- rules).
+-- ended, whether the computer match was damaged (rather than from other
+-- rules), and how many copies of cards it set aside (C.SetAside).
 function C.Init(db, rules)
   if not db.collection then db.schema = C.SCHEMA end
   for i = (tonumber(db.schema) or 0) + 1, C.SCHEMA do
@@ -216,39 +366,13 @@ function C.Init(db, rules)
   for k, v in pairs(C.SETTING_DEFAULTS) do
     if db.settings[k] == nil then db.settings[k] = v end
   end
-  db.holo = db.holo or {}
-  -- forget cards that no longer exist (renamed or removed in an update)
-  for id in pairs(db.collection) do
-    if not (Cards.byId[id] and Cards.byId[id].collectible) then db.collection[id] = nil end
-  end
-  for id in pairs(db.holo) do
-    if not db.collection[id] then db.holo[id] = nil end
-  end
-  for slot = 1, C.DECK_SLOTS do
-    local deck = db.decks[slot]
-    if type(deck) == "table" then
-      for i = #deck, 1, -1 do
-        if not (Cards.byId[deck[i]] and Cards.byId[deck[i]].collectible) then table.remove(deck, i) end
-      end
-    else
-      db.decks[slot] = nil
-    end
-  end
+  db.holo = type(db.holo) == "table" and db.holo or {}
   -- trades (see Trade.lua): deals you sent that wait for the other side's
   -- answer, and the deals you carried out for the side that sent them
-  local function offer(list)
-    if type(list) ~= "table" then return false end
-    for _, e in ipairs(list) do
-      if type(e) ~= "table" or not (Cards.byId[e.id] and Cards.byId[e.id].collectible) then return false end
-    end
-    return true
-  end
   db.tradePending = type(db.tradePending) == "table" and db.tradePending or {}
-  for tid, d in pairs(db.tradePending) do
-    if not (type(tid) == "string" and type(d) == "table" and type(d.name) == "string" and offer(d.give) and offer(d.get)) then
-      db.tradePending[tid] = nil
-    end
-  end
+  -- cards this version doesn't know go aside (and ones it knows again come
+  -- back), with the decks and deals that name them
+  local aside = C.SetAside(db)
   db.tradesDone = type(db.tradesDone) == "table" and db.tradesDone or {}
   db.games = type(db.games) == "table" and db.games or {}
   local endedGames = 0
@@ -271,7 +395,7 @@ function C.Init(db, rules)
   elseif db.active ~= nil and not db.games[db.active] then
     db.active = nil
   end
-  return ended, endedGames, damaged
+  return ended, endedGames, damaged, aside
 end
 
 -- Your games against players, oldest first.

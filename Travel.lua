@@ -16,6 +16,13 @@
 -- ends when you've stayed put for a while, or after a long run (you walked off
 -- at the dock). Not yet checked in game: `/tradewinds travel log` prints what
 -- the client reports every second, to check it on a real crossing.
+--
+-- Loading screens: the client closes open windows when you arrive (the
+-- window is in UISpecialFrames, so Escape closes it), which ended games
+-- halfway across the sea. If the window was open when a trip went through a
+-- loading screen, it opens again on the far side. For a while after one,
+-- standing still doesn't count as docking, in case the position takes a
+-- moment to catch up.
 local _, ns = ...
 
 local T = {}
@@ -26,9 +33,12 @@ T.RIDE_START = 6     -- seconds of that before a ride starts
 T.RIDE_STOP = 10     -- seconds without moving that end it
 T.RIDE_WALK = 30     -- seconds of running yourself that end it
 T.JUMP = 150         -- yards in one second: a loading screen, not movement
+T.LOAD_GRACE = 15    -- seconds after a loading screen when standing still doesn't end a ride
+T.REOPEN_DELAY = 1   -- seconds after arriving before the window opens again
 
 local flying, fast, stopped, ticker = false, false, 0, nil
 local ride = { on = false, drift = 0, still = 0, walk = 0, log = false }
+local reopen, grace = false, 0
 
 local function speed()
   if not GetUnitSpeed then return nil end
@@ -134,11 +144,16 @@ local function watch()
     if ride.drift >= T.RIDE_START then startRide() end
     return
   end
-  ride.still = (d < 0.5) and ride.still + 1 or 0
-  ride.walk = (s > 0) and ride.walk + 1 or 0
-  if ride.still >= T.RIDE_STOP or ride.walk >= T.RIDE_WALK then
-    endRide()
-    return
+  if grace > 0 then
+    grace = grace - 1
+    ride.still, ride.walk = 0, 0
+  else
+    ride.still = (d < 0.5) and ride.still + 1 or 0
+    ride.walk = (s > 0) and ride.walk + 1 or 0
+    if ride.still >= T.RIDE_STOP or ride.walk >= T.RIDE_WALK then
+      endRide()
+      return
+    end
   end
   addTime()
 end
@@ -170,9 +185,25 @@ function T.Init()
   ns.On("PLAYER_CONTROL_GAINED", function()
     C_Timer.After(0.5, function() if flying and not onTaxi() then landed() end end)
   end)
-  -- a /reload or login in the middle of a flight
+  -- Leaving for a loading screen: was the window open? The client may have
+  -- closed it a moment before this handler runs, so a window that closed
+  -- just now counts as open. One you closed yourself earlier doesn't.
+  ns.On("PLAYER_LEAVING_WORLD", function()
+    local at = ns.UI.HiddenAt()
+    local open = ns.UI.IsShown() or (at ~= nil and GetTime() - at < 1)
+    reopen = (flying or ride.on) and open or false
+  end)
   ns.On("PLAYER_ENTERING_WORLD", function()
+    grace = T.LOAD_GRACE
+    -- a /reload or login in the middle of a flight
     C_Timer.After(2, function() if onTaxi() then takeOff() end end)
+    if reopen then
+      reopen = false
+      C_Timer.After(T.REOPEN_DELAY, function()
+        local fighting = InCombatLockdown and InCombatLockdown()
+        if (flying or ride.on) and not ns.UI.IsShown() and not fighting then ns.UI.Show() end
+      end)
+    end
   end)
   ns.On("PLAYER_REGEN_DISABLED", function()
     if ns.db.settings.hideInCombat then ns.UI.Hide() end

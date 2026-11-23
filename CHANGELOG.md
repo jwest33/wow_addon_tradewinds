@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.17.0
+
+- Cards are never deleted any more. Cards this version doesn't know (from a
+  newer version, if you go back to this one) are kept aside, with the decks
+  and trade offers that use them, and come back when you update again. Chat
+  says so when it happens. Before, they were deleted at login.
+- Boats and zeppelins: the window no longer stays closed after the loading
+  screen halfway across. The game closes open windows when you arrive, so a
+  match started on the boat ended at the loading screen. If the window was
+  open, it now opens again on the far side (a window you closed yourself
+  stays closed). For 15 seconds after a loading screen, standing still no
+  longer counts as docking.
+
 ## 0.16.0
 
 Rules update: a match in progress from an earlier version ends when you log

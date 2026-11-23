@@ -57,7 +57,7 @@ ns.On("ADDON_LOADED", function(name)
   if name ~= ADDON then return end
   TradewindsCharDB = TradewindsCharDB or {}
   ns.db = TradewindsCharDB
-  ns.endedByUpdate, ns.gamesEndedByUpdate, ns.matchDamaged = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
+  ns.endedByUpdate, ns.gamesEndedByUpdate, ns.matchDamaged, ns.setAside = ns.Collection.Init(ns.db, ns.Rules.RULES_VERSION)
 end)
 
 ns.On("PLAYER_LOGIN", function()
@@ -75,6 +75,9 @@ ns.On("PLAYER_LOGIN", function()
       ns.Print(L["This update changed Tradewinds's rules, so your match against %s was ended. It doesn't count as a win or a loss."],
         o and o.name or L["the computer"])
     end
+  end
+  if (ns.setAside or 0) > 0 then
+    ns.Print(L["Some of your cards are from a newer version of Tradewinds. They're kept safe, and come back when you update again."])
   end
   local ended = ns.gamesEndedByUpdate or 0
   if ended > 0 then

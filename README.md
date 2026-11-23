@@ -373,14 +373,16 @@ corrections are welcome. To fix or add one, see Translating below.
   from movement: you stand still while your map position keeps moving
   sideways at boat speed for 6 seconds. It ends after 10 seconds without
   moving (docked) or 30 seconds of running (you walked off). Loading screens
-  between continents are skipped over. This has not been checked on a real
-  boat yet.
+  between continents are skipped over, and the client closes open windows
+  when you arrive, so a window that was open opens again after one; for 15
+  seconds after it, standing still doesn't count as docking. The reopening
+  has not been checked on a real boat yet.
 
 ## Tests
 
 ```
 pip install lupa
-python tests/run_tests.py          # engine, ui, pvp and locale
+python tests/run_tests.py          # engine, ui, pvp, saves and locale
 ```
 
 `tests/engine.lua` checks every keyword and card effect, determinism, the copy
@@ -397,6 +399,15 @@ matches between them, loses a message, reloads one client mid-match, takes
 one offline for a few minutes, concedes, and corrupts one copy to check the
 mismatch is caught. `tests/engine.lua` also plays 30 games as both mirrored
 copies and checks they never differ.
+
+`tests/saves.lua` loads saved data through the whole addon: the real saves
+in `tests/saves/` (copies of players' files, kept out of git because they
+have character names in them) and constructed ones from each era. Every card
+count must stay exactly as it was, cards this version doesn't know must be
+set aside rather than lost, and fields a newer version wrote must be left
+alone. Each save is then saved and loaded again, used (tabs, packs, a round
+of a match), and loaded by the previous version, which `run_tests.py`
+exports from git (the last commit with another `## Version` in the .toc).
 
 `tests/locale.lua` checks the translations: every text the code looks up is
 in the template `Locales/enUS.lua`, and every language file translates all of

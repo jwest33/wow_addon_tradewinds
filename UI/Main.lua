@@ -6,6 +6,7 @@ local UI = ns.UI
 
 local W, H = 800, 600
 local main, content
+local hiddenAt   -- GetTime() when the window last closed (Travel.lua: loading screens)
 local tabs, pages = {}, {}
 local TABS = {
   { key = "play", label = L["Play"], module = "Game" },
@@ -105,6 +106,7 @@ local function create()
   end
 
   main:SetScript("OnHide", function()
+    hiddenAt = GetTime()
     GameTooltip:Hide()
     if UI.Game.OnHide then UI.Game.OnHide() end
   end)
@@ -151,6 +153,8 @@ end
 function UI.IsShown()
   return main and main:IsShown() or false
 end
+
+function UI.HiddenAt() return hiddenAt end
 
 function UI.Toggle()
   if UI.IsShown() then UI.Hide() else UI.Show() end

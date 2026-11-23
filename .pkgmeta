@@ -11,6 +11,7 @@ ignore:
   - tools
   - media
   - PLAN.md
+  - SETS_PLAN.md
   - README.md
   - Locales/enUS.lua
   - .gitattributes

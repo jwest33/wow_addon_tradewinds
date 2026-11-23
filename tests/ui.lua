@@ -958,10 +958,42 @@ do
   MOCK.speed = 0
   sail(T.RIDE_START + 1, 8)
   check(T.IsRiding() and TradewindsToast:IsShown(), "carried along while standing still: a ride, and the toast")
-  MOCK.posX, MOCK.inst = 5000, 1   -- a loading screen between continents
+  -- A loading screen between continents. The client closes the windows in
+  -- UISpecialFrames when you arrive (closeAt = "arrive"), or possibly as you
+  -- leave, before our handler sees the event (closeAt = "leave").
+  local function closeSpecialFrames()
+    for _, name in ipairs(UISpecialFrames) do
+      if _G[name] then _G[name]:Hide() end
+    end
+  end
+  local function loadingScreen(closeAt)
+    if closeAt == "leave" then closeSpecialFrames() end
+    MOCK.Fire("PLAYER_LEAVING_WORLD")
+    MOCK.posX, MOCK.inst = MOCK.posX + 5000, (MOCK.inst or 0) + 1
+    if closeAt == "arrive" then closeSpecialFrames() end
+    MOCK.Fire("PLAYER_ENTERING_WORLD")
+  end
+  UI.Show()
+  loadingScreen("arrive")
+  check(not TradewindsFrame:IsShown(), "(the client closed the window on arrival)")
   MOCK.Advance(1)
   sail(3, 8)
   check(T.IsRiding(), "the ride carries on after a loading screen")
+  check(TradewindsFrame:IsShown(), "and the window opens again on the far side")
+  loadingScreen("leave")
+  MOCK.Advance(1)
+  sail(2, 8)
+  check(TradewindsFrame:IsShown(), "also when the client closes it as you leave")
+  loadingScreen("arrive")
+  MOCK.Advance(1)
+  sail(T.RIDE_STOP + 2, 0)
+  check(T.IsRiding() and TradewindsFrame:IsShown(), "standing still just after a loading screen isn't docking")
+  sail(T.LOAD_GRACE, 8)
+  UI.Hide()
+  MOCK.Advance(2)
+  loadingScreen("arrive")
+  MOCK.Advance(2)
+  check(not TradewindsFrame:IsShown(), "a window you closed yourself stays closed")
   SlashCmdList.TRADEWINDS("")
   sail(C.TRAVEL_PACK_SECONDS, 8)
   check(db.packs == packs + 1, "a pack for 20 minutes on board")
