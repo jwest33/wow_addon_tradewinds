@@ -307,6 +307,37 @@ end
 function StaticPopup_Hide(name)
   if MOCK.popup and MOCK.popup.name == name then MOCK.popup = nil end
 end
+-- the guild, in the shapes /tradewinds probe found on the client (build
+-- 71037): MOCK.guild is nil (not in a guild) or a list of
+-- { name = "Name-Realm", online = true | false }
+function IsInGuild() return MOCK.guild ~= nil end
+function GetNumGuildMembers()
+  local g, on = MOCK.guild or {}, 0
+  for _, m in ipairs(g) do if m.online then on = on + 1 end end
+  return #g, on
+end
+function GetGuildRosterInfo(i)
+  local m = MOCK.guild and MOCK.guild[i]
+  if not m then return nil end
+  -- name, rank, rank index, level, class, zone, note, officer note, online
+  return m.name, "Member", 2, 60, "Warrior", "Stormwind City", "", "", m.online and true or false
+end
+C_GuildInfo = {}
+function C_GuildInfo.GuildRoster() MOCK.rosterAsked = (MOCK.rosterAsked or 0) + 1 end
+function Ambiguate(name) return (tostring(name):gsub("%-.*$", "")) end
+
+-- the chat box: ChatFrame_OpenChat opens it with a line in it, and
+-- ChatEdit_InsertLink adds to it while it's open. MOCK.chatBox is its text
+-- (nil when closed); nothing is ever sent.
+function ChatEdit_GetActiveWindow() return MOCK.chatBox and DEFAULT_CHAT_FRAME or nil end
+function ChatFrame_OpenChat(text) MOCK.chatBox = text or "" end
+function ChatEdit_InsertLink(text)
+  if not MOCK.chatBox then return false end
+  MOCK.chatBox = MOCK.chatBox .. text
+  return true
+end
+ChatFrameUtil = { OpenChat = function(text) ChatFrame_OpenChat(text) end, InsertLink = function(t) return ChatEdit_InsertLink(t) end }
+
 function UnitOnTaxi() return MOCK.onTaxi end
 function GetUnitSpeed() return MOCK.speed end
 function UnitPosition() if MOCK.posX then return MOCK.posY, MOCK.posX, 0, MOCK.inst or 0 end end

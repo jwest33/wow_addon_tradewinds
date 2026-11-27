@@ -5,7 +5,8 @@
 -- the game and scores the board after combat. Higher levels also test every
 -- plan against a few made-up replies: plays the other player could make with
 -- their Supply and number of cards, drawn from a pool of ordinary cards. It
--- never looks at the other player's hand or plan.
+-- never looks at the other player's hand or plan, and plans from R.Redact's
+-- copy of the game, so it knows how many traps you have set but not where.
 --
 -- Opponents have a style (Data/Opponents.lua): how much they care about
 -- hitting your Morale, keeping their own, and holding the board.
@@ -46,6 +47,20 @@ local function unitValue(st, u)
   return v
 end
 
+-- A trap that's set and hasn't sprung yet, for each Supply it cost (so
+-- setting one doesn't look like wasted Supply). One that springs this round
+-- shows its worth in the simulation itself.
+AI.TRAP_VALUE = 0.8
+
+local function trapValue(P)
+  local v = 0
+  for l = 1, R.LANES do
+    local t = P.traps and P.traps[l]
+    if t then v = v + R.Card(t.id).cost * AI.TRAP_VALUE end
+  end
+  return v
+end
+
 local NEUTRAL = {}
 
 -- Score of the position for player p (higher is better). how (optional):
@@ -68,6 +83,7 @@ function AI.Evaluate(st, p, how)
     local x = op.board[l]
     if x then bv = bv - unitValue(st, x) end
   end
+  bv = bv + trapValue(me) - trapValue(op)
   s = s + bv * wBoard
   -- cards in hand: options for later rounds (valuing them by cost instead
   -- was tried and won no more games)
@@ -76,7 +92,8 @@ function AI.Evaluate(st, p, how)
 end
 
 -- A random legal plan. Each affordable card is played with 85% chance, in a
--- random order, into a random free lane / at a sensible random target.
+-- random order, into a random free lane / at a sensible random target. A
+-- trap goes in a free lane, as a unit does.
 function AI.RandomPlan(st, p, rnd)
   local P, E = st.players[p], st.players[3 - p]
   local supply = P.supply
@@ -88,7 +105,7 @@ function AI.RandomPlan(st, p, rnd)
   end
   local free, own, foes = {}, {}, {}
   for l = 1, R.LANES do
-    if P.board[l] then own[#own + 1] = l else free[#free + 1] = l end
+    if P.board[l] then own[#own + 1] = l elseif not R.TrapAt(st, p, l) then free[#free + 1] = l end
     if R.Targetable(E.board[l], p) then foes[#foes + 1] = l end
   end
   local plan = {}
@@ -97,10 +114,10 @@ function AI.RandomPlan(st, p, rnd)
     local c = R.Card(id)
     if c.cost <= supply and rnd(100) > 15 then
       local lane, ok = nil, false
-      if c.type == "unit" then
+      if c.type == "unit" or c.type == "trap" then
         if #free > 0 then
           lane = table.remove(free, rnd(#free))
-          own[#own + 1] = lane
+          if c.type == "unit" then own[#own + 1] = lane end
           ok = true
         end
       elseif c.target == "enemy" then
@@ -136,12 +153,16 @@ AI.PlanKey = planKey
 -- can target, or one next to it) and at one empty lane (Fireball's Morale hit).
 function AI.AllPlans(st, p, limit)
   local P, E = st.players[p], st.players[3 - p]
+  local function inLane(id)
+    local t = R.Card(id).type
+    return t == "unit" or t == "trap"
+  end
   local order = {}
   for h, id in ipairs(P.hand) do
-    if R.Card(id).type == "unit" then order[#order + 1] = h end
+    if inLane(id) then order[#order + 1] = h end
   end
   for h, id in ipairs(P.hand) do
-    if R.Card(id).type ~= "unit" then order[#order + 1] = h end
+    if not inLane(id) then order[#order + 1] = h end
   end
   local enemyLanes, emptyAdded = {}, false
   for l = 1, R.LANES do
@@ -154,7 +175,8 @@ function AI.AllPlans(st, p, limit)
       emptyAdded = true
     end
   end
-  local out, seen, plan, taken = {}, {}, {}, {}
+  -- taken: lanes a planned unit or trap goes in; placed: the units only
+  local out, seen, plan, taken, placed = {}, {}, {}, {}, {}
   local leaves, maxLeaves = 0, limit * 8
   local function leaf()
     leaves = leaves + 1
@@ -176,26 +198,29 @@ function AI.AllPlans(st, p, limit)
     local c = R.Card(id)
     if c.cost > left then return true end
     local lanes
-    if c.type == "unit" then
+    local lane = c.type == "unit" or c.type == "trap"
+    if lane then
       lanes = {}
       for l = 1, R.LANES do
-        if not P.board[l] and not taken[l] then lanes[#lanes + 1] = l end
+        if not P.board[l] and not taken[l] and not R.TrapAt(st, p, l) then lanes[#lanes + 1] = l end
       end
     elseif c.target == "enemy" then
       lanes = enemyLanes
     elseif c.target == "friend" then
       lanes = {}
       for l = 1, R.LANES do
-        if P.board[l] or taken[l] then lanes[#lanes + 1] = l end
+        if P.board[l] or placed[l] then lanes[#lanes + 1] = l end
       end
     else
       lanes = { false }
     end
     for _, l in ipairs(lanes) do
       plan[#plan + 1] = { h = h, id = id, lane = l or nil }
-      if c.type == "unit" then taken[l] = true end
+      if lane then taken[l] = true end
+      if c.type == "unit" then placed[l] = true end
       local ok = rec(i + 1, left - c.cost)
-      if c.type == "unit" then taken[l] = nil end
+      if lane then taken[l] = nil end
+      if c.type == "unit" then placed[l] = nil end
       plan[#plan] = nil
       if not ok then return false end
     end
@@ -252,10 +277,11 @@ function AI.SampleReply(st, q, rnd)
   return reply
 end
 
--- Plays `plan` out on a copy of the game. scen.seed: the copy's random
--- numbers (so the AI can't foresee the real ones); scen.reply: the other
--- side's made-up play, if any. Their real hand is swapped for that reply plus
--- blank cards, so only its size carries over.
+-- Plays `plan` out on a copy of the game (st: what p may know of it, see
+-- R.Redact). scen.seed: the copy's random numbers (so the AI can't foresee
+-- the real ones); scen.reply: the other side's made-up play, if any. Their
+-- real hand is swapped for that reply plus blank cards, so only its size
+-- carries over.
 local function simulate(st, p, plan, scen, how)
   local c = R.Clone(st)
   c.rng = scen.seed
@@ -286,7 +312,7 @@ local function openingPlans(st, p)
     local c = R.Card(id)
     if c.type == "unit" and c.cost <= P.supply then
       for l = 1, R.LANES do
-        if not P.board[l] then out[#out + 1] = { { h = h, id = id, lane = l } } end
+        if not P.board[l] and not R.TrapAt(st, p, l) then out[#out + 1] = { { h = h, id = id, lane = l } } end
       end
     end
   end
@@ -309,6 +335,8 @@ function AI.ChoosePlan(st, p, level, rnd, opts)
   local L = AI.LEVELS[level] or AI.LEVELS.normal
   local style = opts.style or NEUTRAL
   local how = style
+  -- everything below works on what p may know: your traps are a count
+  st = R.Redact(st, p)
   -- Every plan meets the same random numbers and the same replies, so they
   -- are compared on equal terms.
   -- quiet: the weight of "they add nothing" against each made-up reply.

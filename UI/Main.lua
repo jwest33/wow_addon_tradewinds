@@ -1,5 +1,5 @@
--- The main window (tabs: Play, Cards, Packs, Guide, Options), the flight /
--- pack toast and the minimap button.
+-- The main window (tabs: Play, Cards, Packs, Records, Guide, Options), the
+-- flight / pack toast, the achievement toast and the minimap button.
 local _, ns = ...
 local L = ns.L
 local UI = ns.UI
@@ -12,6 +12,7 @@ local TABS = {
   { key = "play", label = L["Play"], module = "Game" },
   { key = "cards", label = L["Cards"], module = "Binder" },
   { key = "packs", label = L["Packs"], module = "Packs" },
+  { key = "records", label = L["Records"], module = "Records" },
   { key = "guide", label = L["Guide"], module = "Guide" },
   { key = "options", label = L["Options"], module = "Options" },
 }
@@ -211,9 +212,99 @@ function UI.AnyGame()
   return (ns.db and (ns.db.match or next(ns.db.games or {}))) and true or false
 end
 
--- kind: "flight" | "boat" | "pvp" | "pack" | "special" (Windfall packs) | nil
--- (hide); n: how many packs; why: the reason for a pack, or the text for "pvp"
+-- ---------------------------------------------------------------------------
+-- Achievement toast: one at a time, near the top of the screen, whether the
+-- window is open or not. Click it for the Records tab.
+-- ---------------------------------------------------------------------------
+UI.ACH_SECONDS = 5
+local ach, achQueue, achToken = nil, {}, 0
+
+local function makeAch()
+  ach = CreateFrame("Button", nil, UIParent, UI.TEMPLATE)
+  ach:SetSize(340, 62)
+  ach:SetPoint("TOP", UIParent, "TOP", 0, -26)
+  ach:SetFrameStrata("DIALOG")
+  UI.Backdrop(ach, { 0.06, 0.05, 0.03, 0.96 }, { 0.85, 0.68, 0.3 }, true)
+  ach.icon = ach:CreateTexture(nil, "ARTWORK")
+  ach.icon:SetSize(38, 38)
+  ach.icon:SetPoint("LEFT", 12, 0)
+  ach.icon:SetTexCoord(unpack(UI.ICON_COORDS))
+  ach.frame = ach:CreateTexture(nil, "OVERLAY")
+  ach.frame:SetSize(46, 46)
+  ach.frame:SetPoint("CENTER", ach.icon, "CENTER")
+  ach.frame:SetTexture(UI.ART .. "Portrait")
+  ach.head = UI.Text(ach, 10)
+  ach.head:SetPoint("TOPLEFT", ach.icon, "TOPRIGHT", 10, 1)
+  ach.head:SetTextColor(1, 0.82, 0)
+  ach.head:SetText(L["Achievement earned"])
+  ach.name = UI.Text(ach, 14)
+  ach.name:SetPoint("TOPLEFT", ach.head, "BOTTOMLEFT", 0, -2)
+  ach.name:SetWidth(200)
+  ach.name:SetJustifyH("LEFT")
+  ach.name:SetWordWrap(false)
+  ach.text = UI.Text(ach, 10)
+  ach.text:SetPoint("TOPLEFT", ach.name, "BOTTOMLEFT", 0, -2)
+  ach.text:SetWidth(200)
+  ach.text:SetJustifyH("LEFT")
+  ach.text:SetWordWrap(false)
+  ach.text:SetTextColor(0.8, 0.8, 0.8)
+  ach.pts = UI.Text(ach, 18, "OUTLINE")
+  ach.pts:SetPoint("TOPRIGHT", -14, -9)
+  ach.pts:SetTextColor(1, 0.82, 0)
+  ach.share = UI.Button(ach, L["Share"], 60, 18, function()
+    if ach.a then UI.Share(UI.AchievementShareText(ach.a)) end
+  end)
+  ach.share:SetPoint("BOTTOMRIGHT", -8, 7)
+  ach:SetScript("OnClick", function()
+    local a = ach.a
+    ach:Hide()
+    UI.Show("records")
+    if a and UI.Records.ShowGroup then UI.Records.ShowGroup(a.group) end
+  end)
+  ach:Hide()
+end
+
+-- The line UI.Share puts in chat for an achievement.
+function UI.AchievementShareText(a)
+  return L["[Tradewinds] Achievement earned: %s (%s)"]:format(a.name, a.text)
+end
+
+local function nextAch()
+  local a = table.remove(achQueue, 1)
+  if not a then
+    if ach then ach:Hide() end
+    return
+  end
+  if not ach then makeAch() end
+  ach.a = a
+  ach.icon:SetTexture(UI.Icon(a.icon))
+  UI.FitText(ach.name, a.name, 10)
+  UI.FitText(ach.text, a.text, 8)
+  ach.pts:SetText(a.points)
+  ach:Show()
+  UI.Sound("achievement")
+  achToken = achToken + 1
+  local mine = achToken
+  C_Timer.After(UI.ACH_SECONDS, function()
+    if achToken == mine then nextAch() end
+  end)
+end
+
+-- The achievement on show (for the tests), how many wait behind it, and the
+-- toast itself.
+function UI.AchievementShown()
+  return (ach and ach:IsShown()) and ach.a or nil, #achQueue, ach
+end
+
+-- kind: "flight" | "boat" | "pvp" | "pack" | "special" (Windfall packs) |
+-- "achievement" (why: the achievement) | nil (hide); n: how many packs; why:
+-- the reason for a pack, or the text for "pvp"
 function UI.Toast(kind, why, n)
+  if kind == "achievement" then
+    achQueue[#achQueue + 1] = why
+    if not (ach and ach:IsShown()) then nextAch() end
+    return
+  end
   if not kind then
     if toast then toast:Hide() end
     return

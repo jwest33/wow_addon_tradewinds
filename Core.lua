@@ -66,6 +66,7 @@ ns.On("PLAYER_LOGIN", function()
   if ns.Travel then ns.Travel.Init() end
   if ns.Net then ns.Net.Init() end
   if ns.Trade then ns.Trade.Init() end
+  if ns.Guild then ns.Guild.Init() end
   if ns.endedByUpdate or ns.matchDamaged then
     local o = ns.OpponentById[ns.endedByUpdate]
     if ns.matchDamaged then
@@ -75,6 +76,12 @@ ns.On("PLAYER_LOGIN", function()
       ns.Print(L["This update changed Tradewinds's rules, so your match against %s was ended. It doesn't count as a win or a loss."],
         o and o.name or L["the computer"])
     end
+  end
+  -- traps are new in 0.18.0: two of them as a gift, once, to try
+  local gift = ns.Collection.TrapGift(ns.db)
+  if gift then
+    ns.Print(L["Traps are new: you've been given %s and %s to try. Add them to a deck in the Cards tab; the Guide explains them."],
+      ns.Cards.byId[gift[1]].name, ns.Cards.byId[gift[2]].name)
   end
   -- milestones reached before they paid (Collection.Milestones)
   ns.CheckMilestones()
@@ -136,9 +143,30 @@ function ns.Announce(rewards)
 end
 
 -- Pays (and announces) the Windfall packs of milestones just reached: after
--- anything that adds cards or stars.
+-- anything that adds cards or stars. Achievements are checked too.
 function ns.CheckMilestones()
   if ns.db then ns.Announce(ns.Collection.CheckMilestones(ns.db)) end
+  ns.CheckAchievements()
+end
+
+-- Achievements just reached: a line in chat and a toast each. A character
+-- from before achievements gets the ones it already had in one line.
+function ns.CheckAchievements()
+  if not ns.db then return end
+  local new, quiet = ns.Collection.CheckAchievements(ns.db, ns.Today())
+  if #new == 0 then return end
+  if quiet then
+    local pts = 0
+    for _, a in ipairs(new) do pts = pts + a.points end
+    ns.Print(L["Tradewinds has achievements now, and you already have %s (%s). They're on the Records tab."],
+      Plural(#new, "%d achievement", "%d achievements"):format(#new), Plural(pts, "%d point", "%d points"):format(pts))
+  else
+    for _, a in ipairs(new) do
+      ns.Print(L["Achievement earned: |cffffd100%s|r (%s)."], a.name, Plural(a.points, "%d point", "%d points"):format(a.points))
+      if ns.UI and ns.UI.Toast then ns.UI.Toast("achievement", a) end
+    end
+  end
+  refresh()
 end
 
 ns.On("PLAYER_LEVEL_UP", function(level)
@@ -149,7 +177,10 @@ end)
 -- clients, the first on older ones)
 ns.On("UI_INFO_MESSAGE", function(a, b)
   local target = ERR_NEWTAXIPATH
-  if target and (a == target or b == target) then ns.Announce(ns.Collection.FlightPath(ns.db)) end
+  if target and (a == target or b == target) then
+    ns.Announce(ns.Collection.FlightPath(ns.db))
+    ns.CheckAchievements()
+  end
 end)
 
 -- ---------------------------------------------------------------------------
@@ -177,17 +208,18 @@ local SETTINGS = {
   chatter = { "chatter", L["Opponent lines during a match"] },
   forecast = { "forecast", L["Lane markers and Morale forecast while planning"] },
   minimap = { "minimap", L["Minimap button"] },
+  guild = { "guildShare", L["Share progress with my guild"] },
 }
 
 local HELP = {
-  L["/tradewinds - show or hide the game  (/tradewinds play | cards | packs | guide | options opens a tab)"],
+  L["/tradewinds - show or hide the game  (/tradewinds play | cards | packs | records | guide | options opens a tab)"],
   L["/tradewinds tutorial - a guided match against Flightmaster Dorn"],
   L["/tradewinds challenge [name] - challenge another player who has Tradewinds (no name: your target)"],
   L["/tradewinds trade [name] - trade cards with another player who has Tradewinds (no name: your target)"],
   L["/tradewinds end - end the match you're in (counts as a loss, no reward)"],
   L["/tradewinds speed 1-3 - how fast rounds play out"],
   L["/tradewinds scale 0.6-1.5 - window size;  /tradewinds reset - window back to the middle"],
-  L["/tradewinds toast | land | combat | forecast | sound | chatter | minimap [on|off] - options (also in the Options tab)"],
+  L["/tradewinds toast | land | combat | forecast | sound | chatter | minimap | guild [on|off] - options (also in the Options tab)"],
   L["/tradewinds icons - list card icons this client doesn't have (for bug reports)"],
   L["/tradewinds travel [log] - what Tradewinds sees of your travel (log: a line a second, to check boat detection)"],
   L["/tradewinds rules - the rules (the Guide tab)"],
@@ -201,7 +233,7 @@ SlashCmdList.TRADEWINDS = function(msg)
   local S = ns.db.settings
   if cmd == "" then
     Tradewinds_Toggle()
-  elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "options" or cmd == "guide" then
+  elseif cmd == "play" or cmd == "cards" or cmd == "packs" or cmd == "records" or cmd == "options" or cmd == "guide" then
     ns.UI.Show(cmd)
   elseif cmd == "rules" then
     ns.UI.Show("guide")
@@ -254,6 +286,8 @@ SlashCmdList.TRADEWINDS = function(msg)
     for _, line in ipairs(missing) do ns.Print(line) end
   elseif cmd == "travel" then
     ns.Travel.Report(rest:lower())
+  elseif cmd == "probe" then
+    ns.Probe.Run()
   else
     for _, line in ipairs(HELP) do ns.Print(line) end
   end

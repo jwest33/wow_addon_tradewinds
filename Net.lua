@@ -32,6 +32,12 @@
 --   HI;game;round                        back after a reload: please resend
 --   EN;game;reason                       concede | gone (no such game here)
 -- Trades use the same channel with their own messages (T...), see Trade.lua.
+-- The guild board (Guild.lua) sends LB and LQ to the guild channel; those two
+-- are the only messages taken from it, and only from it.
+--
+-- The last round's checksums arrive after the game has ended on both sides,
+-- so they're compared against the finished game (N.Finished): a mismatch
+-- can't undo the result any more, but it's reported.
 local _, ns = ...
 local L = ns.L
 
@@ -69,6 +75,15 @@ local function send(target, ...)
   if api then pcall(api, N.PREFIX, msg, "WHISPER", target) end
 end
 N.Send = send
+
+-- To everyone in your guild who has Tradewinds (Guild.lua's messages only).
+function N.SendGuild(msg)
+  local api = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+  if api then pcall(api, N.PREFIX, msg, "GUILD") end
+end
+
+-- The messages taken from the guild channel (and from nowhere else).
+N.GUILD_KINDS = { LB = true, LQ = true }
 
 -- ---------------------------------------------------------------------------
 -- Cards and plans on the wire
@@ -120,6 +135,41 @@ function N.DecodeDeck(s)
     out[#out + 1] = id
   end
   return out
+end
+
+-- Deck codes, to share a deck as text: "TW1:", the cards as N.EncodeDeck
+-- writes them, and two characters that check them. Codes are places in the
+-- card list, which grows with new versions; the check makes a code from a
+-- different card list fail instead of loading the wrong cards.
+local function checkOf(list)
+  local s = table.concat(list, ",")
+  local h = 5
+  for i = 1, #s do h = (h * 31 + s:byte(i)) % 1296 end
+  local a, b = math.floor(h / 36) + 1, h % 36 + 1
+  return DIGITS:sub(a, a) .. DIGITS:sub(b, b)
+end
+
+function N.DeckCode(list)
+  if type(list) ~= "table" or #list == 0 then return nil end
+  return "TW1:" .. N.EncodeDeck(list) .. checkOf(list)
+end
+
+-- The card ids in a deck code, or nil and why not: "code" (not a deck code)
+-- or "version" (made with another version's card list).
+function N.ReadDeckCode(s)
+  codes()
+  if type(s) ~= "string" then return nil, "code" end
+  local body = s:gsub("%s", ""):match("^[Tt][Ww]1:(%w+)$")
+  if not body or #body < 4 or #body % 2 ~= 0 or #body > ns.Rules.DECK_SIZE * 2 + 2 then return nil, "code" end
+  body = body:lower()
+  local list = {}
+  for i = 1, #body - 2, 2 do
+    local id = idOf[body:sub(i, i + 1)]
+    if not id then return nil, "version" end
+    list[#list + 1] = id
+  end
+  if checkOf(list) ~= body:sub(-2) then return nil, "version" end
+  return list
 end
 
 -- A fingerprint of the card list.
@@ -319,9 +369,22 @@ local function prune(t, r)
   end
 end
 
+-- The last round: the game is over on both sides by the time the checksums
+-- cross, so a mismatch is reported once instead (the result stands).
+local function lastRoundOff(name)
+  ns.Print(L["Your game with %s ended differently on their side. Your result stands here, but please report it."], short(name))
+end
+
 local function compare(m, r)
   local a, b = m.pvp.sums[r], m.pvp.theirSums[r]
   if a and b and a ~= b then
+    if m.st.winner then
+      if not m.pvp.mismatch then
+        m.pvp.mismatch = true
+        lastRoundOff(m.pvp.name)
+      end
+      return
+    end
     N.Abort(m, L["Your game with %s went out of step after round %d, so it was ended without a result. Please report it."]:format(
       short(m.pvp.name), r))
   end
@@ -354,7 +417,10 @@ N.KEEP_FINISHED = 10
 function N.Finished(m, conceded)
   local done = ns.db.pvpDone or {}
   ns.db.pvpDone = done
-  done[m.pvp.gid] = { name = m.pvp.name, mine = m.pvp.mine, conceded = conceded or nil, at = time and time() or 0 }
+  -- the last round's checksums, to compare when theirs arrives (H.SU)
+  local r = m.st.round
+  done[m.pvp.gid] = { name = m.pvp.name, mine = m.pvp.mine, conceded = conceded or nil, at = time and time() or 0,
+    round = r, sum = m.pvp.sums[r], theirSum = m.pvp.theirSums[r], mismatch = m.pvp.mismatch }
   local ids = {}
   for gid in pairs(done) do ids[#ids + 1] = gid end
   if #ids > N.KEEP_FINISHED then
@@ -509,7 +575,19 @@ end
 function H.SU(sender, gid, round, sum)
   local m = ours(sender, gid)
   local r = tonumber(round)
-  if not (m and r) then return end
+  if not r then return end
+  if not m then
+    -- a finished game's last round
+    local last = ns.db.pvpDone and ns.db.pvpDone[gid]
+    if last and same(last.name, sender) and last.round == r and not last.theirSum then
+      last.theirSum = sum
+      if last.sum and last.sum ~= sum and not last.mismatch then
+        last.mismatch = true
+        lastRoundOff(sender)
+      end
+    end
+    return
+  end
   m.pvp.theirSums[r] = sum
   compare(m, r)
 end
@@ -532,12 +610,14 @@ function H.EN(sender, gid, reason)
   end
 end
 
-function N.Receive(sender, text)
+-- channel: "WHISPER" (the default) or "GUILD" (N.GUILD_KINDS only).
+function N.Receive(sender, text, channel)
   if type(text) ~= "string" then return end
   local f = {}
   for part in (text .. ";"):gmatch("([^;]*);") do f[#f + 1] = part end
   local h = H[f[1]]
   if not h or same(sender, UnitName and UnitName("player")) then return end
+  if (channel == "GUILD") ~= (N.GUILD_KINDS[f[1]] or false) then return end
   offline[short(sender):lower()] = nil
   h(sender, unpack(f, 2))
 end
@@ -611,7 +691,7 @@ function N.Init()
   local reg = (C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix) or RegisterAddonMessagePrefix
   if reg then pcall(reg, N.PREFIX) end
   ns.On("CHAT_MSG_ADDON", function(prefix, text, channel, sender)
-    if prefix == N.PREFIX and channel == "WHISPER" then N.Receive(sender, text) end
+    if prefix == N.PREFIX and (channel == "WHISPER" or channel == "GUILD") then N.Receive(sender, text, channel) end
   end)
   if ChatFrame_AddMessageEventFilter then ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", filter) end
   if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(1, N.Tick) end

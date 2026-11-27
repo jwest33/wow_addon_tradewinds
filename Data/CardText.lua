@@ -105,6 +105,24 @@ local SHORT = {
   giants = "+3/+3",
   lionheart = "+2/+2 and Rally",
   thunderfury = "+2/+2, Swift and Cleave",
+  -- Traps and Trickery
+  snaketrap = "Springs: a 1/1 Viper with Venom",
+  immolation = "Springs: 3 damage to the attacker",
+  consecrate = "Springs: 2 damage, or destroy Undead",
+  freezingtrap = "Springs: frozen next round too",
+  shallowgrave = "Springs: two 1/1 Skeletons",
+  defiasambush = "Springs: 3 damage and a 3/3 Ambusher",
+  explosivetrap = "Springs: 3 damage, 2 to those beside",
+  landmine = "Springs: 4 damage to the attacker",
+  trapper = "Arrive: draw if you have a trap set",
+  watchman = "Arrive: enemy -1 Morale with a trap",
+  saboteur = "Arrive: set a Snake Trap",
+  sappercharge = "2 damage, 1 to those beside",
+  holywater = "2 damage, 4 to Undead",
+  rocketboots = "Swift. Draw a card",
+  commission = "+1/+1 and Sturdy",
+  flask = "+1/+5. Restore 3 Morale",
+  ironfoe = "+3/+3 and Pierce",
 }
 
 for id, text in pairs(SHORT) do

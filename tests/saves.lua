@@ -182,7 +182,16 @@ local function checkLoaded(name, before, c)
   local function known(id) return Cards.byId[id] ~= nil and Cards.byId[id].collectible end
   check(type(db.schema) == "number" and db.schema >= C.SCHEMA, name .. ": schema " .. tostring(db.schema))
   local same, aside = true, true
-  local bcol = type(before.collection) == "table" and before.collection or {}
+  local bcol = {}
+  for id, n in pairs(type(before.collection) == "table" and before.collection or {}) do bcol[id] = n end
+  -- the one thing a login may add: the traps' gift, once (0.18.0)
+  local gifted = not (type(before.progress) == "table" and before.progress.trapGift)
+  if gifted then
+    for _, id in ipairs(C.TRAP_GIFT) do
+      if (tonumber(bcol[id]) or 0) < C.MaxCopies(id) then bcol[id] = (tonumber(bcol[id]) or 0) + 1 end
+    end
+  end
+  check(db.progress.trapGift == true, name .. ": the traps' gift is marked given")
   for id, n in pairs(bcol) do
     if isCount(n) then
       if known(id) then
@@ -195,7 +204,7 @@ local function checkLoaded(name, before, c)
   for id in pairs(db.collection) do
     if not bcol[id] then same = false; print("  extra " .. tostring(id)) end
   end
-  check(same, name .. ": every card count is exactly what it was")
+  check(same, name .. ": every card count is exactly what it was" .. (gifted and " (and the traps' gift)" or ""))
   check(aside, name .. ": cards this version doesn't know are set aside, not lost")
   for id, on in pairs(type(before.holo) == "table" and before.holo or {}) do
     if on and isCount(bcol[id]) and known(id) then check(C.IsHolo(db, id), name .. ": " .. id .. " is still holographic") end
@@ -290,17 +299,28 @@ local function treat(name, original)
   if OLD_ROOT then
     local old = client(roundTrip(c3.db()), OLD_ROOT)
     local odb = old.db()
-    -- (cards it doesn't know, it deletes: 0.16.0 has no stash. That's why
-    -- going back past 0.17.0 loses new cards.)
+    -- (0.17.0 sets aside the cards it doesn't know; 0.16.0 and older delete
+    -- them, which is why going back past 0.17.0 loses new cards)
     local sameCards = true
     for id, n in pairs(c3.db().collection) do
       local known = old.ns.Cards.byId[id] and old.ns.Cards.byId[id].collectible
       if known and odb.collection[id] ~= n then sameCards = false end
     end
     check(sameCards, name .. ": the previous version sees the same cards (the ones it knows)")
+    -- the cards it doesn't know (this version's new ones), it sets aside
+    -- (0.17.0 and later have the stash), and this version takes them back:
+    -- the whole trip leaves everything as this version had it
     local back = client(roundTrip(odb))
-    d = diff(kept(odb), kept(back.db()))
-    check(d == nil, name .. ": and this version loads what it saved unchanged " .. tostring(d))
+    local function noStash(db)
+      local k = kept(db)
+      k.stash = nil
+      return k
+    end
+    d = diff(noStash(c3.db()), noStash(back.db()))
+    check(d == nil, name .. ": and this version gets back everything it had " .. tostring(d))
+    local s3, sb = c3.db().stash or {}, back.db().stash or {}
+    d = diff(s3.collection or {}, sb.collection or {})
+    check(d == nil, name .. ": with only the cards it doesn't know still set aside " .. tostring(d))
   end
 end
 
@@ -499,7 +519,15 @@ if OLD_ROOT then
   local c = client({ schema = 7, collection = starterCollection({ newcard = 2, kodo = 1 }), holo = { newcard = true },
     decks = { deck }, deck = deck, deckSlot = 1, packs = 0, shards = 0 })
   local old = client(roundTrip(c.db()), OLD_ROOT)
-  check(diff(c.db().stash, old.db().stash) == nil, "the previous version leaves the stash as it is")
+  -- it leaves what's set aside as it is, and adds only this version's new
+  -- cards (which it doesn't know)
+  local s0, s1 = c.db().stash, old.db().stash
+  local onlyNew = true
+  for id in pairs(s1.collection) do
+    if s0.collection[id] == nil and not (c.ns.Cards.byId[id] and not old.ns.Cards.byId[id]) then onlyNew = false end
+  end
+  check(s1.collection.newcard == s0.collection.newcard and diff(s0.decks, s1.decks) == nil and diff(s0.holo, s1.holo) == nil
+    and onlyNew, "the previous version leaves the stash as it is, adding only the cards it doesn't know")
   local back = client(roundTrip(old.db()), nil, { beforeLoad = knowNewcard })
   local bdb = back.db()
   check(bdb.collection.newcard == 2 and back.C.IsHolo(bdb, "newcard") and #bdb.deck == 20 and bdb.deck[20] == "newcard",

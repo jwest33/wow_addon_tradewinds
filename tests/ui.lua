@@ -100,6 +100,12 @@ do
     if tostring(line):find("Signature card") then found = true end
   end
   check(found, "a signature card says where it comes from")
+  -- the lobby: portraits, locks, signature cards, the daily task's bar
+  local lobby = G.api.lobby()
+  check(G.api.lobbyRow(2).lock:IsShown() and not G.api.lobbyRow(1).lock:IsShown(), "a locked opponent's row shows a lock")
+  check(G.api.lobbyRow(1).sig.icon:GetAlpha() < 1, "a signature card you don't own is greyed")
+  check(lobby.dailyBar.value ~= nil and lobby.dailyCount:GetText():find("/"), "the daily task has a progress bar")
+  check(lobby.tutorial:GetText():find("Windfall"), "the tutorial button names the Windfall pack it pays")
 end
 -- the rest of this file plays everyone, so open the whole ladder
 for _, o in ipairs(ns.Opponents) do
@@ -166,6 +172,135 @@ do
   check(#st.players[1].grave >= 1 and st.round == 2, "round played with the fireball")
   G.EndMatch()
   G.Continue()
+end
+
+-- traps: the gift; yours face down, theirs only a count; the forecast and the
+-- lane markers can't tell where theirs is; the replay springs them; the end
+-- screen turns the rest face up
+do
+  local function chatHas(text)
+    for _, line in ipairs(MOCK.chat) do if line:find(text, 1, true) then return true end end
+    return false
+  end
+  check(db.progress.trapGift and C.Owned(db, "defiasambush") >= 1 and C.Owned(db, "immolation") >= 1,
+    "everyone gets a Defias Ambush and an Immolation Trap")
+  check(chatHas("Traps are new"), "and chat says so")
+  local before = C.Owned(db, "immolation")
+  check(C.TrapGift(db) == nil and C.Owned(db, "immolation") == before, "only once")
+
+  G.Start("dorn")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board, st.players[p].traps = {}, {} end
+  st.players[1].hand = { "immolation", "grunt" }
+  st.players[1].supply = 6
+  st.players[2].hand = {}
+  R.Summon(st, 2, 2, "grunt").new = nil
+  db.settings.seenLaneTip = true
+  db.settings.seenKw = db.settings.seenKw or {}
+  db.settings.seenKw.trap = nil
+  G.Refresh()
+  check(G.KeywordTip() == "trap", "the first trap in your hand gets a tip")
+  G.DismissKeyword()
+  G.ClickHand(1, "LeftButton")
+  G.ClickSlot(2, 1, "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("Traps go face down"), "a trap can't go on their row")
+  G.ClickSlot(1, 2, "LeftButton")
+  local slot = G.api.slot(1, 2)
+  check(slot.card:IsShown() and slot.card.back:IsShown() and slot.card.hiddenId == "immolation" and not slot.card.cardId,
+    "your planned trap shows face down")
+  slot.card:ShowTooltip()
+  check(GameTooltip.lines[1] == Cards.byId.immolation.name, "pointing at it says which trap it is")
+  check(G.LaneState(2) == "trap", "the lane marker: their Grunt springs it")
+  check(G.Forecast().loss[1] == 0, "the forecast: the strike stops at the trap")
+  G.ClickHand(2, "LeftButton")
+  G.ClickSlot(1, 2, "LeftButton")
+  check(MOCK.errors[#MOCK.errors]:find("trap in that lane"), "a unit can't go where your trap is")
+  G.ClickHand(2, "RightButton")
+  G.LockIn()
+  MOCK.Advance(60)
+  st = db.match.st
+  local grunt = st.players[2].board[2]
+  check(not R.TrapAt(st, 1, 2) and grunt and grunt.hp == 1, "the trap sprang: 3 damage to their Grunt")
+  local logged = false
+  for _, line in ipairs(db.match.log) do
+    if line:find(Cards.byId.immolation.name, 1, true) and line:find("sprang") then logged = true end
+  end
+  check(logged, "the log says who sprang what")
+  check(C.Life(db, "trapsSet") == 1 and C.Life(db, "trapsSprung") == 1 and C.Life(db, "trapKills") == 0,
+    "the trap counters (the auto-played games before set none of yours)")
+  check(db.ach.trapset and db.ach.spring1, "and the first trap achievements")
+
+  -- theirs: a count by their Morale, nothing in their lane, and nothing the
+  -- forecast or the markers let slip
+  st.players[1].hand = { "grunt" }
+  st.players[1].supply = 6
+  st.players[2].board[2] = nil
+  G.Refresh()
+  G.ClickHand(1, "LeftButton")
+  G.ClickSlot(1, 3, "LeftButton")
+  local loss, state = G.Forecast().loss[2], G.LaneState(3)
+  check(not G.api.trapMark():IsShown(), "no trap of theirs: no count")
+  local sprungOn = C.Life(db, "sprungOn")
+  R.SetTrap(st, 2, 3, "landmine")
+  G.Refresh()
+  local mark = G.api.trapMark()
+  check(mark:IsShown() and mark.count:GetText() == "x1", "their trap: a count by their Morale")
+  check(not G.api.slot(2, 3).card:IsShown(), "and nothing in their lane")
+  local loss2 = G.Forecast().loss[2]
+  local state2, _, lines2 = G.LaneState(3)
+  check(loss2 == loss and loss == 3 and state2 == state and state == "out",
+    "the forecast and the marker are the same with or without their trap")
+  check(table.concat(lines2 or {}, " "):find("1 trap set"), "the marker only says they have one, somewhere")
+  st.players[2].hand = {}
+  G.LockIn()
+  MOCK.Advance(60)
+  st = db.match.st
+  check(not R.TrapAt(st, 2, 3) and not st.players[1].board[3] and st.players[2].morale == R.START_MORALE,
+    "your Grunt sprang their Goblin Land Mine, and died")
+  check(C.Life(db, "sprungOn") == sprungOn + 1 and db.ach.sprungon, "watch your step")
+
+  -- the replay of their trap being set: a count, never a lane or a name
+  local m = db.match
+  local saved = m.last
+  m.last = { view = { round = st.round, init = 1, supply = 1, hand = {}, players = {
+      { board = {}, morale = 12, handCount = 0, deckCount = 10, traps = {} },
+      { board = {}, morale = 12, handCount = 1, deckCount = 10, trapCount = 0 } } },
+    events = { { t = "phase", name = "reveal" }, { t = "trap", p = 2, lane = 4, id = "snaketrap" }, { t = "beat" } } }
+  local logBefore = #m.log
+  G.Replay()
+  MOCK.Advance(0.5)
+  check(G.api.trapMark():IsShown() and G.api.trapMark().count:GetText() == "x1" and not G.api.slot(2, 4).card:IsShown(),
+    "replayed: their trap shows as a count, not in its lane")
+  MOCK.Advance(10)
+  local said = table.concat(m.log, "\n", logBefore + 1)
+  check(said:find("set a trap") and not said:find(Cards.byId.snaketrap.name, 1, true) and not said:find("lane 4"),
+    "and the log says neither which nor where")
+  m.last = saved
+
+  -- the end: traps nobody sprang turn face up
+  R.SetTrap(st, 2, 1, "snaketrap")
+  R.SetTrap(st, 1, 4, "consecrate")
+  st.players[2].morale = 1
+  st.players[1].hand = { "fireball" }
+  st.players[1].supply = 6
+  st.players[2].hand = {}
+  G.Refresh()
+  G.ClickHand(1, "LeftButton")
+  G.ClickSlot(2, 2, "LeftButton")
+  G.LockIn()
+  MOCK.Advance(60)
+  local facts = G.GameOverFacts() or ""
+  check(db.match == nil and facts:find("Traps that never sprang"), "the end screen turns unsprung traps face up")
+  check(facts:find(Cards.byId.snaketrap.name, 1, true) and facts:find(Cards.byId.consecrate.name, 1, true), "both sides'")
+  local s1 = G.api.slot(2, 1)
+  check(s1.card:IsShown() and s1.card.cardId == "snaketrap", "and on the board")
+  check(not G.api.trapMark():IsShown(), "the count is gone once they're face up")
+  G.Continue()
+
+  -- the Guide has a page on them
+  UI.Guide.Show("traps")
+  check(UI.Guide.Shown() == "traps", "the Guide's Traps page")
+  UI.Guide.Show("basics")
 end
 
 -- resume after a reload: the match is in the saved table
@@ -470,10 +605,93 @@ do
   UI.Refresh()
   check(C.BuyPack(db) and db.shards == 5, "buy a pack")
   UI.Packs.Open(); UI.Packs.Open()
-  db.packs = 4
+  db.packs, db.specialPacks = 4, 0
   local chat = #MOCK.chat
   UI.Packs.OpenAll()
   check(db.packs == 0 and #MOCK.chat > chat and MOCK.chat[chat + 1]:find("Opened 4 packs"), "open all opens every pack and says what was in them")
+end
+
+-- packs: the ceremony. Cards turn over; a rare or better glows first; an
+-- epic, a legendary or a holographic card charges up before it turns;
+-- "Reveal all" turns them one after another, the best last
+do
+  local FX, P = UI.FX, UI.Packs
+  UI.SelectTab("packs")
+  db.settings.speed = 1
+  local function of(rarity)
+    for _, c in ipairs(Cards.collectible) do
+      if c.rarity == rarity and C.InPacks(c.id) then return c.id end
+    end
+  end
+  local common, rare, epic, legend = of("common"), of("rare"), of("epic"), of("legendary")
+  local open = C.OpenPack
+  local nextPack
+  C.OpenPack = function() return nextPack end
+  nextPack = { { id = common, kind = "copy", shards = 0 }, { id = epic, kind = "new", shards = 0 },
+    { id = legend, kind = "new", shards = 0, holo = true } }
+  P.Open()
+  local charges = FX.counts.charge or 0
+  P.Reveal(1)
+  check(P.Opened().shown[1] and not P.Opened().up[1] and P.Slot(1).card.flipper:IsShown(), "a common starts turning over")
+  MOCK.Advance(0.3)
+  check(P.Opened().up[1] and P.Slot(1).card.cardId == common and P.Slot(1).card:GetAlpha() == 1
+    and not P.Slot(1).card.flipper:IsShown(), "and is face up a moment later")
+  check((FX.counts.charge or 0) == charges, "a common doesn't charge")
+  P.Reveal(2)
+  check((FX.counts.charge or 0) == charges + 1, "an epic charges first")
+  MOCK.Advance(0.4)
+  check(not P.Opened().up[2] and P.Slot(2).card.flipper.aura:IsShown(), "it glows while it charges")
+  MOCK.Advance(0.6)
+  check(P.Opened().up[2] and P.Slot(2).card.cardId == epic, "then turns")
+  check(P.SummaryShown() == nil, "no summary while a card is still face down")
+  P.Reveal(3)
+  MOCK.Advance(1.2)
+  check(P.Opened().up[3] and P.Slot(3).card.holo, "the holographic legendary turns, shining")
+  check((P.SummaryShown() or ""):find("2 new cards"), "the summary once they're all up")
+  local line = P.ShareText() or ""
+  check(line:find(Cards.byId[legend].name, 1, true) and line:find("holographic") and line:find("card pack") and not line:find("|c"),
+    "Share: the best card of the pack, in plain text")
+  MOCK.chatBox = nil
+  UI.Share(line)
+  check(MOCK.chatBox == line, "goes into the chat box")
+  MOCK.chatBox = nil
+  check(P.Summary({ { kind = "new" }, { kind = "shards", shards = 3 }, { kind = "copy" } }):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    == "1 new card, +3 shards", "the summary line")
+  -- Reveal all: the rest in turn, the best one last
+  nextPack = { { id = legend, kind = "new", shards = 0 }, { id = common, kind = "shards", shards = 1 },
+    { id = rare, kind = "copy", shards = 0 } }
+  P.Open()
+  P.RevealAll()
+  local o = P.Opened()
+  check(o.shown[2] and not o.shown[3] and not o.shown[1], "Reveal all starts with the plainest card")
+  MOCK.Advance(0.42)
+  check(o.up[2] and o.up[3] and not o.up[1], "the legendary comes last")
+  MOCK.Advance(1)
+  check(o.up[1] and o.up[2] and o.up[3], "and every card ends face up")
+  -- opening the next pack in the middle of a flip leaves nothing half turned
+  nextPack = { { id = common, kind = "copy", shards = 0 }, { id = epic, kind = "new", shards = 0 },
+    { id = rare, kind = "copy", shards = 0 } }
+  P.Open()
+  P.Reveal(2)
+  MOCK.Advance(0.1)
+  P.Open()
+  local s2 = P.Slot(2)
+  check(not P.Opened().shown[2] and s2.card:GetAlpha() == 1 and not s2.card.flipper:IsShown() and s2.card.back:IsShown(),
+    "a new pack mid-flip: the old card finished, the new one face down")
+  -- closing the window finishes a flip
+  P.Reveal(2)
+  MOCK.Advance(0.1)
+  UI.Hide()
+  check(P.Opened().up[2] and s2.card:GetAlpha() == 1, "closing the window finishes a flip at once")
+  check(select(4, FX.PoolSizes()) == 0, "and leaves no effect running")
+  SlashCmdList.TRADEWINDS("packs")
+  check(not P.Opened().shown[1], "a card nobody clicked stays face down")
+  C.OpenPack = open
+  db.packs = 2
+  P.Open()
+  P.Reveal(1)
+  P.OpenAll()
+  check(db.packs == 0 and P.Opened().up[1] and P.Opened().up[2] and P.Opened().up[3], "Open all mid-flip: everything face up")
 end
 
 -- the tutorial
@@ -528,6 +746,9 @@ do
   end
   check(db.match == nil and db.tutorial.done and db.packs == packs and db.specialPacks == special + C.TUTORIAL_PACKS,
     "finishing the tutorial pays a Windfall pack")
+  local ov = G.api.over()
+  check((G.GameOverFacts() or ""):find("Tutorial complete") and ov.nextOpp:IsShown() and ov.nextOpp:GetText():find("Dorn")
+    and not ov.rematch:IsShown(), "the tutorial's end screen points to Dorn")
   check(db.stats.wins == s0[1] and db.stats.losses == s0[2] and db.stats.draws == s0[3], "and doesn't count on the circuit")
   G.Continue()
   G.StartTutorial()
@@ -859,6 +1080,47 @@ do
   G.RefreshLobby()
 end
 
+-- the end screen: stars stamp in, shards and packs count up, the cards won
+-- turn over; Rematch, Next opponent and Back
+do
+  local ov = G.api.over()
+  db.stars.graves, db.stars.prestor, db.record.graves, db.record.prestor = nil, nil, nil, nil
+  db.collection.rivendare = nil
+  db.stars.pellwick = { true }
+  G.Start("graves")
+  local st = db.match.st
+  for p = 1, 2 do st.players[p].board = {}; st.players[p].hand = {} end
+  st.players[2].morale = 0
+  G.LockIn()
+  for _ = 1, 400 do
+    if not db.match then break end
+    MOCK.Advance(0.05)
+  end
+  check(db.match == nil and ov:IsShown(), "the game is over")
+  check(ov.stars[1]:GetAlpha() < 1, "a star earned now stamps in, a moment later")
+  MOCK.Advance(3)
+  check(ov.stars[1]:GetAlpha() == 1 and ov.stars[2]:GetAlpha() == 1, "the stars earned are lit")
+  local facts = G.GameOverFacts()
+  check(facts:find("Star earned") and facts:find("Rivendare"), "the facts list the stars and the card")
+  check(ov.cards[1]:IsShown() and ov.cards[1].card.cardId == "rivendare" and ov.cards[1].card:GetAlpha() == 1,
+    "the signature card is shown face up")
+  check(ov.gains[1]:IsShown() and ov.gains[1].num:GetText():find("shard"), "the shards won are counted up")
+  check(ov.rematch:IsShown() and ov.nextOpp:IsShown() and ov.nextOpp:GetText():find("Prestor"),
+    "Rematch, and the opponent just unlocked")
+  check(ov.share:IsShown() and (G.ShareText() or ""):find("star against Graves"), "Share: a line about the star")
+  MOCK.chatBox = nil
+  ov.share:Click()
+  check(MOCK.chatBox and MOCK.chatBox:find("star against Graves") and not MOCK.chatBox:find("|c"),
+    "the Share button puts it in the chat box, in plain text")
+  MOCK.chatBox = nil
+  check(G.NextOpponent() and db.match.opp == "prestor", "Next opponent starts them at once")
+  G.EndMatch()
+  check(ov.rematch:IsShown() and not ov.nextOpp:IsShown(), "after a loss: Rematch, no next opponent")
+  check(not ov.share:IsShown() and G.ShareText() == nil, "nothing to share after a loss")
+  check(G.Rematch() and db.match.opp == "prestor", "Rematch starts the same opponent at once")
+  G.EndMatch(); G.Continue()
+end
+
 -- binder / deck editing
 do
   UI.SelectTab("cards")
@@ -892,11 +1154,16 @@ do
   local items = UI.Binder.Shown()
   local allItems = #items > 0
   for _, c in ipairs(items) do if not c.item then allItems = false end end
-  check(allItems and #items == 12, "filter by type: items (" .. #items .. ")")
+  check(allItems and #items == 18, "filter by type: items (" .. #items .. ")")
   UI.Binder.SetFilter("kind", "tactic")
   local noItems = true
   for _, c in ipairs(UI.Binder.Shown()) do if c.item or c.type ~= "tactic" then noItems = false end end
   check(noItems, "and tactics without them")
+  UI.Binder.SetFilter("kind", "trap")
+  local traps = UI.Binder.Shown()
+  local allTraps = #traps == 8
+  for _, c in ipairs(traps) do if c.type ~= "trap" then allTraps = false end end
+  check(allTraps, "filter by type: traps (" .. #traps .. ")")
   UI.Binder.SetFilter("kind", "all")
   UI.Binder.SetFilter("rarity", "legendary")
   check(#UI.Binder.Shown() == #Cards.byRarity.legendary, "filter by rarity")
@@ -971,6 +1238,11 @@ do
   MOCK.Advance(1)
   check(TradewindsToast and TradewindsToast:IsShown(), "flight toast")
   SlashCmdList.TRADEWINDS("")
+  -- the board's look follows how you travel, picked when a game goes on it
+  db.settings.board = "auto"
+  G.Start("dorn")
+  check(G.BoardSkin() == "sky", "on a flight the board is the evening sky")
+  G.EndMatch(); G.Continue()
   MOCK.Advance(C.TRAVEL_PACK_SECONDS + 5)
   check(db.packs == packs + 1, "a pack for 20 minutes in the air")
   MOCK.speed = 7               -- landed, but UnitOnTaxi still says yes (seen on the live client)
@@ -1001,6 +1273,12 @@ do
   MOCK.speed = 0
   sail(T.RIDE_START + 1, 8)
   check(T.IsRiding() and TradewindsToast:IsShown(), "carried along while standing still: a ride, and the toast")
+  G.Start("dorn")
+  check(G.BoardSkin() == "ship", "on a boat the board is a ship's deck")
+  G.EndMatch(); G.Continue()
+  UI.Options.Set("board", "sky")
+  check(G.BoardSkin() == "sky", "a board picked in Options applies at once")
+  UI.Options.Set("board", "auto")
   -- A loading screen between continents. The client closes the windows in
   -- UISpecialFrames when you arrive (closeAt = "arrive"), or possibly as you
   -- leave, before our handler sees the event (closeAt = "leave").
@@ -1052,6 +1330,30 @@ do
   MOCK.posX = nil
 end
 
+-- /tradewinds probe: a line per question, and it never errors
+do
+  MOCK.chat = {}
+  SlashCmdList.TRADEWINDS("probe")
+  local lines = 0
+  for _, l in ipairs(MOCK.chat) do
+    if l:find("probe") then lines = lines + 1 end
+  end
+  check(lines >= 9, "the probe prints a line per question (" .. lines .. ")")
+  check(MOCK.chat[#MOCK.chat]:find("not tried: you're not in a guild"), "not in a guild: no guild message")
+  MOCK.guild = { { name = "Tester-Realm", online = true } }
+  MOCK.sent = {}
+  SlashCmdList.TRADEWINDS("probe")
+  local sent = MOCK.sent[#MOCK.sent]
+  check(sent and sent.chatType == "GUILD" and sent.msg:find("^PB;%d+$"), "in a guild: it sends a guild addon message")
+  MOCK.Advance(0.5)
+  MOCK.Fire("CHAT_MSG_ADDON", "Tradewinds", sent.msg, "GUILD", "Tester-Realm")
+  check(MOCK.chat[#MOCK.chat]:find("arrived after") and MOCK.chat[#MOCK.chat]:find("is you"), "and says when it comes back")
+  SlashCmdList.TRADEWINDS("probe")
+  MOCK.Advance(ns.Probe.GUILD_WAIT + 1)
+  check(MOCK.chat[#MOCK.chat]:find("did NOT come back"), "or that it didn't")
+  MOCK.guild = nil
+end
+
 -- other events and slash commands
 do
   local packs, special = db.packs, db.specialPacks
@@ -1059,6 +1361,7 @@ do
   MOCK.Fire("PLAYER_LEVEL_UP", 23)
   MOCK.Fire("UI_INFO_MESSAGE", 0, "New flight path discovered!")
   check(db.packs == packs and db.shards == shards + C.REWARD.level + C.REWARD.flightPath, "a level and a new flight path give shards")
+  check(db.ach.flightpath ~= nil, "and the flight path earns its achievement straight away")
   MOCK.Fire("PLAYER_LEVEL_UP", 30)
   check(db.packs == packs and db.specialPacks == special + 1 and db.shards == shards + 2 * C.REWARD.level + C.REWARD.flightPath,
     "every tenth level gives a Windfall pack too")
@@ -1069,6 +1372,159 @@ do
     SlashCmdList.TRADEWINDS(cmd)
   end
   check(db.settings.speed == 3 and db.settings.toast == false, "settings commands")
+end
+
+-- Records: achievements by group, a toast for each one earned, sharing
+do
+  local Rec = UI.Records
+  SlashCmdList.TRADEWINDS("records")
+  check(UI.tab == "records" and Rec.View() == "ach", "/tradewinds records opens the Records tab")
+  db.ach.morale100, db.ach.kills100, db.ach.morale1000 = nil, nil, nil
+  db.life.morale, db.life.kills = 40, 20
+  Rec.ShowGroup("play")
+  check(Rec.Group() == "play" and (Rec.RowText(1) or ""):find("Pressure") and Rec.RowText(1):find("40 / 100"),
+    "a group's achievements, with progress toward each")
+  for _ = 1, 80 do   -- the toasts of everything earned so far
+    if not UI.AchievementShown() then break end
+    MOCK.Advance(UI.ACH_SECONDS + 0.1)
+  end
+  check(UI.AchievementShown() == nil, "earlier toasts have all been shown")
+  MOCK.chat = {}
+  db.life.morale, db.life.kills = 150, 150
+  ns.CheckAchievements()
+  local a, waiting, toast = UI.AchievementShown()
+  check(a and a.id == "morale100" and waiting == 1 and toast:IsShown(), "a toast for each achievement, one at a time")
+  check(#MOCK.chat == 2 and MOCK.chat[1]:find("Achievement earned") and MOCK.chat[1]:find("Pressure"), "and a line in chat for each")
+  check(db.ach.morale100 == "2026-11-19" and (Rec.RowText(1) or ""):find("Earned 2026%-11%-19"), "the Records tab shows the date")
+  MOCK.chatBox = nil
+  toast.share:Click()
+  check((MOCK.chatBox or ""):find("Achievement earned: Pressure"), "the toast's Share button")
+  MOCK.chatBox = nil
+  MOCK.Advance(UI.ACH_SECONDS + 0.1)
+  a = UI.AchievementShown()
+  check(a and a.id == "kills100", "then the next one")
+  UI.SelectTab("cards")
+  toast:Click()
+  check(UI.tab == "records" and Rec.Group() == "play" and not toast:IsShown(), "clicking a toast opens its group")
+  check(UI.AchievementShown() == nil, "the queue is empty")
+  -- a character from before achievements: one line, no toasts
+  db.ach.morale100, db.ach.kills100 = nil, nil
+  db.progress.achQuiet = true
+  MOCK.chat = {}
+  ns.CheckAchievements()
+  check(#MOCK.chat == 1 and MOCK.chat[1]:find("you already have 2 achievements") and UI.AchievementShown() == nil,
+    "what an existing character already has comes in one line")
+  -- every group fits the tab
+  for _, g in ipairs(ns.ACH_GROUPS) do
+    Rec.ShowGroup(g.key)
+    local n = 0
+    for _, x in ipairs(ns.Achievements) do if x.group == g.key then n = n + 1 end end
+    check(Rec.RowText(n) ~= nil and Rec.RowText(n + 1) == nil, "every achievement of " .. g.key .. " has a row")
+  end
+  -- sharing without a chat box to fill: a box to copy from
+  local saved = { ChatFrame_OpenChat, ChatFrameUtil, ChatEdit_GetActiveWindow }
+  ChatFrame_OpenChat, ChatFrameUtil, ChatEdit_GetActiveWindow = nil, nil, nil
+  UI.Share("copy me")
+  check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_COPY" and UI.Copying() == "copy me", "no chat box: a box to copy the line from")
+  ChatFrame_OpenChat, ChatFrameUtil, ChatEdit_GetActiveWindow = saved[1], saved[2], saved[3]
+  StaticPopup_Hide("TRADEWINDS_COPY")
+  MOCK.chatBox = "hello"
+  UI.Share(" there")
+  check(MOCK.chatBox == "hello there", "a chat box already open gets the line added")
+  MOCK.chatBox = nil
+end
+
+-- deck codes: the deck as text, and a code loaded back
+do
+  local B, N = UI.Binder, ns.Net
+  UI.SelectTab("cards")
+  C.ResetDeck(db)
+  local code = B.DeckCode()
+  check(code and code:match("^TW1:%w+$") and #code == 4 + 40 + 2, "a deck code: TW1: and the cards (" .. tostring(code) .. ")")
+  local list = N.ReadDeckCode(code)
+  local same = list and #list == 20
+  for i, id in ipairs(list or {}) do if id ~= db.deck[i] then same = false end end
+  check(same, "it reads back as the same deck")
+  check(N.ReadDeckCode("  " .. code:lower() .. " ") ~= nil, "spaces and lower case don't matter")
+  local _, why = N.ReadDeckCode(code:sub(1, -2) .. (code:sub(-1) == "0" and "1" or "0"))
+  check(why == "version", "a code that fails its check is from another version")
+  _, why = N.ReadDeckCode("hello there")
+  check(why == "code", "and text that isn't a code says so")
+  B.ShowCode()
+  check(MOCK.popup and MOCK.popup.name == "TRADEWINDS_DECKCODE" and MOCK.popup.arg == db.deckSlot, "the Code button opens the code box")
+  -- someone else's deck, with cards you don't have
+  local theirs = {}
+  for i, id in ipairs(C.STARTER) do theirs[i] = id end
+  local missingId
+  for _, c in ipairs(Cards.collectible) do
+    if c.rarity == "epic" and C.Owned(db, c.id) == 0 then missingId = c.id; break end
+  end
+  theirs[20] = missingId
+  MOCK.chat = {}
+  local errors = #MOCK.errors
+  check(B.LoadCode("garbage") == false and #MOCK.errors == errors + 1, "a bad code: an error, and the deck is left alone")
+  local ok, missing = B.LoadCode(N.DeckCode(theirs))
+  check(ok and #db.deck == 19 and #missing == 1 and missing[1].id == missingId, "loading a code: the cards you own go in")
+  local said = table.concat(MOCK.chat, "\n")
+  check(said:find("without 1 card") and said:find(Cards.byId[missingId].name, 1, true) and said:find("shards to craft")
+    and said:find("Not ready to play yet"), "the missing card is listed with its crafting cost, and the deck says it isn't ready")
+  C.ResetDeck(db)
+  B.Refresh()
+end
+
+-- the guild board, on one client (tests/pvp.lua has two talking)
+do
+  local Gd, N, Rec = ns.Guild, ns.Net, UI.Records
+  MOCK.guild = { { name = "Tester-Realm", online = true }, { name = "Gwen-Realm", online = true }, { name = "Hal-Realm", online = false } }
+  local ver = ns.VERSION
+  N.Receive("Gwen-Realm", ("LB;%s;12;1;80;%d;150;3"):format(ver, #Cards.collectible), "GUILD")
+  N.Receive("Hal-Realm", ("LB;0.16.0;24;8;90;%d;400;9"):format(#Cards.collectible), "GUILD")
+  check(db.guildBoard["Gwen-Realm"] and db.guildBoard["Gwen-Realm"].points == 150 and db.guildBoard["Hal-Realm"],
+    "guildmates' progress is kept")
+  N.Receive("Ivy-Realm", ("LB;%s;12;1;80;%d;150;3"):format(ver, #Cards.collectible), "WHISPER")
+  N.Receive("Ivy-Realm", "LB;" .. ver .. ";1;1;999;10;5;0", "GUILD")
+  N.Receive("Ivy-Realm", "LB;" .. ver .. ";1;1;1", "GUILD")
+  N.Receive("Ivy-Realm", "LB;" .. ver .. ";-1;1;1;10;5;0", "GUILD")
+  N.Receive("Ivy-Realm", "LB;0.1|cff;1;1;1;10;5;0", "GUILD")
+  N.Receive("Ivy-Realm", "LB;" .. ver .. ";1;1;1;10;5;99999999999", "GUILD")
+  check(db.guildBoard["Ivy-Realm"] == nil, "a progress line by whisper, or with a bad field, is ignored")
+  MOCK.sent = {}
+  UI.SelectTab("records")
+  Rec.SetView("guild")
+  local guildSent = 0
+  for _, m in ipairs(MOCK.sent) do if m.chatType == "GUILD" and m.msg == "LQ" then guildSent = guildSent + 1 end end
+  check(guildSent == 1 and (MOCK.rosterAsked or 0) > 0, "opening the guild board asks the guild, and the roster")
+  Rec.SetView("ach"); Rec.SetView("guild")
+  guildSent = 0
+  for _, m in ipairs(MOCK.sent) do if m.chatType == "GUILD" and m.msg == "LQ" then guildSent = guildSent + 1 end end
+  check(guildSent == 1, "at most once every 5 minutes")
+  local rows = Rec.BoardRows()
+  check(#rows == 3 and rows[1].points >= rows[2].points, "the board: you and two guildmates, most points first")
+  local gwen, hal
+  for _, r in ipairs(rows) do
+    if r.short == "Gwen" then gwen = r elseif r.short == "Hal" then hal = r end
+  end
+  check(gwen and Gd.CanPlay(gwen) and hal and not Gd.CanPlay(hal), "Challenge and Trade: online and on your version only")
+  Rec.SortBy("name")
+  rows = Rec.BoardRows()
+  check(rows[1].short == "Gwen" and rows[2].short == "Hal" and rows[3].you, "sorted by name")
+  Rec.SortBy("name")
+  check(Rec.BoardRows()[1].you, "click again: the other way round")
+  -- an old entry goes after 30 days
+  db.guildBoard["Hal-Realm"].seen = time() - 31 * 86400
+  check(#Rec.BoardRows() == 2 and db.guildBoard["Hal-Realm"] == nil, "a guildmate not heard from for 30 days is dropped")
+  -- sharing off: nothing goes out
+  db.settings.guildShare = false
+  MOCK.sent = {}
+  Gd.Reset()
+  Gd.OnLQ()
+  MOCK.Advance(120)
+  local any = false
+  for _, m in ipairs(MOCK.sent) do if m.chatType == "GUILD" then any = true end end
+  check(not any, "with sharing off, nothing is sent to the guild")
+  db.settings.guildShare = true
+  Rec.SetView("ach")
+  MOCK.guild = nil
 end
 
 -- a long session: many more matches don't grow the effect pools, the log

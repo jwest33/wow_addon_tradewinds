@@ -9,7 +9,7 @@
 --                    light those units up while you point at the card
 --   twin = id        a plain card that shares its cost, stats and keywords
 --                    with that card of another tribe (tests/engine.lua checks)
--- This is the last card file: it calls Cards.Finish().
+-- Engine/CardsTraps.lua comes after it.
 local _, ns = ...
 local R = ns.Rules
 local Cards = ns.Cards
@@ -303,7 +303,7 @@ add { id = "gandling", name = "Darkmaster Gandling", cost = 5, type = "unit", ra
   end }
 
 -- ---------------------------------------------------------------------------
--- Defias (their trap cards come with traps, in Wave 2)
+-- Defias (their trap cards are in Engine/CardsTraps.lua)
 -- ---------------------------------------------------------------------------
 add { id = "overseer", name = "Defias Overseer", cost = 2, type = "unit", rarity = "common", atk = 2, hp = 2,
   tribe = "defias", synergy = "defias", text = "Arrive: +1 attack if you have another Defias.",
@@ -428,5 +428,3 @@ item { id = "thunderfury", name = "Thunderfury", cost = 4, rarity = "legendary",
   text = "Give one of your units +2/+2, Swift and Cleave.", flavor = "Did someone say...?",
   icon = icons("INV_Sword_39", "Spell_Nature_ChainLightning"),
   play = function(st, p, lane) gear(st, p, lane, 2, 2, "swift", "cleave") end }
-
-Cards.Finish()

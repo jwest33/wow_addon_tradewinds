@@ -98,10 +98,10 @@ ns.Opponents = {
     signature = "vancleef",
     style = { aggro = 1.3, board = 0.9 },
     rematch = "The Brotherhood sends its regards. All of it.",
-    heroic = deck { footpad = 2, pillager = 2, smuggler = 2, nightblade = 2, demo = 1, taskmaster = 2, ambush = 2, vanish = 2,
-      evisc = 2, smite = 1, vancleef = 1, gryphon = 1 },
+    heroic = deck { footpad = 2, pillager = 2, smuggler = 2, nightblade = 2, demo = 1, taskmaster = 2, ambush = 2, vanish = 1,
+      defiasambush = 1, evisc = 2, smite = 1, vancleef = 1, gryphon = 1 },
     deck = deck { footpad = 2, thug = 2, pillager = 2, smuggler = 2, nightblade = 2, taskmaster = 2, ambush = 2, vanish = 1,
-      evisc = 2, demo = 1, smite = 1, vancleef = 1 },
+      evisc = 2, defiasambush = 1, smite = 1, vancleef = 1 },
   },
   {
     id = "pellwick", name = "Archmage Pellwick", short = "Pellwick", title = "Retired. Allegedly.", level = "hard",

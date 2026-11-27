@@ -16,7 +16,7 @@ local GET_Y = GIVE_Y - 18 - ROWS * ROW_H - 8      -- the same for what they give
 local CHIP_Y = GET_Y - 18 - ROWS * ROW_H - 8      -- who has accepted
 local CHIP_H = 18
 local NOTE_Y = CHIP_Y - 2 * CHIP_H - 6
-local ROW_BG = { unit = { 0.30, 0.21, 0.13, 0.95 }, tactic = { 0.20, 0.17, 0.38, 0.95 } }
+local ROW_BG = { unit = { 0.30, 0.21, 0.13, 0.95 }, tactic = { 0.20, 0.17, 0.38, 0.95 }, trap = { 0.12, 0.26, 0.15, 0.95 } }
 local YES_BG, NO_BG = { 0.10, 0.30, 0.10, 0.9 }, { 0.17, 0.15, 0.12, 0.9 }
 local TICK = { "Interface\\RaidFrame\\ReadyCheck-Ready", "Interface\\Buttons\\UI-CheckBox-Check" }
 local WAIT = { "Interface\\RaidFrame\\ReadyCheck-Waiting", "Interface\\Buttons\\UI-CheckBox-Up" }

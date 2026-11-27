@@ -38,12 +38,13 @@ tools, and the game won't load it. Use a release zip, or build one with
   random among the cards left that qualify). So you always have something to
   play early.
 - **Plan** your round: click a card, then click where it goes. Units go into
-  your four lanes (bottom row); tactics target a lane. Right-click a planned
-  card to take it back. Then **Lock In**.
-- Both sides are **revealed at once**: new units arrive (Arrive effects), then
-  tactics resolve (the player with initiative first; it alternates), then
-  **combat**. Every unit strikes the enemy unit across from it, or the enemy's
-  Morale if that lane is empty. Swift units strike first.
+  your four lanes (bottom row), and so do traps, face down; tactics target a
+  lane. Right-click a planned card to take it back. Then **Lock In**.
+- Both sides are **revealed at once**: new units arrive and traps are set,
+  then Arrive effects happen, then tactics resolve (the player with
+  initiative first; it alternates), then **combat**. Every unit strikes the
+  enemy unit across from it, or the enemy's Morale if that lane is empty (or
+  springs the trap waiting there). Swift units strike first.
 - The game ends when someone's Morale hits 0, or after round 8: higher Morale
   wins. If it's tied, the player with more units on the board wins.
 
@@ -60,6 +61,8 @@ when two units fight):
 - a green up arrow with a number: your unit hits their Morale
 - a red down arrow: their unit hits yours, so block it
 - crossed swords: the two units fight (or a Guard or Ranged unit gets involved)
+- a snare: their unit strikes into your trap, which springs (dim when your
+  trap is just waiting there)
 
 When both sides have locked in, a quick **3, 2, 1, Reveal!** counts down,
 then the round plays out and you see each strike in turn: a glowing bolt flies
@@ -69,7 +72,9 @@ out as they work ("Guard" when a unit steps in, "Pierce" when damage goes
 through, "Venom", "Drain", "Sturdy!", "Regenerate" when a unit heals at the
 end of the round). When something finds nothing to hit, the board says that
 too: "No target" for a Fallen effect whose target died at the same time,
-"Stealth" for a tactic that can't target the unit it was aimed at. Strikes in
+"Stealth" for a tactic that can't target the unit it was aimed at. A trap
+that springs turns face up where it waited ("Trap!") before it does what it
+says. Strikes in
 a step still all happen at once, which is why units only fall after the whole
 volley; units that die together also have their Fallen effects together, and
 a unit one of them summons arrives after all of them. Click the board
@@ -100,8 +105,9 @@ lane as the strikes land. `/tradewinds forecast off` hides the predictions.
 
 ### Cards
 
-168 cards. The core set has 48, **Roads of Azeroth** 49, and **Tribes of
-Azeroth** 71.
+185 cards. The core set has 48, **Roads of Azeroth** 49, **Tribes of
+Azeroth** 71, and **Traps and Trickery** 17 (8 traps, 3 Defias who work with
+them, and 6 items).
 
 - **Tribes**: every unit belongs to one: Beasts, Humanoids, Murlocs, Undead,
   Defias or Dragonkin (Harvest Watcher, the Shredder, Kazzak and Ragnaros wait
@@ -117,6 +123,39 @@ Azeroth** 71.
   them, with a leather frame and "Item" on the type line. Gear stays on the
   unit, like Shield Wall. Healing Potion and Heavy Linen Bandage are items
   now too.
+- **Traps**: a card type of their own, with a green frame (see below).
+
+### Traps
+
+You set a trap face down in one of your empty lanes, as you would play a unit
+there. Your opponent sees how many traps you have set (a count by your Morale)
+but not which ones or where. A trap springs when an enemy unit strikes into
+its lane: the strike stops there and never reaches your Morale, the trap
+turns face up and does what it says (3 damage to the attacker, a Viper with
+Venom in the lane, the attacker frozen next round as well, and so on), and
+then it goes to the grave.
+
+- Set one across from a unit that's hitting your Morale and it springs that
+  round.
+- Ranged units shoot over traps; a frozen unit, or one with no attack,
+  doesn't strike, so it springs nothing.
+- Pierce doesn't carry on past a trap and Drain gets nothing from it; Cleave
+  still hits the units beside it. A trap comes before a Guard next door.
+- Tactics treat a trapped lane as empty (Fireball hits Morale, the trap stays).
+- Your units can't go in a lane with your trap, and summoned units skip it.
+  That can give a trap away: a Hogger played beside it leaves that one empty
+  lane empty, for anyone watching. A unit a trap brings in arrives after
+  combat, so it doesn't strike that round.
+- Traps aren't units: they don't count for the tiebreak. Any still face down
+  when the game ends are shown on the end screen.
+- There's no limit on how many you set, one per lane.
+
+Neither the forecast nor the computer can see where your opponent's traps are:
+both work from a copy of the game with the other side's traps taken out and
+only their count kept (`R.Redact`), and a test checks the computer plans
+exactly the same with or without your trap on the board. Lil Fingers has a
+Defias Ambush in her deck now. Everyone got a Defias Ambush and an
+Immolation Trap with 0.18.0, to try them.
 
 A deck is exactly 20 cards, with up to 2 copies of a card (1 of a legendary),
 and it needs a **curve**: at least 2 units costing 1, 4 cards costing 2 and
@@ -239,12 +278,16 @@ need the same version of Tradewinds.
   round that played out while your window was closed is shown when you open
   it.
 - Ending the match concedes it: a loss for you, a win for them.
+- **Rematch** on the end screen sends the same player a new challenge.
 - A win pays like a normal opponent's (4 shards, the first win of the day,
   the daily task) once the game reached round 4. Results are kept per player
   ("Against players" under the opponent list).
 - Both clients play the same game from the same seed and send only their
   plans. After every round they compare a checksum of the game; if the two
-  ever disagree, the match ends without a result (please report that).
+  ever disagree, the match ends without a result (please report that). The
+  last round's checksums cross after the game has ended on both sides, so a
+  difference there can't undo the result any more, but it's still reported
+  in chat.
 
 It's meant for friends: plans travel in the open, so it isn't cheat-proof.
 Whispers only reach players you could whisper anyway (same faction, same or
@@ -275,6 +318,52 @@ Cards tab (target them first and their name is filled in), or
   a reload or logout) until it's answered, and a side that no longer has
   the trade open says no, so nothing changes on either side.
 
+### Achievements
+
+58 achievements in seven groups (the circuit, the collection, battles,
+travel, other players, traps, and oddities such as winning on exactly 1
+Morale or on the tiebreak), on the **Records** tab with a progress bar each. They're worth
+points and nothing else, so they don't change how fast the collection
+grows. Each one earned shows a toast near the top of the screen (click it
+for the Records tab) and a line in chat.
+
+Some count what you've done since 0.18.0 (Morale dealt, units destroyed,
+packs opened, travel time, rounds played while travelling, trades, daily
+tasks, traps set and sprung): those counters started at zero for everyone. The rest read what your
+character already has (stars, cards, wins), and a character from before
+0.18.0 gets those at the first login, in one line instead of a toast each.
+
+### The guild board
+
+The Records tab's **Guild board** lists your guildmates who have
+Tradewinds: their stars, heroic wins, cards collected, achievement points
+and wins against players, and when they were last heard from. Click a column
+to sort by it. **Challenge** and **Trade** work for anyone online on the
+same version as you.
+
+Tradewinds sends these numbers to your guild's addon channel (never to
+chat): once 5-30 seconds after you log in, then at most once a minute while
+one of them changes. Opening the guild board asks guildmates for theirs, at
+most once every 5 minutes. The **Share progress with my guild** option
+(`/tradewinds guild off`) turns all of that off: nothing is sent and nothing
+answered. Guildmates not heard from for 30 days drop off the board.
+
+### Sharing
+
+**Share** buttons on a pack with an epic, legendary or holographic card, on
+an end screen with a new star or a win against a player, and on each
+achievement put a line into your chat box, such as "[Tradewinds] I just
+pulled Onyxia (legendary) from a card pack!". You choose where it goes and
+whether to send it: Tradewinds never sends chat by itself.
+
+**Deck codes**: the **Code** button above your deck shows it as a line of
+text (`TW1:` and 42 letters and digits) to copy and share. Paste someone else's code in
+the same box and click **Load**: it replaces the deck in use with the cards
+you own, and chat lists the ones you're missing with what crafting them
+costs. A deck that comes out short says so in the deck panel, as always. A
+code from a version with a different card list is refused rather than
+loading the wrong cards.
+
 ### The computer
 
 It plays honestly. Each round it lists the plans it could play, plays each
@@ -297,28 +386,41 @@ loosely the easy ones play.
 
 ## The window
 
-- **Play**: the opponent list with stars and the daily task, then the board.
+- **Play**: the opponent list (each opponent's portrait, stars and signature
+  card, which stays grey until you've won it; a lock on the ones you haven't
+  reached) with the daily task and its progress bar, then the board.
   Cards show their keywords and a short line of rules text; hover one for the
   full wording. Click
   a card and then a lane, or drag it onto the lane. **Replay** shows the last
   round again. The log under your hand, and the cards you've placed but not
   locked in yet, are saved with the match. If you reload or log out while a
-  round is playing out, it is shown when you come back.
+  round is playing out, it is shown when you come back. At the end of a
+  match the stars you earned stamp in, shards and packs count up and the
+  cards you won turn over; **Rematch** starts the same opponent again at
+  once, and **Play** goes straight to an opponent you just unlocked.
 - **Cards**: every card with filters (owned, rarity, cost, type: unit,
-  tactic or item, and tribe), three deck slots, the curve checklist and a
-  chart of your deck's costs. With a tribe filtered, the header counts that
+  tactic, item or trap, and tribe), three deck slots, the curve checklist and
+  a chart of your deck's costs. With a tribe filtered, the header counts that
   tribe; the Tribe filter's tooltip lists every tribe's progress. Shift-click
   a card to craft it.
-- **Packs**: open card packs and Windfall packs card by card, or all of them
-  at once, and see both travel clocks.
-- **Guide**: every rule, a round step by step, and each keyword with a
-  diagram. The tutorial can be started from here too.
+- **Packs**: open card packs and Windfall packs and click each card to turn
+  it over. A rare or better glows in its colour first, and an epic, a
+  legendary or a holographic card charges up for a moment before it turns.
+  **Reveal all** turns the rest one after another, the best last, and a line
+  under the pack sums it up ("2 new cards, +3 shards"). **Open all** opens
+  every pack at once. Both travel clocks are here too.
+- **Records**: achievements, and the guild board (see above).
+- **Guide**: every rule, a round step by step, each keyword with a diagram,
+  and a page on traps. The tutorial can be started from here too.
 - **Options**: sound, the forecast, opponent lines, the travel prompt,
-  closing when you arrive or in combat, the minimap button, replay speed and
-  window size.
+  closing when you arrive or in combat, the minimap button, sharing progress
+  with your guild, replay speed, window size and the **board**: the tavern
+  table, a ship's deck, the evening sky, or **Automatic** (the default: the
+  sky on a flight, the deck on a boat or zeppelin, the tavern otherwise,
+  picked when a game goes on the board).
 
 The first time a keyword turns up in a match (in your hand or on the board),
-a box explains it with its diagram. Opponents say a line now and then: when
+a box explains it with its diagram; traps get one too. Opponents say a line now and then: when
 a match starts, after a big hit either way, and when they're close to losing.
 Click the bubble to dismiss it; the Opponent lines option turns them off.
 
@@ -335,7 +437,7 @@ corrections are welcome. To fix or add one, see Translating below.
 
 ## Commands
 
-- `/tradewinds`: show or hide (`/tradewinds play | cards | packs | guide | options`
+- `/tradewinds`: show or hide (`/tradewinds play | cards | packs | records | guide | options`
   opens a tab). There's also a minimap button and a key binding.
 - `/tradewinds tutorial`: the guided match against Dorn. It doesn't use your
   deck and doesn't count on the circuit.
@@ -351,6 +453,9 @@ corrections are welcome. To fix or add one, see Translating below.
 - `/tradewinds travel`: what Tradewinds sees of your travel right now.
   `/tradewinds travel log` prints a line a second (to check boat detection on
   a real crossing); run it again to stop.
+- `/tradewinds probe`: checks the game functions Tradewinds relies on (the
+  guild roster, the guild addon channel, the chat box, sound kits) and
+  prints a line for each, for bug reports. In English only.
 - Everything in the Options tab also has a command: `/tradewinds help` lists
   them.
 
@@ -365,12 +470,22 @@ corrections are welcome. To fix or add one, see Translating below.
   "seat" order (`R.Seats`), which keeps them identical. `R.Checksum` is the
   fingerprint the two compare after every round.
 - `Net.lua`: player against player over addon whispers (challenge, decks,
-  plans, checksums, concede, resends). The message format is at the top.
+  plans, checksums, concede, resends), and deck codes. The message format is
+  at the top.
+- `Guild.lua`: the guild board's two messages on the guild addon channel
+  (`LB`, a player's numbers; `LQ`, a request for them), checked field by
+  field on arrival. `UI/Records.lua` draws the Records tab.
+- `Data/Achievements.lua`: the achievements, each with a function that says
+  how far along you are; `Collection.lua` keeps the lifetime counters
+  (`db.life`) and the ones earned (`db.ach`).
+- `Probe.lua`: `/tradewinds probe`.
 - `Trade.lua`: trading cards, over the same whispers; `UI/Trading.lua` is
   the trade panel in the Cards tab.
-- `Engine/Cards.lua`, `Engine/CardsRoads.lua`, `Engine/CardsTribes.lua`: the
-  card sets (`CardsTribes` also gives every unit its tribe and marks the
-  items). `Engine/AI.lua`: the computer opponent.
+- `Engine/Cards.lua`, `Engine/CardsRoads.lua`, `Engine/CardsTribes.lua`,
+  `Engine/CardsTraps.lua`: the card sets (`CardsTribes` also gives every unit
+  its tribe and marks the items). Traps live beside the board, in
+  `P.traps`, and `R.Redact` is the copy of the game one side may see.
+  `Engine/AI.lua`: the computer opponent.
 - `Data/Opponents.lua`, `Collection.lua`: opponents; collection, deck, packs,
   crafting, stars, daily tasks and rewards (saved per character in
   `TradewindsCharDB`, with numbered migrations).
@@ -411,8 +526,9 @@ pip install lupa
 python tests/run_tests.py          # engine, ui, pvp, saves and locale
 ```
 
-`tests/engine.lua` checks every keyword and card effect, determinism, the copy
-limits, pack odds, rewards, stars, crafting, save migrations and the pace of
+`tests/engine.lua` checks every keyword and card effect (every case in the
+traps' rules too, and that neither side's forecast nor the computer can tell
+where the other side's trap is), determinism, the copy limits, pack odds, rewards, stars, crafting, save migrations and the pace of
 the collection, and plays a few hundred AI-vs-AI games (to check for errors,
 game length and balance). `tests/ui.lua` loads the whole
 addon against a strict WoW API mock, where an unknown widget method is an
@@ -423,8 +539,12 @@ opens packs, edits the deck and takes a mock flight and a mock boat ride.
 data and copy of the addon) joined by a pretend network. It plays whole
 matches between them, loses a message, reloads one client mid-match, takes
 one offline for a few minutes, concedes, and corrupts one copy to check the
-mismatch is caught. `tests/engine.lua` also plays 30 games as both mirrored
-copies and checks they never differ.
+mismatch is caught (in the last round too). Three more clients share a
+guild: they see each other on the guild board, one who doesn't share sends
+nothing, and malformed or misdirected messages are ignored. Alice sets two
+traps against Bob: one springs on both sides, and Bob's board shows only that
+she has one left. `tests/engine.lua` also plays 50 games as both mirrored
+copies (20 of them with decks full of traps) and checks they never differ.
 
 `tests/saves.lua` loads saved data through the whole addon: the real saves
 in `tests/saves/` (copies of players' files, kept out of git because they

@@ -148,6 +148,62 @@ function UI.Error(msg)
 end
 
 -- ---------------------------------------------------------------------------
+-- Sharing: a line goes into the chat box for the player to send (or not);
+-- Tradewinds never sends chat by itself. Without a chat box to fill, the
+-- line is shown in a box to copy from (UI.Copy).
+-- ---------------------------------------------------------------------------
+local copying   -- what the copy box shows: { prompt, text }
+
+if StaticPopupDialogs then
+  StaticPopupDialogs.TRADEWINDS_COPY = {
+    text = "%s",
+    button1 = CLOSE or L["Close"],
+    hasEditBox = true,
+    editBoxWidth = 340,
+    maxLetters = 255,
+    OnShow = function(self)
+      local eb = self.editBox or self.EditBox
+      if eb and copying then
+        eb:SetText(copying.text)
+        eb:HighlightText()
+        eb:SetFocus()
+      end
+    end,
+    EditBoxOnEnterPressed = function(self) self:GetParent():Hide() end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+  }
+end
+
+-- A box with text to copy (Ctrl+C), and a line saying what it is.
+function UI.Copy(prompt, text)
+  copying = { prompt = prompt, text = text }
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.TRADEWINDS_COPY then
+    StaticPopup_Show("TRADEWINDS_COPY", prompt)
+  else
+    ns.Print("%s %s", prompt, text)
+  end
+end
+
+function UI.Copying() return copying and copying.text end
+
+function UI.Share(text)
+  if type(text) ~= "string" or text == "" then return false end
+  local active = ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()
+  if active and ChatEdit_InsertLink then
+    local ok, put = pcall(ChatEdit_InsertLink, text)
+    if ok and put ~= false then return true end
+  end
+  local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
+  if open and pcall(open, text) then return true end
+  UI.Copy(L["Copy this line (Ctrl+C) and paste it into chat."], text)
+  return true
+end
+
+-- ---------------------------------------------------------------------------
 -- Sounds: each has a list of the game's own sound kit names; the first one
 -- this client has is played. Off with the Sound option.
 -- ---------------------------------------------------------------------------
@@ -166,7 +222,17 @@ local SOUNDS = {
   challenge = { "READY_CHECK", "IG_PLAYER_INVITE", "IG_QUEST_LIST_OPEN" },
   countTick = { "UI_BATTLEGROUND_COUNTDOWN_TIMER", "IG_MINIMAP_ZOOM_IN", "IG_ABILITY_PAGE_TURN" },
   countGo = { "UI_BATTLEGROUND_COUNTDOWN_FINISHED", "IG_QUEST_LIST_OPEN", "IG_SPELLBOOK_OPEN" },
+  -- packs: a card turning over, a fancy card charging up, a legendary
+  flip = { "IG_ABILITY_PAGE_TURN", "IG_SPELLBOOK_OPEN" },
+  charge = { "UI_BONUS_LOOT_ROLL_START", "UI_EPICLOOT_TOAST", "IG_QUEST_LIST_OPEN" },
+  legendary = { "UI_LEGENDARY_LOOT_TOAST", "UI_EPICLOOT_TOAST", "IG_QUEST_LIST_COMPLETE" },
+  -- the end screen: a star stamped, an achievement
+  stamp = { "UI_GARRISON_MISSION_COMPLETE_ENCOUNTER_CHANCE", "IG_ABILITY_ICON_DROP", "IG_QUEST_LIST_COMPLETE" },
+  achievement = { "UI_ALERT_ACHIEVEMENT", "ACHIEVEMENT_MENU_OPEN", "IG_QUEST_LIST_COMPLETE" },
+  -- a trap springs
+  trap = { "RAID_WARNING", "IG_ABILITY_ICON_DROP", "IG_SPELLBOOK_OPEN" },
 }
+UI.SOUNDS = SOUNDS
 
 function UI.Sound(key)
   if not (ns.db and ns.db.settings.sound and PlaySound and SOUNDKIT) then return end
@@ -324,8 +390,9 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Card frame. Back to front: the icon (through a hole in the body), the body
--- (Art/CardUnit, Art/CardTactic or Art/CardItem: bronze and parchment for
--- units, indigo and vellum for tactics, oxblood leather and brass for items;
+-- (Art/CardUnit, Art/CardTactic, Art/CardItem or Art/CardTrap: bronze and
+-- parchment for units, indigo and vellum for tactics, oxblood leather and
+-- brass for items, dark green and iron for traps;
 -- the picture's glow and the icon's frame are part
 -- of it), the rim (Art/CardRim, grey, tinted by
 -- rarity), then the gems, the stats and the text. Positions are the
@@ -344,13 +411,15 @@ local ART_BOX = { 14, 14, 242, 146 }   -- the picture
 local ICON_BOX = { 78, 25, 178, 125 }  -- the icon in its frame, in the middle of the picture
 local NAME_BOX = { 8, 136, 248, 170 }
 local TYPE_BOX = { 20, 170, 236, 195 }
-local TEXT_BOX = { unit = { 16, 199, 240, 310 }, tactic = { 16, 199, 240, 332 }, item = { 16, 199, 240, 332 } }
-local TEXT_INSET = { unit = { 7, 4, 7, 26 }, tactic = { 7, 4, 7, 6 }, item = { 7, 4, 7, 6 } }   -- the text stays clear of the stats
-local GEM_Y = { unit = 333, tactic = 342, item = 342 }
+local TEXT_BOX = { unit = { 16, 199, 240, 310 }, tactic = { 16, 199, 240, 332 }, item = { 16, 199, 240, 332 },
+  trap = { 16, 199, 240, 332 } }
+local TEXT_INSET = { unit = { 7, 4, 7, 26 }, tactic = { 7, 4, 7, 6 }, item = { 7, 4, 7, 6 }, trap = { 7, 4, 7, 6 } }   -- the text stays clear of the stats
+local GEM_Y = { unit = 333, tactic = 342, item = 342, trap = 342 }
 local GLOW_PAD, GLOW_V = 22 * K, 342 / 512   -- Art/CardGlow: the card plus 22 texture pixels all round
 local STAT = 30                -- stat badge size
 local GEM = 13                 -- rarity gem size
 UI.CARD_V = V
+UI.GLOW_PAD, UI.GLOW_V = GLOW_PAD, GLOW_V
 -- Where the icon sits on the card (x, y from the top left, width, height).
 UI.CARD_ART = { ICON_BOX[1] * K, ICON_BOX[2] * K, (ICON_BOX[3] - ICON_BOX[1]) * K, (ICON_BOX[4] - ICON_BOX[2]) * K }
 UI.ICON_COORDS = { 0.08, 0.92, 0.08, 0.92 }   -- an icon without its own border
@@ -364,11 +433,19 @@ local KIND = {
     flavor = { 0.36, 0.34, 0.5 } },
   item = { body = "CardItem", type = { 1, 0.9, 0.72 }, kw = "|cff6a2e12", rules = { 0.2, 0.11, 0.05 },
     flavor = { 0.5, 0.34, 0.2 } },
+  trap = { body = "CardTrap", type = { 0.82, 1, 0.8 }, kw = "|cff1d4a24", rules = { 0.08, 0.16, 0.1 },
+    flavor = { 0.26, 0.4, 0.3 } },
 }
 
--- Which face a card gets: "unit", "tactic", or "item" (a tactic that's an item).
+-- The body texture of a card face ("unit", "tactic", "item", "trap").
+function UI.CardBody(kind)
+  return UI.ART .. (KIND[kind] or KIND.unit).body
+end
+
+-- Which face a card gets: "unit", "tactic", "item" (a tactic that's an
+-- item) or "trap".
 function UI.CardKind(c)
-  if c.type == "unit" then return "unit" end
+  if c.type == "unit" or c.type == "trap" then return c.type end
   return c.item and "item" or "tactic"
 end
 
@@ -507,7 +584,8 @@ function UI.CreateCard(parent)
   b.dim:SetColorTexture(0, 0, 0, 0.55)
   b.shade:Hide()
 
-  -- card back (unopened pack cards)
+  -- card back (unopened pack cards, and your traps set face down: those show
+  -- which trap in a small badge, Card:SetFaceDown)
   b.back = CreateFrame("Frame", nil, b)
   b.back:SetAllPoints()
   b.back:SetFrameLevel(b:GetFrameLevel() + 3)
@@ -515,6 +593,16 @@ function UI.CreateCard(parent)
   b.back.tex:SetAllPoints()
   b.back.tex:SetTexture(UI.ART .. "CardBack")
   b.back.tex:SetTexCoord(0, 1, 0, V)
+  b.back.badgeBg = b.back:CreateTexture(nil, "OVERLAY")
+  b.back.badgeBg:SetSize(34, 34)
+  b.back.badgeBg:SetPoint("CENTER", b.back, "CENTER", 0, -14)
+  b.back.badgeBg:SetColorTexture(0.05, 0.12, 0.06, 0.95)
+  b.back.badge = b.back:CreateTexture(nil, "OVERLAY", nil, 1)
+  b.back.badge:SetSize(30, 30)
+  b.back.badge:SetPoint("CENTER", b.back.badgeBg, "CENTER")
+  b.back.badge:SetTexCoord(unpack(UI.ICON_COORDS))
+  b.back.badgeBg:Hide()
+  b.back.badge:Hide()
   b.back.text = UI.Text(b.back, 10)
   b.back.text:SetPoint("BOTTOM", 0, 14)
   b.back.text:SetText(L["click"])
@@ -560,11 +648,13 @@ UI.FaceText = faceText
 local TACTIC_LABEL = { enemy = L["Tactic: enemy lane"], friend = L["Tactic: your unit"], none = L["Tactic"] }
 local ITEM_LABEL = { enemy = L["Item: enemy lane"], friend = L["Item: your unit"], none = L["Item"] }
 
--- The type line: "Beast unit", "Unit", "Tactic: enemy lane", "Item: your unit".
+-- The type line: "Beast unit", "Unit", "Tactic: enemy lane", "Item: your
+-- unit", "Trap".
 function UI.TypeLine(c)
   if c.type == "unit" then
     return c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"]
   end
+  if c.type == "trap" then return L["Trap"] end
   if c.item then return ITEM_LABEL[c.target] or L["Item"] end
   return TACTIC_LABEL[c.target] or L["Tactic"]
 end
@@ -587,7 +677,7 @@ end
 -- replay view the unit is in (for attack bonuses); holo: draw it holographic.
 function Card:SetCard(id, unit, st, holo)
   local c = Cards.byId[id]
-  self.cardId, self.unit, self.st = id, unit, st
+  self.cardId, self.unit, self.st, self.hiddenId = id, unit, st, nil
   self.back:Hide()
   self:SetHolo(holo)
   self:SetKind(UI.CardKind(c))
@@ -644,12 +734,27 @@ function Card:SetCard(id, unit, st, holo)
 end
 
 function Card:SetBack(text)
-  self.cardId, self.unit = nil, nil
+  self.cardId, self.unit, self.hiddenId = nil, nil, nil
   self:SetHolo(false)
   self:SetSelected(false)
+  self:SetTag(nil)
+  self:SetDim(false)
+  self:SetAlpha(1)
+  self.back.badge:Hide()
+  self.back.badgeBg:Hide()
   self.back.text:SetText(text or L["click"])
   self.back:Show()
   self:Show()
+end
+
+-- Your trap, set face down: the card back with the trap's picture in a
+-- badge, and its tooltip when you point at it. Only you are shown this.
+function Card:SetFaceDown(id, text)
+  self:SetBack(text or L["Trap"])
+  self.hiddenId = id
+  self.back.badge:SetTexture(UI.CardIcon(id))
+  self.back.badge:Show()
+  self.back.badgeBg:Show()
 end
 
 -- The card's size on its page (1 is UI.CARD_W x UI.CARD_H). Effects that
@@ -739,6 +844,11 @@ function Card:SetTag(text, r, g, b, top)
 end
 
 function Card:ShowTooltip()
+  if self.hiddenId and not self.cardId then
+    UI.CardTooltip(self, self.hiddenId, nil, nil,
+      { "|cff80ff80" .. L["Set face down. Your opponent knows you have a trap set, but not which one or where."] .. "|r" })
+    return
+  end
   if not self.cardId then return end
   UI.CardTooltip(self, self.cardId, self.unit, self.st, self.tipExtra and self.tipExtra(self), self.holo)
 end
@@ -750,6 +860,7 @@ local TARGET_HINT = {
   enemy = L["Pick an enemy lane. It lands after the reveal, so it hits whatever is there by then."],
   friend = L["Pick one of your units, or a lane you're playing a unit into this round."],
 }
+local TRAP_HINT = L["Set it face down in one of your empty lanes. It springs when an enemy unit strikes into that lane: the strike is stopped. Your opponent sees that you have a trap set, but not where."]
 local RARITY_NAME = { common = L["Common"], uncommon = L["Uncommon"], rare = L["Rare"], epic = L["Epic"], legendary = L["Legendary"] }
 UI.RARITY_NAME = RARITY_NAME
 
@@ -762,7 +873,7 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
   if holo then tip:AddLine(UI.Rainbow(L["Holographic"])) end
   local rarity = c.collectible and RARITY_NAME[c.rarity] or L["Token"]
   local kind = c.type == "unit" and (c.tribe and L["%s unit"]:format(Cards.TRIBES[c.tribe]) or L["Unit"])
-    or (c.item and L["Item"] or L["Tactic"])
+    or c.type == "trap" and L["Trap"] or (c.item and L["Item"] or L["Tactic"])
   tip:AddDoubleLine(L["%s, %s"]:format(kind, rarity), L["%d Supply"]:format(c.cost),
     0.65, 0.65, 0.65, 0.45, 0.65, 1)
   local kw = c.kw
@@ -779,6 +890,7 @@ function UI.CardTooltip(owner, id, unit, st, extra, holo)
   end
   if c.text then tip:AddLine(c.text, 1, 1, 1, true) end
   if c.type == "tactic" and TARGET_HINT[c.target] then tip:AddLine(TARGET_HINT[c.target], 0.6, 0.6, 0.6, true) end
+  if c.type == "trap" then tip:AddLine(TRAP_HINT, 0.6, 0.6, 0.6, true) end
   if unit then
     if unit.frozen then tip:AddLine(L["Frozen: won't strike this round."], 0.6, 0.85, 1, true) end
     if (unit.tmpAtk or 0) > 0 then tip:AddLine(L["+%d attack this round."]:format(unit.tmpAtk), 0.3, 1, 0.3) end

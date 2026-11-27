@@ -59,24 +59,30 @@ local function tick(_, elapsed)
 end
 
 -- step(p) with p from 0 to 1 over dur seconds (after delay); done() at the end.
-local function run(dur, step, done, delay)
+-- fixed: the same length at every replay speed (packs, the end screen).
+local function run(dur, step, done, delay, fixed)
   if not driver then
+    step(1)
     if done then done() end
     return
   end
-  local k = speed()
+  local k = fixed and 1 or speed()
   tweens[#tweens + 1] = { t = -(delay or 0) / k, dur = math.max(0.01, dur / k), step = step, done = done }
   driver:Show()
 end
 FX.Run = run
 
--- Finishes every effect now (their last frame, then cleanup).
+-- Finishes every effect now (their last frame, then cleanup). An effect that
+-- starts another when it ends (a card flip) is finished too.
 function FX.Clear()
-  local list = tweens
-  tweens = {}
-  for _, tw in ipairs(list) do
-    tw.step(1)
-    if tw.done then tw.done() end
+  for _ = 1, 20 do
+    local list = tweens
+    if #list == 0 then break end
+    tweens = {}
+    for _, tw in ipairs(list) do
+      tw.step(1)
+      if tw.done then tw.done() end
+    end
   end
   if banner then banner:Hide() end
   if driver then driver:Hide() end
@@ -421,6 +427,166 @@ function FX.Countdown()
     end, (i - 1) * FX.COUNT_STEP)
   end
   return FX.COUNT_STEP * 3 + 0.3
+end
+
+-- ---------------------------------------------------------------------------
+-- Turning a card over. The card can't be squeezed sideways (no Scale
+-- animation is known to work on this client), so a stand-in does it: the
+-- card's back, then its body, rim and icon, stretched narrower and wider.
+-- The text pops in with the real card at the end, after about 0.2 s.
+-- ---------------------------------------------------------------------------
+FX.SQUEEZE, FX.WIDEN = 0.09, 0.11
+FX.CHARGE = 0.6
+
+local function flipper(card)
+  local f = card.flipper
+  if f then return f end
+  f = CreateFrame("Frame", nil, card:GetParent())
+  f:SetSize(UI.CARD_W, UI.CARD_H)
+  f:EnableMouse(false)
+  local pad = UI.GLOW_PAD
+  f.aura = f:CreateTexture(nil, "BACKGROUND", nil, -2)
+  f.aura:SetPoint("TOPLEFT", -pad, pad)
+  f.aura:SetPoint("BOTTOMRIGHT", pad, -pad)
+  f.aura:SetTexture(UI.ART .. "CardGlow")
+  f.aura:SetTexCoord(0, 1, 0, UI.GLOW_V)
+  f.aura:SetBlendMode("ADD")
+  f.art = f:CreateTexture(nil, "BACKGROUND", nil, 1)
+  f.art:SetTexCoord(unpack(UI.ICON_COORDS))
+  f.body = f:CreateTexture(nil, "BORDER")
+  f.body:SetAllPoints()
+  f.body:SetTexCoord(0, 1, 0, UI.CARD_V)
+  f.rim = f:CreateTexture(nil, "ARTWORK")
+  f.rim:SetAllPoints()
+  f.rim:SetTexture(UI.ART .. "CardRim")
+  f.rim:SetTexCoord(0, 1, 0, UI.CARD_V)
+  f.back = f:CreateTexture(nil, "ARTWORK", nil, 2)
+  f.back:SetAllPoints()
+  f.back:SetTexture(UI.ART .. "CardBack")
+  f.back:SetTexCoord(0, 1, 0, UI.CARD_V)
+  -- the back lit up in the card's colour (the back again, added on top)
+  f.shine = f:CreateTexture(nil, "ARTWORK", nil, 3)
+  f.shine:SetAllPoints()
+  f.shine:SetTexture(UI.ART .. "CardBack")
+  f.shine:SetTexCoord(0, 1, 0, UI.CARD_V)
+  f.shine:SetBlendMode("ADD")
+  f:Hide()
+  card.flipper = f
+  return f
+end
+
+-- k: how wide (1 full, 0 edge on); dx, dy: a jitter while charging.
+local function squeeze(card, f, k, dx, dy)
+  f:ClearAllPoints()
+  f:SetPoint("CENTER", card, "CENTER", dx or 0, dy or 0)
+  f:SetWidth(math.max(0.5, UI.CARD_W * k))
+  local A = UI.CARD_ART
+  f.art:ClearAllPoints()
+  f.art:SetPoint("CENTER", f, "TOP", (A[1] + A[3] / 2 - UI.CARD_W / 2) * k, -(A[2] + A[4] / 2))
+  f.art:SetSize(math.max(0.5, A[3] * k), A[4])
+end
+
+local function rainbow(t)
+  local h = (t % 1) * 6
+  return math.min(1, math.max(0, math.abs(h - 3) - 1)), math.min(1, math.max(0, 2 - math.abs(h - 2))),
+    math.min(1, math.max(0, 2 - math.abs(h - 4)))
+end
+
+-- Turns `card` (showing its back) face up. apply() sets its face, at the
+-- moment the card is edge on. opts (all optional):
+--   glow     { r, g, b }: the back glows in this colour first (rare or better)
+--   holo     the glow cycles through the rainbow
+--   charge   seconds the glow builds up, the card trembling, before it turns
+--   onCharge called as the charge starts (a sound)
+--   done     called once the card is face up
+-- Returns a handle: handle:Finish() turns it face up at once. Without the
+-- effect layer it is face up straight away.
+function FX.Flip(card, apply, opts)
+  opts = opts or {}
+  local f = flipper(card)
+  local h = { applied = false, over = false }
+  local gen = (card.flipGen or 0) + 1
+  card.flipGen = gen
+  local function live() return card.flipGen == gen and not h.over end
+  local function face()
+    if h.applied then return end
+    h.applied = true
+    apply()
+    card:SetAlpha(0)   -- (SetCard shows it) hidden under the stand-in until the end
+  end
+  local function close()
+    if h.over then return end
+    face()
+    h.over = true
+    f:Hide()
+    card:SetAlpha(1)
+    if opts.done then opts.done() end
+  end
+  h.Finish = close
+  if not driver then close() return h end
+  local col = opts.glow
+  local function tint(a, t)
+    local r, g, b
+    if opts.holo then r, g, b = rainbow(t or 0) elseif col then r, g, b = col[1], col[2], col[3] end
+    if r then
+      f.aura:SetVertexColor(r, g, b)
+      f.aura:SetAlpha(a)
+      f.shine:SetVertexColor(r, g, b)
+      f.shine:SetAlpha(a * 0.55)
+    end
+    f.aura:SetShown(r ~= nil and a > 0)
+    f.shine:SetShown(r ~= nil and a > 0)
+  end
+  f:SetScale(card.baseScale or 1)
+  f:SetFrameLevel(card:GetFrameLevel() + 12)
+  f.back:Show()
+  f.body:Hide(); f.rim:Hide(); f.art:Hide()
+  squeeze(card, f, 1)
+  tint(0)
+  f:Show()
+  card:SetAlpha(0)
+  -- second half: the face, from edge on to full width, the glow fading
+  local function widen()
+    if not live() then return end
+    face()
+    f.back:Hide(); f.shine:Hide()
+    f.body:SetTexture(UI.CardBody(card.kind))
+    local b = card.border or { 1, 1, 1 }
+    f.rim:SetVertexColor(b[1], b[2], b[3])
+    if card.cardId then f.art:SetTexture(UI.CardIcon(card.cardId)) end
+    f.body:Show(); f.rim:Show(); f.art:Show()
+    squeeze(card, f, 0)
+    run(FX.WIDEN, function(p)
+      if not live() then return end
+      squeeze(card, f, math.sin(p * math.pi / 2))
+      if col or opts.holo then
+        f.aura:SetAlpha(0.9 * (1 - p))
+        f.aura:SetShown(p < 1)
+      end
+    end, close, 0, true)
+  end
+  -- first half: the back, from full width to edge on
+  local function turn()
+    if not live() then return end
+    tint((col or opts.holo) and 0.9 or 0, 0)
+    run(FX.SQUEEZE, function(p)
+      if live() then squeeze(card, f, math.cos(p * math.pi / 2)) end
+    end, widen, 0, true)
+  end
+  local charge = opts.charge or 0
+  if charge > 0 then
+    count("charge")
+    if opts.onCharge then opts.onCharge() end
+    run(charge, function(p)
+      if not live() then return end
+      local shake = 1.6 * p * p
+      squeeze(card, f, 1, (math.random() * 2 - 1) * shake, (math.random() * 2 - 1) * shake)
+      tint(0.25 + 0.75 * p, p * 1.5)
+    end, turn, 0, true)
+  else
+    turn()
+  end
+  return h
 end
 
 -- Sets up the effect layer over `parent` (the board), at `level`; banners

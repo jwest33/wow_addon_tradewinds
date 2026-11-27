@@ -17,6 +17,17 @@ local TOGGLES = {
   { "hideOnLand", L["Close on arrival"], L["Close the window when you land or dock. Your game is saved."] },
   { "hideInCombat", L["Close in combat"], L["Close the window when combat starts."] },
   { "minimap", L["Minimap button"], L["Show the Tradewinds button on the minimap."] },
+  { "guildShare", L["Share progress with my guild"],
+    L["Guildmates who have Tradewinds see your stars, cards, achievement points and wins against players on their Records tab, and you see theirs."],
+    L["Off: Tradewinds sends nothing to your guild and doesn't answer when asked."] },
+}
+
+-- The board's look (UI/Game.lua G.SKINS).
+local BOARDS = {
+  { "auto", L["Automatic"], L["The tavern table, a ship's deck on boats and zeppelins, or the evening sky on flights. Picked when a game goes on the board."] },
+  { "tavern", L["Tavern"], L["The tavern table, always."] },
+  { "ship", L["Ship"], L["A ship's deck, always."] },
+  { "sky", L["Sky"], L["The evening sky, always."] },
 }
 
 function O.Set(key, value)
@@ -24,11 +35,12 @@ function O.Set(key, value)
   S[key] = value
   if key == "minimap" then UI.UpdateMinimapButton() end
   if key == "scale" then UI.ApplyScale() end
+  if key == "board" then UI.Game.PickBoard() end
   UI.Refresh()
 end
 
 local function check(parent, def, y)
-  local key, label, tip = def[1], def[2], def[3]
+  local key, label, tip, tip2 = def[1], def[2], def[3], def[4]
   local b = CreateFrame("Button", nil, parent, UI.TEMPLATE)
   b:SetSize(330, 22)
   b:SetPoint("TOPLEFT", 12, y)
@@ -48,7 +60,7 @@ local function check(parent, def, y)
     O.Set(key, not ns.db.settings[key])
     UI.Sound("lock")
   end)
-  UI.SimpleTooltip(b, label, tip)
+  UI.SimpleTooltip(b, label, tip, tip2)
   checks[key] = b
   return b
 end
@@ -61,6 +73,7 @@ function O.Refresh()
   ctl.scale:SetText(("%d%%"):format(math.floor((S.scale or 1) * 100 + 0.5)))
   ctl.smaller:SetEnabled((S.scale or 1) > 0.61)
   ctl.bigger:SetEnabled((S.scale or 1) < 1.49)
+  for _, b in ipairs(ctl.boards) do b:SetEnabled(S.board ~= b.key) end
 end
 
 function O.Build(parent)
@@ -112,6 +125,19 @@ function O.Build(parent)
     ns.Print(L["The welcome, the lane tip and the keyword tips will show again."])
   end)
   tips:SetPoint("TOPLEFT", x, y)
+
+  y = y - 40
+  local bl = UI.Text(page, 12)
+  bl:SetPoint("TOPLEFT", x, y - 3)
+  bl:SetText(L["Board"])
+  ctl.boards = {}
+  for i, def in ipairs(BOARDS) do
+    local b = UI.Button(page, def[2], 88, 22, function() O.Set("board", def[1]) end)
+    b:SetPoint("TOPLEFT", x + (i - 1) * 92, y - 22)
+    b.key = def[1]
+    UI.SimpleTooltip(b, def[2], def[3])
+    ctl.boards[i] = b
+  end
 
   local foot = UI.Text(page, 10)
   foot:SetPoint("BOTTOMLEFT", 6, 6)

@@ -34,6 +34,8 @@ local LEFT_W = RIGHT_X - 8 -- the panels and lanes: your hand fits under them wh
 local LOG_Y, LOG_H = ROW_Y[ME], 128
 local BEAT = 0.5
 local MID_Y = -183 -- middle of the band between the two rows
+local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
+local TRAP_ICON = { "Interface\\Icons\\Ability_Ensnare", "Interface\\Icons\\Spell_Fire_FlameShock" }
 
 local function laneX(l) return LX + (l - 1) * (SW + LGAP) end
 
@@ -208,20 +210,37 @@ local function plannedUnitAt(l)
   end
 end
 
--- Which side a planned card sits on: units and friend tactics on yours,
--- enemy tactics on theirs, untargeted tactics nowhere.
+local function plannedTrapAt(l)
+  for i, a in ipairs(plan) do
+    if Cards.byId[a.id].type == "trap" and a.lane == l then return a, i end
+  end
+end
+
+-- Which side a planned card sits on: units, traps and friend tactics on
+-- yours, enemy tactics on theirs, untargeted tactics nowhere.
 local function sideOf(a)
   local c = Cards.byId[a.id]
-  if c.type == "unit" or c.target == "friend" then return ME end
+  if c.type == "unit" or c.type == "trap" or c.target == "friend" then return ME end
   if c.target == "enemy" then return OPP end
+end
+
+-- A lane of yours with nothing in it, set or planned.
+local function laneFree(st, l)
+  return not (st.players[ME].board[l] or R.TrapAt(st, ME, l) or plannedUnitAt(l) or plannedTrapAt(l))
 end
 
 local function validTarget(st, side, l)
   if not sel then return false end
   local c = Cards.byId[st.players[ME].hand[sel]]
-  if c.type == "unit" then
-    if side ~= ME then return false, L["Units go in your own lanes (the bottom row)."] end
-    if st.players[ME].board[l] or plannedUnitAt(l) then return false, L["That lane is taken."] end
+  if c.type == "unit" or c.type == "trap" then
+    if side ~= ME then
+      return false, c.type == "trap" and L["Traps go face down in your own empty lanes (the bottom row)."]
+        or L["Units go in your own lanes (the bottom row)."]
+    end
+    if not laneFree(st, l) then
+      if R.TrapAt(st, ME, l) or plannedTrapAt(l) then return false, L["You have a trap in that lane."] end
+      return false, L["That lane is taken."]
+    end
     return true
   elseif c.target == "enemy" then
     if side ~= OPP then return false, L["%s targets an enemy lane (the top row)."]:format(c.name) end
@@ -234,7 +253,10 @@ local function validTarget(st, side, l)
     return true
   elseif c.target == "friend" then
     if side ~= ME then return false, L["%s targets one of your units (the bottom row)."]:format(c.name) end
-    if not (st.players[ME].board[l] or plannedUnitAt(l)) then return false, L["You have no unit there."] end
+    if not (st.players[ME].board[l] or plannedUnitAt(l)) then
+      if R.TrapAt(st, ME, l) or plannedTrapAt(l) then return false, L["%s needs one of your units, not a trap."]:format(c.name) end
+      return false, L["You have no unit there."]
+    end
     return true
   end
   return false
@@ -271,10 +293,12 @@ end
 -- ---------------------------------------------------------------------------
 -- Forecast: plays the round out on a copy of the game with your plan and the
 -- opponent adding nothing (the same what-if the computer runs for itself),
--- and reports the Morale change and which units would die.
+-- and reports the Morale change and which units would die. The copy is what
+-- you may know (R.Redact): the opponent's traps aren't in it, so the
+-- forecast can't give away where they are.
 -- ---------------------------------------------------------------------------
 local function simulateRound(st, seed)
-  local c = R.Clone(st)
+  local c = R.Redact(st, ME)
   c.rng = R.Seed(seed)
   c.events = {}
   if not pcall(R.Resolve, c, { plan, {} }, { noAdvance = true }) then return nil end
@@ -300,7 +324,8 @@ local function computeForecast(st)
   local c, dies = simulateRound(st, 7)
   local _, dies2 = simulateRound(st, 7919)
   if not (c and dies2) then return nil end
-  local f = { dies = { {}, {} }, maybe = { {}, {} }, loss = {}, winner = c.winner, strikes = { {}, {} } }
+  -- springs[lane]: your trap there springs (the spring event)
+  local f = { dies = { {}, {} }, maybe = { {}, {} }, loss = {}, winner = c.winner, strikes = { {}, {} }, springs = {} }
   -- Who is in each lane as the round plays out, so every strike knows its
   -- unit (id) and target (tid), even one that wasn't there while you plan:
   -- Hogger's Riverpaw Runts, a token from a Fallen effect.
@@ -319,6 +344,8 @@ local function computeForecast(st)
     elseif e.t == "strike" and not f.strikes[e.p][e.lane] then
       e.id, e.tid = who[e.p][e.lane], e.tl and who[e.tp][e.tl]
       f.strikes[e.p][e.lane] = e
+    elseif e.t == "spring" and e.p == ME and not f.springs[e.lane] then
+      f.springs[e.lane] = e
     end
   end
   for p = 1, 2 do
@@ -350,12 +377,23 @@ end
 --   "guard"  an attack goes into a Guard from the next lane
 --   "ranged" a Ranged unit shoots somewhere else
 --   "idle"   a unit that won't strike (frozen, no attack)
+--   "trap"   their unit strikes into your trap, which springs
+--   "set"    your trap waits here (set, or planned), and nothing springs it
 --   "open"   nobody in the lane
 -- Returns state, amount, tooltip lines.
+local function handHasTrap(st)
+  for _, id in ipairs(st.players[ME].hand) do
+    if Cards.byId[id].type == "trap" then return true end
+  end
+  return false
+end
+
 local function analyzeLane(st, l)
   local f = forecast
   local o = opponent()
   local ms, ts = f.strikes[ME][l], f.strikes[OPP][l]
+  local myTrap = R.TrapAt(st, ME, l) or plannedTrapAt(l)
+  myTrap = myTrap and myTrap.id
   -- A unit that only arrives during the round (Hogger's Riverpaw Runts) isn't
   -- in the lane while you plan, so its strike says what it is. Never format a
   -- nil name: an error here stops the board redrawing, and your hand then
@@ -366,14 +404,31 @@ local function analyzeLane(st, l)
   local function targetName(e) return nameOf(laneUnit(st, e.tp, e.tl) or e.tid) end
   local lines = {}
   local state, amt
-  if ts and not ts.tl then
+  local hidden = R.TrapCount(st, OPP)   -- how many they have set: everyone sees that much
+  if ts and ts.via == "trap" then
+    state = "trap"
+    lines[1] = L["Their %s strikes into your %s, which springs: the strike stops there."]:format(nameOf(theirs),
+      myTrap and UI.CardName(myTrap) or L["trap"])
+    if myTrap and Cards.byId[myTrap].text then lines[2] = Cards.byId[myTrap].text end
+  elseif myTrap then
+    state = "set"
+    lines[1] = L["Your %s waits here, face down. It springs when an enemy unit strikes into this lane."]:format(UI.CardName(myTrap))
+    if theirs then
+      lines[2] = L["Their %s won't strike into it this round (Ranged, frozen, or no attack)."]:format(nameOf(theirs))
+    end
+  elseif ts and not ts.tl then
     state, amt = "in", ts.amt
     lines[1] = L["Nothing of yours is across from their %s, so it hits your Morale for %d."]:format(nameOf(theirs), ts.amt)
-    lines[2] = L["Play a unit in lane %d to block it."]:format(l)
+    lines[2] = handHasTrap(st) and L["Play a unit or set a trap in lane %d to block it."]:format(l)
+      or L["Play a unit in lane %d to block it."]:format(l)
   elseif ms and not ms.tl then
     state, amt = "out", ms.amt
     lines[1] = L["Nothing is across from your %s, so it hits %s's Morale for %d."]:format(nameOf(mine), o.short, ms.amt)
     lines[2] = L["It keeps doing that every round until they block this lane."]
+    if hidden > 0 and ms.via ~= "ranged" then
+      lines[3] = ns.Plural(hidden, "%s has %d trap set in an empty lane. If it's in this one, it stops this strike.",
+        "%s has %d traps set in empty lanes. If one is in this lane, it stops this strike."):format(o.short, hidden)
+    end
   elseif ms or ts then
     state = "fight"
     if mine and theirs then
@@ -407,6 +462,12 @@ local function analyzeLane(st, l)
         lines[#lines + 1] = say.none:format(nameOf(id))
       end
     end
+    -- nothing across your unit but a Guard beside: a trap of theirs in this
+    -- lane would come first (the count is all anyone knows)
+    if hidden > 0 and ms and ms.via == "guard" then
+      lines[#lines + 1] = ns.Plural(hidden, "%s has %d trap set in an empty lane. If it's in this one, it springs before the Guard steps in.",
+        "%s has %d traps set in empty lanes. If one is in this lane, it springs before the Guard steps in."):format(o.short, hidden)
+    end
   elseif mine then
     state = "idle"
     lines[1] = L["Your %s won't strike this round (frozen, or no attack)."]:format(nameOf(mine))
@@ -429,6 +490,8 @@ local MARK = {
   ranged = { swords = true, r = 0.6, g = 0.8, b = 1, label = L["Ranged"] },
   idle = { r = 0.6, g = 0.6, b = 0.6, label = L["no attack"] },
   open = { r = 0.45, g = 0.42, b = 0.36, label = L["open lane"] },
+  trap = { trap = true, r = 0.45, g = 1, b = 0.55, label = L["trap springs"] },
+  set = { trap = true, r = 0.4, g = 0.72, b = 0.48, label = L["trap set"] },
 }
 
 local function paintMarker(l, state, amt, lines)
@@ -437,9 +500,10 @@ local function paintMarker(l, state, amt, lines)
   local def = state and MARK[state]
   m.arrow:Hide()
   m.swords:Hide()
+  m.trap:Hide()
   m.num:SetText("")
   m.label:SetText("")
-  m.line:SetShown(state ~= nil and state ~= "open")
+  m.line:SetShown(state ~= nil and state ~= "open" and state ~= "set")
   if not def then return end
   m.label:SetText(def.label)
   m.label:SetTextColor(def.r, def.g, def.b)
@@ -452,6 +516,9 @@ local function paintMarker(l, state, amt, lines)
     m.num:SetTextColor(def.r, def.g, def.b)
   elseif def.swords then
     m.swords:Show()
+  elseif def.trap then
+    m.trap:SetAlpha(state == "set" and 0.6 or 1)
+    m.trap:Show()
   end
 end
 
@@ -477,6 +544,11 @@ local function setFlow(l)
     m.up, m.full = true, true
   elseif s == "in" then
     m.down, m.full = true, true
+  elseif s == "trap" then
+    -- into the slot where the trap waits: yours (down), or in the replay
+    -- theirs (up)
+    local rm = view and replayMarks[l]
+    if rm and rm.up then m.up, m.full = true, true else m.down, m.full = true, true end
   elseif s == "fight" or s == "guard" or s == "ranged" then
     m.up, m.down = hasUnit(ME, l), hasUnit(OPP, l)
   end
@@ -548,6 +620,8 @@ function G.LaneState(l) return markers[l].state, markers[l].amt, markers[l].line
 -- ---------------------------------------------------------------------------
 -- Rendering
 -- ---------------------------------------------------------------------------
+local SPRINGS = "|cff70ff80%s|r"
+
 local function renderSlot(p, l)
   local st = shown()
   local S = view or st
@@ -557,6 +631,14 @@ local function renderSlot(p, l)
   local planning = isPlanning()
   local dies = planning and forecast and forecast.dies[p][l]
   local maybe = planning and forecast and forecast.maybe[p][l]
+  -- traps: yours face down (only you see them), one that springs face up
+  -- for a moment in the replay, and every unsprung one face up once the game
+  -- is over. The opponent's are never drawn while the game goes on.
+  local sprung = view and view.players[p].sprung and view.players[p].sprung[l]
+  local over = not view and finished ~= nil and st == finished.st
+  local trap = S and S.players[p].traps and S.players[p].traps[l]
+  local springs = planning and forecast and forecast.springs[l]
+  local plannedTrap = p == ME and (planning or lockedIn()) and plannedTrapAt(l)
   if u then
     card:SetCard(u.id, u, S, p == ME and C.IsHolo(ns.db, u.id))
     -- the forecast's word goes under the one saying the unit is Frozen or
@@ -565,6 +647,18 @@ local function renderSlot(p, l)
       or (u.kw.stealth and { text = L["Stealth"], r = 0.8, g = 0.7, b = 1 }) or nil
     if dies then card:SetTag(L["dies"], 1, 0.3, 0.3, status)
     elseif maybe then card:SetTag(L["may die"], 1, 0.65, 0.2, status) end
+  elseif sprung then
+    card:SetCard(sprung, nil, nil, p == ME and C.IsHolo(ns.db, sprung))
+    card:SetTag(L["Trap!"], 0.45, 1, 0.55)
+  elseif trap and over then
+    card:SetCard(trap.id, nil, nil, p == ME and C.IsHolo(ns.db, trap.id))
+    card:SetAlpha(0.8)
+    card:SetTag(L["never sprang"], 0.8, 0.8, 0.8)
+  elseif trap and p == ME then
+    card:SetFaceDown(trap.id, springs and SPRINGS:format(L["springs"]) or L["Trap"])
+  elseif plannedTrap then
+    card:SetFaceDown(plannedTrap.id, springs and SPRINGS:format(L["springs"]) or ("|cff66ff66" .. L["planned"] .. "|r"))
+    card:SetAlpha(0.85)
   elseif p == ME and (planning or lockedIn()) and plannedUnitAt(l) then
     card:SetCard(plannedUnitAt(l).id, nil, nil, C.IsHolo(ns.db, plannedUnitAt(l).id))
     card:SetAlpha(0.85)
@@ -624,6 +718,16 @@ local function renderPanels()
       pn.counts:SetText((L["Hand %d   Deck %d"]):format(view.players[p].handCount, view.players[p].deckCount))
     else
       pn.counts:SetText((L["Hand %d   Deck %d"]):format(#st.players[p].hand, #st.players[p].deck))
+    end
+    -- the opponent's traps: how many, never where (once the game is over
+    -- they're face up on the board instead)
+    if pn.trapMark then
+      local n = 0
+      if view then n = view.players[p].trapCount or 0
+      elseif st ~= (finished and finished.st) then n = R.TrapCount(st, p) end
+      pn.trapMark.n = n
+      pn.trapMark.count:SetText("x" .. n)
+      pn.trapMark:SetShown(n > 0)
     end
     if p == OPP and o then
       local heroic = (M() and M().heroic) or (not M() and finished and finished.heroic)
@@ -696,6 +800,7 @@ local function hintText(st)
   if sel then
     local c = Cards.byId[st.players[ME].hand[sel]]
     if c.type == "unit" then return L["Click one of your empty lanes (bottom row) for %s."]:format(c.name) end
+    if c.type == "trap" then return L["Click one of your empty lanes (bottom row) to set %s face down."]:format(c.name) end
     if c.target == "enemy" then return L["Click an enemy lane (top row) for %s."]:format(c.name) end
     return L["Click one of your units for %s."]:format(c.name)
   end
@@ -766,11 +871,172 @@ local function renderControls()
   ctl.hint:SetText(hint)
 end
 
+-- ---------------------------------------------------------------------------
+-- The end screen: the result, the stars stamped in, the shards and packs
+-- counting up, the cards won turning over, and what to do next. Every fact on
+-- it is also a line of text (G.GameOverFacts), for the tests.
+-- ---------------------------------------------------------------------------
+local GAIN = {
+  shards = { icon = { "Interface\\Icons\\INV_Enchant_ShardBrilliantSmall", "Interface\\Icons\\INV_Misc_Gem_Pearl_04" },
+    col = { 0.62, 0.87, 1 }, one = "+%d shard", other = "+%d shards" },
+  packs = { icon = { "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" },
+    col = { 1, 0.82, 0 }, one = "+%d card pack", other = "+%d card packs" },
+  special = { icon = { "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" },
+    col = { 1, 0.6, 0.2 }, one = "+%d Windfall pack", other = "+%d Windfall packs" },
+}
+local GAIN_ORDER = { "shards", "packs", "special" }
+
+-- The end screen's text: the result, what happened, and every reward.
+local function gameOverFacts(f)
+  local st = f.st
+  local lines = {}
+  lines[1] = L["Morale %d to %d after round %d"]:format(math.max(0, st.players[ME].morale),
+    math.max(0, st.players[OPP].morale), st.round)
+    .. (st.tiebreak and (" " .. L["(tie broken by units on the board)"]) or "")
+  if f.stats and not f.conceded then
+    lines[#lines + 1] = (L["|cffb0b0b0You dealt %d Morale damage and destroyed %d units; you took %d and lost %d.|r"]):format(
+      f.stats.dealt, f.stats.kills, f.stats.taken, f.stats.lost)
+  end
+  local rest = {}   -- the lines that aren't shown as pictures
+  -- traps nobody sprang, turned face up now (theirs too)
+  local unsprung = {}
+  for _, p in ipairs({ ME, OPP }) do
+    for l = 1, R.LANES do
+      local t = R.TrapAt(st, p, l)
+      if t then
+        unsprung[#unsprung + 1] = p == ME and L["your %s in lane %d"]:format(UI.CardName(t.id), l)
+          or L["%s's %s in lane %d"]:format(oppName(), UI.CardName(t.id), l)
+      end
+    end
+  end
+  if #unsprung > 0 then
+    local line = "|cff80ff90" .. L["Traps that never sprang: %s."]:format(table.concat(unsprung, ", ")) .. "|r"
+    lines[#lines + 1], rest[#rest + 1] = line, line
+  end
+  for _, r in ipairs(f.rewards) do
+    if r.star then
+      lines[#lines + 1] = (L["|cffffd100Star earned: %s|r"]):format(r.why)
+    elseif r.card then
+      if r.kind == "shards" then
+        lines[#lines + 1] = L["%s (you have it already: %s)"]:format(UI.CardName(r.card),
+          "|cff9fdfff" .. ns.Plural(r.dupe, "+%d shard", "+%d shards"):format(r.dupe) .. "|r")
+      elseif r.holo then
+        lines[#lines + 1] = ("%s %s (%s)"):format(UI.Rainbow(r.kind == "holo" and L["Now holographic:"] or L["Holographic card:"]),
+          UI.CardName(r.card), r.why)
+      else
+        lines[#lines + 1] = (L["New card: %s (%s)"]):format(UI.CardName(r.card), r.why)
+      end
+    elseif r.unlocked then
+      local line = (L["|cff40ff40%s will play you now.|r"]):format(ns.OpponentById[r.unlocked].name)
+      lines[#lines + 1], rest[#rest + 1] = line, line
+    elseif r.heroic then
+      local line = L["|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"]
+      lines[#lines + 1], rest[#rest + 1] = line, line
+    elseif r.packs then
+      lines[#lines + 1] = ("|cffffd100%s|r (%s)"):format(ns.Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
+    elseif r.special then
+      lines[#lines + 1] = ("|cffff9933%s|r (%s)"):format(ns.Plural(r.special, "+%d Windfall pack", "+%d Windfall packs"):format(r.special),
+        r.why)
+    elseif r.shards then
+      lines[#lines + 1] = ("|cff9fdfff%s|r (%s)"):format(ns.Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
+    end
+  end
+  if f.tutorial then
+    if f.conceded then
+      lines = { L["|cff909090You left the tutorial. Start it again any time from the Play tab or the Guide.|r"] }
+      rest = { lines[1] }
+    else
+      table.insert(lines, 2, L["|cffffd100Tutorial complete!|r"])
+      local next = { L["|cffffd100Tutorial complete!|r"],
+        L["Next: the tavern circuit. Dorn is first on the list, and this time he's not holding back."],
+        L["|cffb0b0b0The Guide tab has every rule and keyword.|r"] }
+      for i = 2, 3 do lines[#lines + 1] = next[i] end
+      for i = #next, 1, -1 do table.insert(rest, 1, next[i]) end
+    end
+  elseif f.conceded then
+    lines[#lines + 1] = L["|cff909090Ended early: no reward.|r"]
+    rest[#rest + 1] = lines[#lines]
+  end
+  return lines, rest
+end
+
+function G.GameOverFacts()
+  return finished and table.concat((gameOverFacts(finished)), "\n") or nil
+end
+
+-- What the buttons under it do: { rematch = fn, next = opponent id }.
+local function nextSteps(f)
+  local out = {}
+  if f.pvp then
+    out.rematch = f.pvp.name
+  elseif not f.tutorial and ns.OpponentById[f.opp] then
+    out.rematch = f.opp
+  end
+  for _, r in ipairs(f.rewards) do
+    if r.unlocked then out.next = r.unlocked end
+  end
+  if f.tutorial and not f.conceded and not ns.db.match then out.next = ns.Opponents[1].id end
+  return out
+end
+
+-- Rematch: the same opponent again at once (a computer opponent), or a
+-- challenge to the same player.
+function G.Rematch()
+  local f = finished
+  if not f then return false end
+  local steps = nextSteps(f)
+  if not steps.rematch then return false end
+  G.Continue()
+  if f.pvp then return G.Challenge(steps.rematch) end
+  G.Start(steps.rematch, f.heroic)
+  return M() ~= nil
+end
+
+-- A line for chat about the game just finished (UI.Share): a star earned, or
+-- a win against a player. nil when there's nothing to brag about.
+function G.ShareText()
+  local f = finished
+  if not f or f.conceded then return nil end
+  local star
+  for _, r in ipairs(f.rewards) do
+    if r.star then star = r.star end
+  end
+  local o = opponent()
+  if star and o then
+    return L["[Tradewinds] I earned the %s star against %s!"]:format(C.STARS[star].name, o.short)
+  end
+  if f.pvp and f.result == "win" then
+    local st = f.st
+    return L["[Tradewinds] I beat %s, Morale %d to %d!"]:format(ns.Net.Short(f.pvp.name), math.max(0, st.players[ME].morale),
+      math.max(0, st.players[OPP].morale))
+  end
+end
+
+function G.NextOpponent()
+  local f = finished
+  local id = f and nextSteps(f).next
+  if not id then return false end
+  G.Continue()
+  G.Start(id)
+  return M() ~= nil
+end
+
+-- A tween on the end screen that belongs to the game it shows.
+local function overTween(f, dur, step, done, delay)
+  UI.FX.Run(dur, function(p) if finished == f then step(p) end end,
+    function() if finished == f and done then done() end end, delay, true)
+end
+
 local function showGameOver()
   local f = finished
   local o = opponent()
   local ov = ctl.over
   local st = f.st
+  if ov.showing == f then
+    ov:Show()
+    return
+  end
+  ov.showing = f
   if f.result == "win" then
     ov.title:SetText(f.heroic and L["Heroic victory!"] or L["Victory!"])
     ov.title:SetTextColor(1, 0.82, 0)
@@ -792,52 +1058,138 @@ local function showGameOver()
     ov.title:SetTextColor(0.8, 0.8, 0.8)
     ov.quote:SetText(L["Honours even."])
   end
-  local lines = {}
-  lines[1] = L["Morale %d to %d after round %d"]:format(math.max(0, st.players[ME].morale),
-    math.max(0, st.players[OPP].morale), st.round)
-    .. (st.tiebreak and (" " .. L["(tie broken by units on the board)"]) or "")
-  if f.stats and not f.conceded then
-    lines[#lines + 1] = (L["|cffb0b0b0You dealt %d Morale damage and destroyed %d units; you took %d and lost %d.|r"]):format(
-      f.stats.dealt, f.stats.kills, f.stats.taken, f.stats.lost)
-  end
-  for _, r in ipairs(f.rewards) do
-    if r.star then
-      lines[#lines + 1] = (L["|cffffd100Star earned: %s|r"]):format(r.why)
-    elseif r.card then
-      if r.kind == "shards" then
-        lines[#lines + 1] = L["%s (you have it already: %s)"]:format(UI.CardName(r.card),
-          "|cff9fdfff" .. ns.Plural(r.dupe, "+%d shard", "+%d shards"):format(r.dupe) .. "|r")
-      elseif r.holo then
-        lines[#lines + 1] = ("%s %s (%s)"):format(UI.Rainbow(r.kind == "holo" and L["Now holographic:"] or L["Holographic card:"]),
-          UI.CardName(r.card), r.why)
-      else
-        lines[#lines + 1] = (L["New card: %s (%s)"]):format(UI.CardName(r.card), r.why)
+  local facts, rest = gameOverFacts(f)
+  ov.score:SetText(facts[1])
+  ov.stats:SetText((f.stats and not f.conceded) and facts[2] or "")
+  local y = 108
+
+  -- stars: the circuit only. Ones you had stay lit; ones earned now stamp in.
+  local circuit = not (f.pvp or f.tutorial or f.heroic) and ns.OpponentById[f.opp]
+  ov.starRow:SetShown(circuit and true or false)
+  local delay = 0.3
+  if circuit then
+    local have = C.Stars(ns.db, f.opp)
+    local now = {}
+    for _, r in ipairs(f.rewards) do
+      if r.star then now[r.star] = true end
+    end
+    ov.starRow:SetPoint("TOP", ov.box, "TOP", 0, -y)
+    for i, s in ipairs(ov.stars) do
+      local lit = have[i] and not now[i]
+      local col = (have[i] or now[i]) and STAR_ON or STAR_OFF
+      s:SetVertexColor(col[1], col[2], col[3])
+      s:SetSize(34, 34)
+      s:SetAlpha((lit or not have[i]) and 1 or 0)
+      if now[i] then
+        overTween(f, 0.32, function(p)
+          local k = 1 + 1.6 * (1 - p) * (1 - p)
+          s:SetSize(34 * k, 34 * k)
+          s:SetAlpha(math.min(1, p * 2.5))
+        end, function()
+          UI.Sound("stamp")
+          s.flash:Flash(1, 0.82, 0)
+        end, delay)
+        delay = delay + 0.35
       end
-    elseif r.unlocked then
-      lines[#lines + 1] = (L["|cff40ff40%s will play you now.|r"]):format(ns.OpponentById[r.unlocked].name)
-    elseif r.heroic then
-      lines[#lines + 1] = L["|cffc080ffHeroic rematches are open: the Heroic rematches button on the opponent list.|r"]
-    elseif r.packs then
-      lines[#lines + 1] = ("|cffffd100%s|r (%s)"):format(ns.Plural(r.packs, "+%d card pack", "+%d card packs"):format(r.packs), r.why)
-    elseif r.special then
-      lines[#lines + 1] = ("|cffff9933%s|r (%s)"):format(ns.Plural(r.special, "+%d Windfall pack", "+%d Windfall packs"):format(r.special),
-        r.why)
-    elseif r.shards then
-      lines[#lines + 1] = ("|cff9fdfff%s|r (%s)"):format(ns.Plural(r.shards, "+%d shard", "+%d shards"):format(r.shards), r.why)
+    end
+    y = y + 44
+  end
+
+  -- shards and packs, counting up (their reasons in the tooltip)
+  local sums, why = {}, {}
+  for _, r in ipairs(f.rewards) do
+    for _, k in ipairs(GAIN_ORDER) do
+      if r[k] and r[k] > 0 and not r.card then
+        sums[k] = (sums[k] or 0) + r[k]
+        why[k] = why[k] or {}
+        table.insert(why[k], ("%s (%s)"):format(ns.Plural(r[k], GAIN[k].one, GAIN[k].other):format(r[k]), r.why or ""))
+      end
     end
   end
-  if f.tutorial then
-    if f.conceded then
-      lines = { L["|cff909090You left the tutorial. Start it again any time from the Play tab or the Guide.|r"] }
-    else
-      table.insert(lines, 2, L["|cffffd100Tutorial complete!|r"])
-      lines[#lines + 1] = L["Next: the tavern circuit. Dorn is first on the list, and this time he's not holding back."]
-      lines[#lines + 1] = L["|cffb0b0b0The Guide tab has every rule and keyword.|r"]
-    end
-  elseif f.conceded then
-    lines[#lines + 1] = L["|cff909090Ended early: no reward.|r"]
+  local shown = {}
+  for _, k in ipairs(GAIN_ORDER) do
+    if sums[k] then shown[#shown + 1] = k end
   end
-  ov.body:SetText(table.concat(lines, "\n"))
+  local GW = 150
+  for i, g in ipairs(ov.gains) do
+    local k = shown[i]
+    g:SetShown(k ~= nil)
+    if k then
+      local def = GAIN[k]
+      g:ClearAllPoints()
+      g:SetPoint("TOP", ov.box, "TOP", (i - (#shown + 1) / 2) * GW, -y)
+      g.icon:SetTexture(UI.Icon(def.icon))
+      if k == "special" then g.icon:SetVertexColor(1, 0.7, 0.4) else g.icon:SetVertexColor(1, 1, 1) end
+      g.num:SetTextColor(def.col[1], def.col[2], def.col[3])
+      local n = sums[k]
+      g.num:SetText(ns.Plural(0, def.one, def.other):format(0))
+      g.lines = why[k]
+      overTween(f, 0.6, function(p)
+        local v = math.floor(n * p + 0.5)
+        g.num:SetText(ns.Plural(v, def.one, def.other):format(v))
+      end, nil, delay)
+    end
+  end
+  if #shown > 0 then
+    y = y + 30
+    delay = delay + 0.3
+  end
+
+  -- the cards won, face down, then turned over one by one
+  local cards = {}
+  for _, r in ipairs(f.rewards) do
+    if r.card then cards[#cards + 1] = r end
+  end
+  local CW = UI.CARD_W * 0.8 + 16
+  for i, cell in ipairs(ov.cards) do
+    local r = cards[i]
+    cell:SetShown(r ~= nil)
+    if r then
+      cell:ClearAllPoints()
+      cell:SetPoint("TOP", ov.box, "TOP", (i - (#cards + 1) / 2) * CW, -y)
+      cell.card:SetBack("")
+      cell.card:SetAlpha(1)
+      cell.label:SetText("")
+      local c = Cards.byId[r.card]
+      local rr = Cards.RARITY_RANK[c.rarity]
+      overTween(f, 0.01, function() end, function()
+        UI.FX.Flip(cell.card, function() cell.card:SetCard(r.card, nil, nil, r.holo) end, {
+          glow = (r.holo or rr >= Cards.RARITY_RANK.rare) and UI.RARITY_COLOR[c.rarity] or nil, holo = r.holo,
+          done = function()
+            if finished ~= f then return end
+            cell.label:SetText((UI.Packs.Label({ kind = r.kind, shards = r.dupe, holo = r.holo }) or "") .. "\n|cffb0b0b0"
+              .. (r.why or "") .. "|r")
+            UI.Sound(rr >= Cards.RARITY_RANK.epic and "rare" or "reveal")
+          end,
+        })
+      end, delay)
+      delay = delay + 0.3
+    end
+  end
+  if #cards > 0 then y = y + UI.CARD_H * 0.8 + 34 end
+
+  ov.body:ClearAllPoints()
+  ov.body:SetPoint("TOP", ov.box, "TOP", 0, -y)
+  ov.body:SetText(table.concat(rest, "\n"))
+
+  -- what next
+  local steps = nextSteps(f)
+  local buttons = {}
+  ov.rematch:SetShown(steps.rematch ~= nil)
+  if steps.rematch then buttons[#buttons + 1] = ov.rematch end
+  ov.nextOpp:SetShown(steps.next ~= nil)
+  if steps.next then
+    ov.nextOpp:SetText(L["Play %s"]:format(ns.OpponentById[steps.next].short))
+    buttons[#buttons + 1] = ov.nextOpp
+  end
+  ov.share:SetShown(G.ShareText() ~= nil)
+  ov.back:SetText(f.pvp and L["All games"] or L["Back to the circuit"])
+  buttons[#buttons + 1] = ov.back
+  local BW = 156
+  for i, b in ipairs(buttons) do
+    b:ClearAllPoints()
+    b:SetPoint("BOTTOM", ov.box, "BOTTOM", (i - (#buttons + 1) / 2) * BW, 14)
+  end
   ov:Show()
 end
 
@@ -845,6 +1197,12 @@ end
 -- First-time keyword tips: the first time a keyword is in your hand or on
 -- the board, while you plan, a box explains it (one at a time).
 -- ---------------------------------------------------------------------------
+-- Traps get the same kind of tip, the first time one is in your hand or on
+-- the board (yours, or the count of theirs).
+local TRAP_TIP = { key = "trap", name = L["Trap"], title = L["New card type: Trap"], tall = true,
+  text = L["Set it face down in one of your empty lanes. Your opponent sees that you have a trap set, but not where. It springs when an enemy unit strikes into that lane: the strike stops, and the trap goes off."] }
+G.TRAP_TIP = TRAP_TIP
+
 local function nextKeyword(st)
   local seen = ns.db.settings.seenKw or {}
   local function first(kw)
@@ -856,6 +1214,12 @@ local function nextKeyword(st)
   for _, id in ipairs(st.players[ME].hand) do
     local k = first(Cards.byId[id].kw)
     if k then return k end
+  end
+  if not seen.trap then
+    for _, id in ipairs(st.players[ME].hand) do
+      if Cards.byId[id].type == "trap" then return TRAP_TIP end
+    end
+    if R.TrapCount(st, ME) + R.TrapCount(st, OPP) > 0 then return TRAP_TIP end
   end
   for p = 1, 2 do
     for l = 1, R.LANES do
@@ -875,9 +1239,10 @@ renderTips = function(st, tm)
     return
   end
   tip.key = k.key
-  tip.title:SetText(L["New keyword: %s"]:format(k.name))
+  tip.title:SetText(k.title or L["New keyword: %s"]:format(k.name))
   tip.diagram.tex:SetTexture(UI.ART .. "Diagram_" .. k.key)
   tip.text:SetText(k.text)
+  tip:SetHeight(k.tall and 282 or 246)
   tip:Show()
 end
 
@@ -1017,6 +1382,11 @@ function G.ClickHand(h, button)
     for l = 1, R.LANES do if st.players[ME].board[l] or plannedUnitAt(l) then any = true end end
     if not any then UI.Error(L["%s needs one of your units. Place a unit first."]:format(c.name)) return end
     sel = h
+  elseif c.type == "trap" then
+    local any = false
+    for l = 1, R.LANES do if laneFree(st, l) then any = true end end
+    if not any then UI.Error(L["%s needs an empty lane of yours, and you have none."]:format(c.name)) return end
+    sel = h
   else
     sel = h
   end
@@ -1095,12 +1465,18 @@ local function makeView(st, mine, theirPlayed)
   end
   v.players[ME].handCount = #v.hand
   v.players[OPP].handCount = v.players[OPP].handCount - (theirPlayed or 0)
+  -- your traps; of theirs only how many (the replay never says where)
+  v.players[ME].traps = R.DeepCopy(st.players[ME].traps or {})
+  v.players[OPP].trapCount = R.TrapCount(st, OPP)
   return v
 end
+
+local TRAP_COL = { 0.45, 1, 0.55 }
 
 local SET_COLOR = {
   heal = { 0.3, 1, 0.3 }, buff = { 1, 0.85, 0.3 }, freeze = { 0.4, 0.7, 1 }, sturdy = { 1, 1, 1 },
   transform = { 0.8, 0.4, 1 }, reveal = { 0.6, 0.6, 0.8 }, endround = { 0.3, 1, 0.3 }, regen = { 0.3, 1, 0.3 },
+  chill = { 0.4, 0.7, 1 },
 }
 
 local bannerToken = 0
@@ -1228,6 +1604,10 @@ local function apply(e)
       FX.Pulse(s, FX.FROST, 120)
       FX.Callout(s, L["Frozen"], FX.FROST, calloutY(e.p))
       return 0.15
+    elseif e.why == "chill" then
+      FX.Pulse(s, FX.FROST, 120)
+      FX.Callout(s, L["Frozen next round"], FX.FROST, calloutY(e.p))
+      return 0.3
     elseif e.why == "reveal" then
       FX.Pulse(s, FX.MAGIC, 90)
       return 0
@@ -1297,9 +1677,11 @@ local function apply(e)
       if fx then cd:Lunge(e.p == ME and 12 or -12) end
     end
     local rm = replayMarks[e.lane] or {}
-    if not e.tl then
+    if e.via == "trap" then
+      rm.state, rm.amt, rm.up = "trap", nil, e.p == ME
+    elseif not e.tl then
       rm.state, rm.amt = (e.p == ME) and "out" or "in", e.amt
-    elseif rm.state ~= "out" and rm.state ~= "in" then
+    elseif rm.state ~= "out" and rm.state ~= "in" and rm.state ~= "trap" then
       rm.state = "fight"
     end
     replayMarks[e.lane] = rm
@@ -1370,7 +1752,63 @@ local function apply(e)
     showTactic(e)
     if not skipping then UI.Sound("tactic") end
     return 0.9
+  elseif t == "trap" then
+    -- yours goes face down in its lane; of theirs you only learn that one
+    -- was set (the count by their Morale goes up)
+    if e.p == ME then
+      view.players[ME].traps = view.players[ME].traps or {}
+      view.players[ME].traps[e.lane] = { id = e.id }
+      renderSlot(ME, e.lane)
+      if fx then FX.Arrive(slots[ME][e.lane].card, TRAP_COL) end
+      G.Log(L["You set %s face down in lane %d."], UI.CardName(e.id), e.lane)
+    else
+      view.players[OPP].trapCount = (view.players[OPP].trapCount or 0) + 1
+      renderPanels()
+      local mark = panels[OPP].trapMark
+      mark:Flash(TRAP_COL[1], TRAP_COL[2], TRAP_COL[3])
+      if fx then FX.Callout(panels[OPP], L["Trap set"], TRAP_COL, -30) end
+      G.Log(L["%s set a trap."], oppName())
+    end
+    return fx and 0.3 or 0
+  elseif t == "spring" then
+    -- the strike stops at the lane, the trap turns face up where it waited,
+    -- then does what it says (the events after this one)
+    local P = view.players[e.p]
+    P.sprung = P.sprung or {}
+    P.sprung[e.lane] = e.id
+    if e.p == ME then
+      if P.traps then P.traps[e.lane] = nil end
+    else
+      P.trapCount = math.max(0, (P.trapCount or 1) - 1)
+      renderPanels()
+    end
+    local s = slots[e.p][e.lane]
+    local by = e.aid and UI.CardName(e.aid) or L["a unit"]
+    if e.p == ME then
+      G.Log(L["%s's %s sprang your %s."], oppName(), by, UI.CardName(e.id))
+    else
+      G.Log(L["Your %s sprang %s's %s."], by, oppName(), UI.CardName(e.id))
+    end
+    if not fx then
+      renderSlot(e.p, e.lane)
+      return 0
+    end
+    UI.Sound("trap")
+    s.card:SetBack("")
+    FX.Flip(s.card, function() renderSlot(e.p, e.lane) end, { glow = TRAP_COL })
+    FX.Pulse(s, TRAP_COL, 140)
+    FX.Callout(s, L["Trap!"], TRAP_COL, calloutY(e.p))
+    return 0.75
   elseif t == "beat" then
+    -- a trap that sprang in this volley has done its work: off the board
+    for p = 1, 2 do
+      local P = view.players[p]
+      if P.sprung then
+        local lanes = P.sprung
+        P.sprung = nil
+        for l in pairs(lanes) do renderSlot(p, l) end
+      end
+    end
     return BEAT
   elseif t == "round" then
     view.round, view.init = e.n, e.init
@@ -1544,9 +1982,13 @@ local function playRound(m, mine, theirs)
       if e.p == OPP then n.kills = n.kills + 1 else n.lost = n.lost + 1 end
     end
   end
+  n.low = math.min(n.low or R.START_MORALE, nxt.players[ME].morale)
   if not m.tutorial then
     local task = C.TaskEvents(ns.db, ns.Today(), events, ME)
     if task then ns.Announce({ task }) end
+    local T = ns.Travel
+    if T and (T.IsFlying() or T.IsRiding()) then C.AddLife(ns.db, "travelRounds") end
+    ns.CheckAchievements()
   end
   if m.pvp then ns.Net.AfterRound(m, st.round) end
   if not onBoard or M() ~= m then return end
@@ -1639,6 +2081,7 @@ function G.Start(oppId, heroic)
   ns.db.match = { opp = oppId, st = st, started = time and time() or 0, version = ns.VERSION, rules = R.RULES_VERSION,
     plain = C.PlainDeck(mine), heroic = heroic and true or nil }
   ns.db.active = "ai"
+  G.PickBoard()
   plan, sel, finished, view = {}, nil, nil, nil
   if logFrame then logFrame.msgs:Clear() end
   local hello = heroic and "rematch" or "hello"
@@ -1664,6 +2107,7 @@ function G.StartTutorial()
   ns.db.match = { opp = o.id, st = st, tutorial = true, tut = { ack = 0 }, started = time and time() or 0,
     version = ns.VERSION, rules = R.RULES_VERSION }
   ns.db.active = "ai"
+  G.PickBoard()
   ns.db.settings.seenWelcome = true
   ns.db.settings.seenLaneTip = true   -- the coach covers lanes
   plan, sel, finished, view = {}, nil, nil, nil
@@ -1679,10 +2123,12 @@ function G.EndGame(conceded)
   local st = m.st
   local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
   local mine, theirs = math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale)
+  local s = m.stats or {}
   local rewards
   if m.pvp then
     rewards = C.RecordPvP(ns.db, ns.Net.Short(m.pvp.name), result, ns.Today(), {
       conceded = conceded, theyConceded = m.pvp.theyConceded, round = st.round, morale = mine,
+      taken = s.taken, low = s.low, tiebreak = st.tiebreak,
     })
     ns.Net.Finished(m, conceded)
   elseif m.tutorial then
@@ -1695,6 +2141,7 @@ function G.EndGame(conceded)
   else
     rewards = C.RecordResult(ns.db, m.opp, result, ns.Today(), {
       conceded = conceded, round = st.round, morale = mine, margin = mine - theirs, plain = m.plain, heroic = m.heroic,
+      taken = s.taken, low = s.low, tiebreak = st.tiebreak,
     })
   end
   finished = { st = st, opp = m.opp, result = result, rewards = rewards, conceded = conceded, stats = m.stats,
@@ -1710,6 +2157,7 @@ function G.EndGame(conceded)
   ns.Print((m.tutorial and (L["Tutorial:"] .. " ") or m.heroic and (L["Heroic:"] .. " ") or "") .. said, o.name,
     math.max(0, st.players[ME].morale), math.max(0, st.players[OPP].morale))
   if m.tutorial then ns.Announce(rewards) end
+  ns.CheckAchievements()
   UI.Refresh()
 end
 
@@ -1793,6 +2241,7 @@ function G.Open(key)
   -- the next Refresh brings back the plan saved with the match
   plan, sel, finished, planOf = {}, nil, nil, nil
   ns.db.active = key
+  if key then G.PickBoard() end
   loadLog()
   if UI.tab ~= "play" and UI.Show then UI.Show("play") end
   G.Refresh()
@@ -1849,9 +2298,10 @@ local function endOffBoard(m, conceded)
   local st = m.st
   local result = (st.winner == ME) and "win" or (st.winner == OPP) and "loss" or "draw"
   local who = ns.Net.Short(m.pvp.name)
+  local s = m.stats or {}
   local rewards = C.RecordPvP(ns.db, who, result, ns.Today(), {
     conceded = conceded, theyConceded = m.pvp.theyConceded, round = st.round,
-    morale = math.max(0, st.players[ME].morale),
+    morale = math.max(0, st.players[ME].morale), taken = s.taken, low = s.low, tiebreak = st.tiebreak,
   })
   ns.Net.Finished(m, conceded)
   ns.db.games[m.pvp.gid] = nil
@@ -1859,6 +2309,7 @@ local function endOffBoard(m, conceded)
     result == "win" and ("|cff40ff40" .. L["Victory!"] .. "|r") or result == "loss" and ("|cffff4040" .. L["Defeat."] .. "|r")
     or L["A draw."])
   ns.Announce(rewards)
+  ns.CheckAchievements()
 end
 
 -- They ended game m: it's yours.
@@ -2002,7 +2453,6 @@ local LEVEL_COLOR = { easy = "|cff40ff40" .. L["Easy"] .. "|r", normal = "|cffff
   hard = "|cffff6040" .. L["Hard"] .. "|r", heroic = "|cffc080ff" .. L["Heroic"] .. "|r" }
 local rows = {}
 
-local STAR_ON, STAR_OFF = { 1, 0.82, 0 }, { 0.28, 0.26, 0.22 }
 local CREST_ON = { 0.75, 0.5, 1 }
 
 -- The lobby shows the circuit, the heroic rematches once they're open, or
@@ -2155,7 +2605,16 @@ function G.RefreshLobby()
     local resume = cur and cur.opp == o.id and not cur.tutorial and (cur.heroic and true or false) == heroicView
     r.play:SetText(resume and L["Resume"] or open and L["Play"] or L["Locked"])
     r.play:SetEnabled((resume or (ok and open)) and true or false)
-    r:SetAlpha(open and 1 or 0.55)
+    r.lock:SetShown(not open)
+    r.icon:SetDesaturated(not open)
+    r.icon:SetVertexColor(open and 1 or 0.55, open and 1 or 0.55, open and 1 or 0.55)
+    r.nameText:SetTextColor(open and 1 or 0.6, open and 0.82 or 0.55, open and 0 or 0.45)
+    local owned = C.Owned(ns.db, o.signature) > 0
+    r.sig.icon:SetDesaturated(not owned)
+    r.sig.icon:SetAlpha(owned and 1 or 0.45)
+    local col = owned and UI.RARITY_COLOR[Cards.byId[o.signature].rarity] or { 0.5, 0.5, 0.5 }
+    r.sig.name:SetTextColor(col[1], col[2], col[3])
+    r:SetAlpha(open and 1 or 0.8)
   end
   local s = ns.db.stats
   local pw, pl = 0, 0
@@ -2167,13 +2626,18 @@ function G.RefreshLobby()
   lobby.pvpStatus:SetText(outgoing and L["Waiting for %s to answer..."]:format(outgoing)
     or incoming and ("|cffffd100" .. L["%s challenged you."]:format(incoming) .. "|r") or "")
   local done = ns.db.tutorial and ns.db.tutorial.done
-  lobby.tutorial:SetText(done and L["Tutorial"] or ns.Plural(C.TUTORIAL_PACKS, "Tutorial (+%d pack)", "Tutorial (+%d packs)"):format(C.TUTORIAL_PACKS))
+  lobby.tutorial:SetText(done and L["Tutorial"] or ns.Plural(C.TUTORIAL_PACKS, "Tutorial (+%d Windfall pack)", "Tutorial (+%d Windfall packs)"):format(C.TUTORIAL_PACKS))
   lobby.welcome:SetShown(not ns.db.settings.seenWelcome)
   local d, task = C.Daily(ns.db, ns.Today())
+  lobby.dailyBar:SetValue(d.done and 1 or (d.n / task.goal))
   if d.done then
     lobby.daily:SetText("|cff40ff40" .. L["Daily task done:"] .. "|r " .. task.text)
+    lobby.dailyBar:SetStatusBarColor(0.3, 0.85, 0.3)
+    lobby.dailyCount:SetText("|cff40ff40" .. ("%d/%d"):format(task.goal, task.goal) .. "|r")
   else
-    lobby.daily:SetText("|cffffd100" .. L["Daily task:"] .. "|r " .. ("%s  (%d/%d)  "):format(task.text, d.n, task.goal)
+    lobby.daily:SetText("|cffffd100" .. L["Daily task:"] .. "|r " .. task.text)
+    lobby.dailyBar:SetStatusBarColor(1, 0.7, 0.15)
+    lobby.dailyCount:SetText(("%d/%d  "):format(d.n, task.goal)
       .. "|cff9fdfff" .. ns.Plural(C.REWARD.daily, "+%d shard", "+%d shards"):format(C.REWARD.daily) .. "|r")
   end
 end
@@ -2196,18 +2660,32 @@ local function buildLobby()
 
   for i, o in ipairs(ns.Opponents) do
     local r = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
-    r:SetSize(PAGE_W - 8, 46)
-    r:SetPoint("TOPLEFT", 4, -42 - (i - 1) * 50)
+    r:SetSize(PAGE_W - 8, 48)
+    r:SetPoint("TOPLEFT", 4, -40 - (i - 1) * 51)
     UI.Backdrop(r, { 0.09, 0.08, 0.06, 0.9 }, { 0.3, 0.26, 0.18 })
     r.opp = o
+    -- their portrait in a bronze frame; a lock over it until they'll play you
     local icon = r:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(36, 36)
-    icon:SetPoint("LEFT", 6, 0)
+    icon:SetSize(38, 38)
+    icon:SetPoint("LEFT", 8, 0)
     icon:SetTexture(UI.Icon(o.icon))
+    icon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+    r.icon = icon
+    local frame = r:CreateTexture(nil, "OVERLAY")
+    frame:SetSize(46, 46)
+    frame:SetPoint("CENTER", icon, "CENTER")
+    frame:SetTexture(UI.ART .. "Portrait")
+    r.lock = r:CreateTexture(nil, "OVERLAY", nil, 2)
+    r.lock:SetSize(22, 22)
+    r.lock:SetPoint("CENTER", icon, "BOTTOMRIGHT", -2, 4)
+    r.lock:SetTexture(UI.ART .. "Lock")
+    r.lock:SetVertexColor(0.95, 0.82, 0.5)
+    r.lock:Hide()
     local name = UI.Text(r, 13)
-    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -1)
     name:SetText(o.name)
     name:SetTextColor(1, 0.82, 0)
+    r.nameText = name
     local lvl = UI.Text(r, 10)
     lvl:SetPoint("LEFT", name, "RIGHT", 8, 0)
     lvl:SetText(LEVEL_COLOR[o.level] or o.level)
@@ -2216,11 +2694,36 @@ local function buildLobby()
     ttl:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
     ttl:SetText(o.title)
     ttl:SetTextColor(0.7, 0.7, 0.7)
+    -- their signature card, grey until it's yours
+    local sig = CreateFrame("Frame", nil, r)
+    sig:SetSize(164, 30)
+    sig:SetPoint("LEFT", r, "LEFT", 294, 0)
+    sig:EnableMouse(true)
+    sig.icon = sig:CreateTexture(nil, "ARTWORK")
+    sig.icon:SetSize(26, 26)
+    sig.icon:SetPoint("LEFT", 0, 0)
+    sig.icon:SetTexture(UI.CardIcon(o.signature))
+    sig.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    sig.label = UI.Text(sig, 9)
+    sig.label:SetPoint("TOPLEFT", sig.icon, "TOPRIGHT", 6, 1)
+    sig.label:SetText(L["Signature card"])
+    sig.label:SetTextColor(0.6, 0.6, 0.6)
+    sig.name = UI.Text(sig, 11)
+    sig.name:SetPoint("TOPLEFT", sig.label, "BOTTOMLEFT", 0, -2)
+    sig.name:SetSize(130, 14)
+    sig.name:SetJustifyH("LEFT")
+    sig.name:SetWordWrap(false)
+    UI.FitText(sig.name, Cards.byId[o.signature].name, 8)
+    sig:SetScript("OnEnter", function(self)
+      UI.CardTooltip(self, o.signature, nil, nil, nil, C.IsHolo(ns.db, o.signature))
+    end)
+    sig:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.sig = sig
     r.stars = {}
     for k = 1, #C.STARS do
       local tex = r:CreateTexture(nil, "ARTWORK")
       tex:SetSize(20, 20)
-      tex:SetPoint("LEFT", r, "LEFT", 440 + (k - 1) * 23, 0)
+      tex:SetPoint("LEFT", r, "LEFT", 466 + (k - 1) * 23, 0)
       tex:SetTexture(UI.ART .. "Star")
       r.stars[k] = tex
     end
@@ -2239,7 +2742,7 @@ local function buildLobby()
         if rec and rec.beaten then
           GameTooltip:AddLine(L["Beaten on heroic."], 0.75, 0.5, 1)
         else
-          GameTooltip:AddLine(L["First heroic win: a card pack and a %s %s."]:format(UI.Rainbow(L["holographic"]),
+          GameTooltip:AddLine(L["First heroic win: a Windfall pack and a %s %s."]:format(UI.Rainbow(L["holographic"]),
             UI.CardName(o.signature)), 1, 0.82, 0, true)
         end
         GameTooltip:AddLine((L["Wins pay %d shards."]):format(C.REWARD.win.heroic), 0.62, 0.87, 1)
@@ -2299,7 +2802,7 @@ local function buildLobby()
   -- a challenge waiting for an answer (the popup can be closed by accident)
   local inv = CreateFrame("Frame", nil, lobby, UI.TEMPLATE)
   inv:SetSize(PAGE_W - 8, 34)
-  inv:SetPoint("BOTTOMLEFT", 4, 48)
+  inv:SetPoint("BOTTOMLEFT", 4, 56)
   UI.Backdrop(inv, { 0.12, 0.1, 0.04, 0.95 }, { 1, 0.82, 0 })
   inv.text = UI.Text(inv, 12)
   inv.text:SetPoint("LEFT", 10, 0)
@@ -2325,23 +2828,33 @@ local function buildLobby()
   lobby.pvpStatus:SetTextColor(0.85, 0.85, 0.85)
 
   lobby.daily = UI.Text(lobby, 11)
-  lobby.daily:SetPoint("BOTTOMLEFT", 6, 24)
+  lobby.daily:SetPoint("BOTTOMLEFT", 6, 38)
   lobby.daily:SetTextColor(0.85, 0.85, 0.85)
+  -- the daily task's progress
+  local bar = CreateFrame("StatusBar", nil, lobby, UI.TEMPLATE)
+  bar:SetSize(240, 10)
+  bar:SetPoint("BOTTOMLEFT", 6, 24)
+  bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+  bar:SetMinMaxValues(0, 1)
+  UI.Backdrop(bar, { 0, 0, 0, 0.6 }, { 0.3, 0.3, 0.3 })
+  lobby.dailyBar = bar
+  lobby.dailyCount = UI.Text(lobby, 10)
+  lobby.dailyCount:SetPoint("LEFT", bar, "RIGHT", 8, 0)
   lobby.stats = UI.Text(lobby, 10)
   lobby.stats:SetPoint("BOTTOMLEFT", 6, 6)
   lobby.stats:SetTextColor(0.75, 0.75, 0.75)
 
-  lobby.tutorial = UI.Button(lobby, L["Tutorial"], 130, 20, function() G.StartTutorial() end)
+  lobby.tutorial = UI.Button(lobby, L["Tutorial"], 176, 20, function() G.StartTutorial() end)
   lobby.tutorial:SetPoint("TOPRIGHT", -108, -17)
   UI.SimpleTooltip(lobby.tutorial, L["Tutorial"], L["A short guided match against Flightmaster Dorn: four rounds with his help, then you finish it."],
-    L["It doesn't use your deck or count on the circuit. Finishing it the first time earns a card pack."])
+    L["It doesn't use your deck or count on the circuit. Finishing it the first time earns a Windfall pack."])
   local guide = UI.Button(lobby, L["Guide"], 100, 20, function() UI.SelectTab("guide") end)
   guide:SetPoint("TOPRIGHT", -4, -17)
   UI.SimpleTooltip(guide, L["Guide"], L["Every rule and keyword, with diagrams."])
   lobby.heroicBtn = UI.Button(lobby, L["Heroic rematches"], 150, 20, function() G.SetHeroicView(not heroicView) end)
-  lobby.heroicBtn:SetPoint("TOPRIGHT", -242, -17)
+  lobby.heroicBtn:SetPoint("TOPRIGHT", -290, -17)
   UI.SimpleTooltip(lobby.heroicBtn, L["Heroic rematches"], L["Every opponent again, with their best deck and the sharpest computer play."],
-    L["The first win against each pays a card pack and a holographic copy of their signature card."])
+    L["The first win against each pays a Windfall pack and a holographic copy of their signature card."])
   lobby.heroicBtn:Hide()
 
   -- the first time: offer the tutorial
@@ -2364,7 +2877,7 @@ local function buildLobby()
   wb:SetWidth(434)
   wb:SetJustifyH("LEFT")
   wb:SetSpacing(3)
-  wb:SetText(L["A card game for flights and boat rides. Flightmaster Dorn will show you how it works in a short guided match: four rounds with his help, then you finish it yourself. Finishing it earns a card pack."]
+  wb:SetText(L["A card game for flights and boat rides. Flightmaster Dorn will show you how it works in a short guided match: four rounds with his help, then you finish it yourself. Finishing it earns a Windfall pack."]
     .. "\n\n|cffb0b0b0" .. L["Know how to play already? Skip it. The tutorial stays on this page, and the Guide tab has every rule."] .. "|r")
   local go = UI.Button(w, L["Play the tutorial"], 150, 26, function() G.StartTutorial() end)
   go:SetPoint("BOTTOMLEFT", 18, 16)
@@ -2385,6 +2898,25 @@ end
 -- ---------------------------------------------------------------------------
 -- Board
 -- ---------------------------------------------------------------------------
+-- The board's look: the tavern table, a ship's deck or the sky at dusk
+-- (Art/Board, BoardShip, BoardSky). The "auto" setting picks by how you're
+-- travelling when a game is put on the board, and keeps it for that game.
+G.SKINS = { tavern = "Board", ship = "BoardShip", sky = "BoardSky" }
+local skin = "tavern"
+
+function G.PickBoard()
+  local want = ns.db and ns.db.settings.board
+  if not G.SKINS[want] then
+    local T = ns.Travel
+    want = (T and T.IsFlying()) and "sky" or (T and T.IsRiding()) and "ship" or "tavern"
+  end
+  skin = want
+  if ctl.wood then ctl.wood:SetTexture(UI.ART .. G.SKINS[want]) end
+  return want
+end
+
+function G.BoardSkin() return skin end
+
 local function badge(parent, size)
   local b = CreateFrame("Button", nil, parent, UI.TEMPLATE)
   b:SetSize(size, size)
@@ -2489,6 +3021,35 @@ local function buildPanel(p)
   f:EnableMouse(true)
   UI.SimpleTooltip(f, L["Morale"], L["When it reaches 0 at the end of a round, that player loses. After round 8 the higher Morale wins."],
     L["Units with nothing across from them in their lane hit Morale. The small number beside it is what your plan does this round if your opponent plays nothing new."])
+  if p == OPP then
+    -- their traps: a face-down card and how many, beside their Morale
+    local t = CreateFrame("Frame", nil, f)
+    t:SetSize(30, 46)
+    t:SetPoint("TOPRIGHT", f, "TOPRIGHT", -6, -46)
+    t:SetFrameLevel(f:GetFrameLevel() + 2)
+    t.back = t:CreateTexture(nil, "ARTWORK")
+    t.back:SetSize(24, 33)
+    t.back:SetPoint("TOP", 0, 0)
+    t.back:SetTexture(UI.ART .. "CardBack")
+    t.back:SetTexCoord(0, 1, 0, UI.CARD_V)
+    t.count = UI.Text(t, 11, "OUTLINE")
+    t.count:SetPoint("TOP", t.back, "BOTTOM", 0, -1)
+    t.count:SetTextColor(0.55, 1, 0.6)
+    UI.AttachFlash(t)
+    t:EnableMouse(true)
+    t:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(L["Traps"], 0.55, 1, 0.6)
+      GameTooltip:AddLine(ns.Plural(self.n or 0, "%s has %d trap set in an empty lane. It springs when one of your units strikes into that lane.",
+        "%s has %d traps set in empty lanes. Each springs when one of your units strikes into its lane."):format(oppName(), self.n or 0),
+        1, 1, 1, true)
+      GameTooltip:AddLine(L["Ranged units shoot over traps, and tactics treat a trapped lane as empty."], 0.6, 0.6, 0.6, true)
+      GameTooltip:Show()
+    end)
+    t:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    t:Hide()
+    f.trapMark = t
+  end
   panels[p] = f
 end
 
@@ -2503,6 +3064,8 @@ local function buildBoard()
   wood:SetTexture(UI.ART .. "Board")
   wood:SetTexCoord(0, 1, 0, 0.72)
   wood:SetVertexColor(0.72, 0.72, 0.72)
+  ctl.wood = wood
+  G.PickBoard()
 
   -- each lane is a column joining the enemy slot and yours, with a marker
   -- between them showing what the lane does in combat, and lights flowing
@@ -2533,6 +3096,12 @@ local function buildBoard()
     m.swords:SetPoint("CENTER", m, "CENTER", 0, 5)
     m.swords:SetTexture(UI.Icon({ "Interface\\Icons\\Ability_DualWield", "Interface\\Icons\\INV_Sword_04" }))
     m.swords:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    m.trap = m:CreateTexture(nil, "ARTWORK")
+    m.trap:SetSize(22, 22)
+    m.trap:SetPoint("CENTER", m, "CENTER", 0, 5)
+    m.trap:SetTexture(UI.Icon(TRAP_ICON))
+    m.trap:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    m.trap:Hide()
     m.num = UI.Text(m, 18, "OUTLINE")
     m.num:SetPoint("LEFT", m.arrow, "RIGHT", 1, 0)
     m.label = UI.Text(m, 9)
@@ -2778,21 +3347,85 @@ local function buildBoard()
   shade:SetAllPoints()
   shade:SetColorTexture(0, 0, 0, 0.55)
   local box = CreateFrame("Frame", nil, ov, UI.TEMPLATE)
-  box:SetSize(440, 290)
-  box:SetPoint("CENTER", 0, 40)
+  box:SetSize(560, 440)
+  box:SetPoint("CENTER", 0, 20)
   UI.Backdrop(box, { 0.05, 0.045, 0.04, 0.98 }, { 0.75, 0.6, 0.25 }, true)
+  ov.box = box
   ov.title = UI.Text(box, 30, "OUTLINE")
   ov.title:SetPoint("TOP", 0, -14)
   ov.quote = UI.Text(box, 12)
   ov.quote:SetPoint("TOP", ov.title, "BOTTOM", 0, -8)
-  ov.quote:SetWidth(410)
+  ov.quote:SetWidth(520)
   ov.quote:SetTextColor(0.8, 0.8, 0.8)
+  ov.score = UI.Text(box, 12)
+  ov.score:SetPoint("TOP", ov.quote, "BOTTOM", 0, -8)
+  ov.score:SetWidth(520)
+  ov.stats = UI.Text(box, 11)
+  ov.stats:SetPoint("TOP", ov.score, "BOTTOM", 0, -3)
+  ov.stats:SetWidth(520)
+  -- the opponent's three stars
+  ov.starRow = CreateFrame("Frame", nil, box)
+  ov.starRow:SetSize(3 * 44, 40)
+  ov.stars = {}
+  for i = 1, #C.STARS do
+    local holder = CreateFrame("Frame", nil, ov.starRow)
+    holder:SetSize(40, 40)
+    holder:SetPoint("CENTER", ov.starRow, "CENTER", (i - 2) * 44, 0)
+    holder:EnableMouse(true)
+    UI.SimpleTooltip(holder, C.STARS[i].name, C.STARS[i].text)
+    local s = holder:CreateTexture(nil, "ARTWORK")
+    s:SetPoint("CENTER")
+    s:SetSize(34, 34)
+    s:SetTexture(UI.ART .. "Star")
+    s.flash = holder
+    UI.AttachFlash(holder)
+    ov.stars[i] = s
+  end
+  -- shards and packs won
+  ov.gains = {}
+  for i = 1, #GAIN_ORDER do
+    local g = CreateFrame("Frame", nil, box)
+    g:SetSize(146, 26)
+    g:EnableMouse(true)
+    g.icon = g:CreateTexture(nil, "ARTWORK")
+    g.icon:SetSize(22, 22)
+    g.icon:SetPoint("LEFT", 4, 0)
+    g.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    g.num = UI.Text(g, 15, "OUTLINE")
+    g.num:SetPoint("LEFT", g.icon, "RIGHT", 6, 0)
+    g:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      for _, line in ipairs(self.lines or {}) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+      GameTooltip:Show()
+    end)
+    g:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    g:Hide()
+    ov.gains[i] = g
+  end
+  -- the cards won
+  ov.cards = {}
+  for i = 1, 3 do
+    local cell = CreateFrame("Frame", nil, box)
+    cell:SetSize(UI.CARD_W * 0.8, UI.CARD_H * 0.8 + 30)
+    cell.card = UI.CreateCard(cell)
+    cell.card:SetBaseScale(0.8)
+    cell.card:SetPoint("TOP")
+    cell.label = UI.Text(cell, 10)
+    cell.label:SetPoint("TOP", cell, "TOP", 0, -UI.CARD_H * 0.8 - 3)
+    cell.label:SetWidth(UI.CARD_W + 30)
+    cell:Hide()
+    ov.cards[i] = cell
+  end
   ov.body = UI.Text(box, 12)
-  ov.body:SetPoint("TOP", ov.quote, "BOTTOM", 0, -10)
-  ov.body:SetWidth(410)
+  ov.body:SetWidth(520)
   ov.body:SetSpacing(2)
-  local cont = UI.Button(box, L["Continue"], 100, 24, function() G.Continue() end)
-  cont:SetPoint("BOTTOM", 0, 12)
+  ov.rematch = UI.Button(box, L["Rematch"], 150, 26, function() G.Rematch() end)
+  UI.SimpleTooltip(ov.rematch, L["Rematch"], L["The same opponent again, straight away. Against a player, it sends them a new challenge."])
+  ov.nextOpp = UI.Button(box, L["Next opponent"], 150, 26, function() G.NextOpponent() end)
+  ov.back = UI.Button(box, L["Back to the circuit"], 150, 26, function() G.Continue() end)
+  ov.share = UI.Button(box, L["Share"], 70, 20, function() UI.Share(G.ShareText()) end)
+  ov.share:SetPoint("TOPRIGHT", -10, -10)
+  UI.SimpleTooltip(ov.share, L["Share"], L["Puts a line about it in your chat box, for you to send (or not)."])
   ov:Hide()
   ctl.over = ov
 end
@@ -2810,6 +3443,11 @@ G.api = {
   roundText = function() return ctl.round:GetText() end,
   roundNumber = function() return ctl.roundNo:GetText() end,
   lock = function() return ctl.lock end,
+  -- for the tests
+  over = function() return ctl.over end,
+  trapMark = function() return panels[OPP].trapMark end,
+  lobby = function() return lobby end,
+  lobbyRow = function(i) return rows[i] end,
 }
 
 function G.Build(parent)

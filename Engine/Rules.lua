@@ -6,12 +6,20 @@
 --
 -- The game: two players, 12 Morale each, 4 lanes. Every round both players
 -- secretly plan which cards to play (units into their empty lanes, tactics at
--- a lane), then everything is revealed at once and resolved:
---   1. new units appear, then their Arrive effects run
+-- a lane, traps face down into their empty lanes), then everything is
+-- revealed at once and resolved:
+--   1. new units appear and traps are set, then the Arrive effects run
 --   2. tactics resolve (the player with initiative first)
 --   3. combat: every unit strikes the enemy unit across from it, or the
---      enemy's Morale when that lane is empty (Swift units strike first)
+--      enemy's Morale when that lane is empty (Swift units strike first). A
+--      strike into an empty lane with a trap in it springs the trap instead
 --   4. end of round
+--
+-- Traps (P.traps[lane] = { uid, id }) are off the board: R.Units, attack
+-- bonuses, Fireball's empty-lane check and the tiebreak never see them. Each
+-- client knows every trap (a game against a player has to, to stay in step);
+-- what a player is shown, and what the computer plans from, is R.Redact's
+-- copy, where the other side's traps are only a count.
 -- The game ends at the end of a round in which someone's Morale reaches 0, or
 -- after round 8; the higher Morale wins (tied: more units on the board wins).
 local _, ns = ...
@@ -25,7 +33,8 @@ ns.Rules = R
 -- 4: units that die together have their Fallen effects together (a unit a
 -- Fallen effect summons comes after all of them), and Pierce + Drain no
 -- longer counts the damage that carries on twice.
-R.RULES_VERSION = 4
+-- 5: traps.
+R.RULES_VERSION = 5
 
 R.LANES = 4
 R.MAX_ROUNDS = 8
@@ -120,6 +129,22 @@ function R.Clone(st)
   return c
 end
 
+-- What player p may know of the game: a copy (without the event list) in
+-- which the other player's traps are gone and only their count is left
+-- (hiddenTraps; R.TrapCount still counts them). The forecast and the
+-- computer's planning work on this, so neither can tell where a trap is.
+function R.Redact(st, p)
+  local c = R.Clone(st)
+  local O = c.players[3 - p]
+  local n = 0
+  for l = 1, LANES do
+    if O.traps and O.traps[l] then n = n + 1 end
+  end
+  O.traps = {}
+  O.hiddenTraps = (O.hiddenTraps or 0) + n
+  return c
+end
+
 function R.Snapshot(u)
   local s = copy(u)
   s.kw = copy(u.kw)
@@ -183,13 +208,32 @@ function R.Units(st, p)
   return out
 end
 
--- p's lanes with no unit in them.
+-- p's lanes with no unit and no trap in them.
 function R.EmptyLanes(st, p)
-  local out, board = {}, st.players[p].board
+  local P = st.players[p]
+  local out, board, traps = {}, P.board, P.traps or {}
   for l = 1, LANES do
-    if not board[l] then out[#out + 1] = l end
+    if not board[l] and not traps[l] then out[#out + 1] = l end
   end
   return out
+end
+
+-- Traps -----------------------------------------------------------------------
+-- p's trap in a lane ({ uid, id }), or nil.
+function R.TrapAt(st, p, lane)
+  local traps = st.players[p].traps
+  return traps and lane and traps[lane] or nil
+end
+
+-- How many traps p has set: the ones this copy knows about, plus the ones
+-- R.Redact hid (their count is all that's left of them).
+function R.TrapCount(st, p)
+  local P = st.players[p]
+  local n = P.hiddenTraps or 0
+  for l = 1, LANES do
+    if P.traps and P.traps[l] then n = n + 1 end
+  end
+  return n
 end
 
 -- The two players, the one with initiative first.
@@ -301,7 +345,7 @@ local deferred = setmetatable({}, { __mode = "k" })
 function R.Summon(st, p, lane, id)
   if not lane or lane < 1 or lane > LANES then return end
   local board = st.players[p].board
-  if board[lane] then return end
+  if board[lane] or R.TrapAt(st, p, lane) then return end
   local wait = deferred[st]
   if wait then
     wait[#wait + 1] = { p = p, lane = lane, id = id }
@@ -311,6 +355,51 @@ function R.Summon(st, p, lane, id)
   board[lane] = u
   emit(st, { t = "place", p = p, lane = lane, unit = R.Snapshot(u), summon = true })
   return u
+end
+
+-- Sets trap card `id` face down in p's lane. Returns true, or nil when the
+-- lane isn't free (a unit or a trap is there).
+function R.SetTrap(st, p, lane, id)
+  if not lane or lane < 1 or lane > LANES then return end
+  local P = st.players[p]
+  P.traps = P.traps or {}
+  if P.board[lane] or P.traps[lane] then return end
+  card(id)
+  st.uid = st.uid + 1
+  P.traps[lane] = { uid = st.uid, id = id }
+  emit(st, { t = "trap", p = p, lane = lane, id = id })
+  return true
+end
+
+-- Units a trap brings in arrive at the end of combat (springWait[st] is the
+-- list they wait in), so they never strike in the round they appear.
+local springWait = setmetatable({}, { __mode = "k" })
+
+-- p's trap in `lane` springs: attacker (the enemy unit that struck into the
+-- lane) is stopped, the trap goes to the grave and does what it says.
+function R.Spring(st, p, lane, attacker)
+  local P = st.players[p]
+  local t = P.traps and P.traps[lane]
+  if not t then return end
+  P.traps[lane] = nil
+  P.grave[#P.grave + 1] = t.id
+  emit(st, { t = "spring", p = p, lane = lane, id = t.id,
+    ap = attacker and attacker.owner, al = attacker and attacker.lane, aid = attacker and attacker.id })
+  local c = card(t.id)
+  if c.spring then
+    local before = deferred[st]
+    local wait = springWait[st]
+    if wait then deferred[st] = wait end
+    c.spring(st, p, lane, attacker)
+    deferred[st] = before
+  end
+end
+
+-- "Frozen next round as well" (Freezing Trap): R.StartRound freezes it.
+function R.Chill(st, u)
+  if not u then return end
+  u.chill = true
+  setEvent(st, u, "chill")
 end
 
 -- The first draws are guided so there's always something to play: round 1's
@@ -417,8 +506,9 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Plans: a list of actions { h = hand index, id = card id, lane = lane }.
--- Units need one of your empty lanes; "enemy" and "friend" tactics need a lane
--- (a friend tactic may target a unit you're playing this round).
+-- Units and traps need one of your empty lanes (no unit, no trap, nothing
+-- else planned there); "enemy" and "friend" tactics need a lane (a friend
+-- tactic may target a unit you're playing this round, never a trap).
 -- ---------------------------------------------------------------------------
 function R.PlanCost(st, p, plan)
   local hand, cost = st.players[p].hand, 0
@@ -432,18 +522,20 @@ end
 function R.CheckPlan(st, p, plan)
   local P = st.players[p]
   if type(plan) ~= "table" then return false, L["No plan."] end
-  local cost, usedH, newLane = 0, {}, {}
+  local cost, usedH, newLane, taken = 0, {}, {}, {}
+  local traps = P.traps or {}
   for _, a in ipairs(plan) do
     local id = P.hand[a.h]
     if not id or usedH[a.h] or (a.id and a.id ~= id) then return false, L["That card isn't in your hand."] end
     usedH[a.h] = true
     local c = card(id)
     cost = cost + c.cost
-    if c.type == "unit" then
+    if c.type == "unit" or c.type == "trap" then
       local l = a.lane
-      if type(l) ~= "number" or l < 1 or l > LANES then return false, L["Pick a lane for %s."]:format(c.name) end
-      if P.board[l] or newLane[l] then return false, L["That lane is taken."] end
-      newLane[l] = true
+      if type(l) ~= "number" or l < 1 or l > LANES or l ~= floor(l) then return false, L["Pick a lane for %s."]:format(c.name) end
+      if P.board[l] or traps[l] or taken[l] then return false, L["That lane is taken."] end
+      taken[l] = true
+      if c.type == "unit" then newLane[l] = true end
     end
   end
   for _, a in ipairs(plan) do
@@ -478,7 +570,7 @@ local function strikesFor(st, u, hits)
   local e = 3 - u.owner
   local eb = st.players[e].board
   local l = u.lane
-  local target, via
+  local target, via, trapped
   if u.kw.ranged then
     for k = 1, LANES do
       local x = eb[k]
@@ -487,15 +579,22 @@ local function strikesFor(st, u, hits)
     via = "ranged"
   else
     target = eb[l]
-    if not target then
+    -- nothing across, but a trap: the trap comes before any Guard (Ranged
+    -- shoots over traps, so it never springs one)
+    trapped = not target and R.TrapAt(st, e, l) ~= nil
+    if not target and not trapped then
       target = pickGuard(eb, l)
       if target then via = "guard" end
     end
   end
   -- via: how the hit found its target, for the replay ("ranged", "guard",
-  -- "pierce", "cleave"); it doesn't change what happens
+  -- "pierce", "cleave", "trap"); it doesn't change what happens
   -- drain: how much of the hit counts for Drain, when that isn't all of it
-  if target then
+  if trapped then
+    -- the strike springs the trap and goes no further: no Morale, no
+    -- Pierce, and Drain gets nothing (it did no damage)
+    hits[#hits + 1] = { src = u, trap = { p = e, lane = l }, amt = atk, via = "trap", drain = 0 }
+  elseif target then
     local hit = { src = u, dst = target, amt = atk, via = via }
     hits[#hits + 1] = hit
     if u.kw.pierce and atk > target.hp then
@@ -518,6 +617,8 @@ end
 function R.Combat(st)
   emit(st, { t = "phase", name = "combat" })
   local a, b = order(st)
+  local arriving = {}
+  springWait[st] = arriving
   for step = 1, 2 do
     local swiftStep = step == 1
     local hits = {}
@@ -538,10 +639,13 @@ function R.Combat(st)
       local drained, drainers, unstealthed = { 0, 0 }, { {}, {} }, {}
       for _, h in ipairs(hits) do
         local src = h.src
-        emit(st, { t = "strike", p = src.owner, lane = src.lane,
-          tp = h.dst and h.dst.owner or h.mp, tl = h.dst and h.dst.lane or nil, amt = h.amt,
+        local tp = h.dst and h.dst.owner or h.trap and h.trap.p or h.mp
+        local tl = h.dst and h.dst.lane or h.trap and h.trap.lane or nil
+        emit(st, { t = "strike", p = src.owner, lane = src.lane, tp = tp, tl = tl, amt = h.amt,
           via = h.via, fl = h.from and h.from.lane or nil, swift = swiftStep or nil })
-        if h.dst then
+        if h.trap then
+          R.Spring(st, h.trap.p, h.trap.lane, src)
+        elseif h.dst then
           R.Damage(st, h.dst, h.amt)
           if src.kw.venom then
             h.dst.doomed = true
@@ -572,6 +676,10 @@ function R.Combat(st)
       R.Cleanup(st)
     end
   end
+  springWait[st] = nil
+  -- the units traps brought in, now that nobody strikes any more
+  for _, s in ipairs(arriving) do R.Summon(st, s.p, s.lane, s.id) end
+  if #arriving > 0 then emit(st, { t = "beat" }) end
 end
 
 -- ---------------------------------------------------------------------------
@@ -617,6 +725,13 @@ function R.StartRound(st)
   for _, p in ipairs({ a, b }) do
     for _, u in ipairs(R.Units(st, p)) do list[#list + 1] = u end
   end
+  -- a unit chilled last round (Freezing Trap) is frozen for this one
+  for _, u in ipairs(list) do
+    if u.chill then
+      u.chill = nil
+      R.Freeze(st, u)
+    end
+  end
   for _, u in ipairs(list) do
     local c = card(u.id)
     if c.roundStart and st.players[u.owner].board[u.lane] == u then c.roundStart(st, u) end
@@ -638,7 +753,7 @@ function R.NewGame(o)
     for i, id in ipairs(o.decks[p]) do card(id); deck[i] = id end
     st.players[p] = {
       name = o.names and o.names[p] or L["Player %d"]:format(p),
-      morale = R.START_MORALE, deck = deck, hand = {}, grave = {}, board = {}, supply = 0,
+      morale = R.START_MORALE, deck = deck, hand = {}, grave = {}, board = {}, traps = {}, supply = 0,
     }
   end
   local S = seats(st)
@@ -675,10 +790,12 @@ function R.Checksum(st)
         for k, v in pairs(u.kw) do if v then kws[#kws + 1] = k end end
         table.sort(kws)
         parts[#parts + 1] = table.concat({ u.uid, u.id, u.atk, u.hp, u.maxHp, u.tmpAtk or 0, u.frozen and 1 or 0,
-          u.new and 1 or 0, u.doomed and 1 or 0, table.concat(kws, "+") }, ":")
+          u.new and 1 or 0, u.doomed and 1 or 0, table.concat(kws, "+"), u.chill and 1 or 0 }, ":")
       else
         parts[#parts + 1] = "."
       end
+      local t = P.traps and P.traps[l]
+      parts[#parts + 1] = t and ("t" .. t.uid .. ":" .. t.id) or "-"
     end
   end
   local s = table.concat(parts, "|")
@@ -730,7 +847,25 @@ function R.Resolve(st, plans, opts)
       arrivals[#arrivals + 1] = u
     end
   end
-  if #arrivals > 0 then emit(st, { t = "beat" }) end
+  -- traps are set with the units, before any Arrive effect (so a summon
+  -- looking for an empty lane skips a trap played this round, and "if you
+  -- have a trap set" counts it)
+  local set = false
+  for _, p in ipairs({ a, b }) do
+    local traps = {}
+    for _, act in ipairs(played[p]) do
+      if card(act.id).type == "trap" then traps[#traps + 1] = act end
+    end
+    table.sort(traps, function(x, y) return x.lane < y.lane end)
+    for _, act in ipairs(traps) do
+      if R.SetTrap(st, p, act.lane, act.id) then
+        set = true
+      else
+        st.players[p].grave[#st.players[p].grave + 1] = act.id
+      end
+    end
+  end
+  if #arrivals > 0 or set then emit(st, { t = "beat" }) end
   for _, u in ipairs(arrivals) do
     local c = card(u.id)
     if c.arrive and st.players[u.owner].board[u.lane] == u then

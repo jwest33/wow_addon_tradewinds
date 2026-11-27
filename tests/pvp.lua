@@ -1,6 +1,8 @@
 -- Player against player: two complete clients (each with its own WoW mock,
 -- saved data and copy of the addon) in one Lua state, joined by a pretend
--- network that delivers whispers between them. The test plays whole matches
+-- network that delivers whispers between them, and guild messages to
+-- everyone in the same guild (the sender too: the probe found that the
+-- game echoes them back). The test plays whole matches
 -- through the same functions the buttons call, loses messages, reloads a
 -- client in the middle of a match, and checks that both copies of the game
 -- stay identical.
@@ -13,7 +15,7 @@ end
 
 math.randomseed(4242)
 
-local network = {}   -- messages in flight: { to = name, from = full name, prefix, msg }
+local network = {}   -- messages in flight: { to = name, from = full name, prefix, msg, channel }
 local clients = {}   -- by name
 local drop = nil     -- function(msg, from, to) -> true to lose a message
 
@@ -39,6 +41,15 @@ local function client(name, saved, locale)
     if file then run((file:gsub("\\", "/")), "Tradewinds", ns) end
   end
   M.onSend = function(prefix, msg, chatType, target)
+    if chatType == "GUILD" then
+      if not M.guild then return end
+      for _, c in pairs(clients) do
+        if c.MOCK.guild == M.guild then
+          network[#network + 1] = { to = c.name, from = name .. "-Realm", prefix = prefix, msg = msg, channel = "GUILD" }
+        end
+      end
+      return
+    end
     if chatType ~= "WHISPER" then return end
     if drop and drop(msg, name, target) then return end
     network[#network + 1] = { to = target:match("^[^%-]+"), from = name .. "-Realm", prefix = prefix, msg = msg }
@@ -60,7 +71,7 @@ local function pump()
     network = {}
     for _, m in ipairs(batch) do
       local c = clients[m.to]
-      if c and not c.offline then c.MOCK.Fire("CHAT_MSG_ADDON", m.prefix, m.msg, "WHISPER", m.from) end
+      if c and not c.offline then c.MOCK.Fire("CHAT_MSG_ADDON", m.prefix, m.msg, m.channel or "WHISPER", m.from) end
     end
   end
 end
@@ -247,6 +258,53 @@ do
   B.G.Continue()
 end
 
+-- traps between two players: both engines know every trap (to stay in step),
+-- the board shows only your own; the plan carries the lane
+do
+  local ma, mb = startMatch(A, B)
+  -- the same change in both copies: Alice (A's player 1, B's player 2) holds
+  -- two traps, and Bob has a Grunt in his lane 2
+  ma.st.players[1].hand[1], mb.st.players[2].hand[1] = "immolation", "immolation"
+  ma.st.players[1].hand[2], mb.st.players[2].hand[2] = "landmine", "landmine"
+  ma.st.players[1].supply, mb.st.players[2].supply = 6, 6
+  A.R.Summon(ma.st, 2, 2, "grunt").new = nil
+  B.R.Summon(mb.st, 1, 2, "grunt").new = nil
+  check(sum(A) == sum(B), "traps: both copies the same to start")
+  A.G.Refresh()
+  A.G.ClickHand(1, "LeftButton")
+  A.G.ClickSlot(1, 2, "LeftButton")
+  A.G.ClickHand(2, "LeftButton")
+  A.G.ClickSlot(1, 4, "LeftButton")
+  A.G.LockIn()
+  pump()
+  check(not B.G.api.slot(2, 2).card:IsShown() and not B.G.api.slot(2, 4).card:IsShown(),
+    "Bob doesn't see Alice's planned traps")
+  B.G.LockIn()
+  pump()
+  advance(40)
+  check(sum(A) == sum(B), "traps: both copies the same after the round")
+  local bst = B.G.Match().st
+  local g = bst.players[1].board[2]
+  check(g and g.hp == 1 and not B.R.TrapAt(bst, 2, 2), "Bob's Grunt sprang Alice's Immolation Trap, on both sides")
+  check(B.R.TrapAt(bst, 2, 4) and not B.G.api.slot(2, 4).card:IsShown(), "Bob's engine knows her other trap; his board doesn't show it")
+  local mark = B.G.api.trapMark()
+  check(mark:IsShown() and mark.count:GetText() == "x1", "Bob sees that Alice has one trap set")
+  local aslot = A.G.api.slot(1, 4)
+  check(aslot.card:IsShown() and aslot.card.hiddenId == "landmine", "Alice sees hers face down")
+  local saw = false
+  for _, line in ipairs(B.G.Match().log or {}) do
+    if line:find("Alice set a trap", 1, true) then saw = true end
+    if line:find(B.ns.Cards.byId.landmine.name, 1, true) then saw = false; break end
+  end
+  check(saw, "Bob's log says Alice set a trap, not which one")
+  A.G.EndMatch()
+  pump()
+  check(noGames(A) and noGames(B), "conceded: over on both sides")
+  check((B.G.GameOverFacts() or ""):find(B.ns.Cards.byId.landmine.name, 1, true), "Bob's end screen turns her unsprung trap face up")
+  A.G.Continue()
+  B.G.Continue()
+end
+
 -- a concession -------------------------------------------------------------------------
 do
   local shardsA = A.db().shards
@@ -283,6 +341,58 @@ do
   advance(40)
   check(noGames(A) and noGames(B), "a checksum mismatch ends the match on both sides")
   check(chatHas(A, "out of step") or chatHas(B, "out of step"), "and says why")
+end
+
+-- the last round: both sides end the game at once, so its checksums cross
+-- afterwards and are compared against the finished game; Rematch on the end
+-- screen challenges the same player again
+do
+  local function lastRound(hold)
+    local ma, mb = startMatch(A, B)
+    ma.st.players[2].morale, mb.st.players[1].morale = 0, 0   -- Bob, in each side's seats
+    local held
+    if hold then
+      drop = function(msg, from)
+        if from == "Bob" and msg:find("^SU;") then held = msg; return true end
+      end
+    end
+    A.G.LockIn()
+    B.G.LockIn()
+    pump()
+    advance(40)
+    drop = nil
+    return ma.pvp.gid, held
+  end
+  local function warned(c)
+    local n = 0
+    for _, line in ipairs(c.MOCK.chat) do if line:find("ended differently") then n = n + 1 end end
+    return n
+  end
+  A.MOCK.chat, B.MOCK.chat = {}, {}
+  local gid = lastRound(false)
+  check(noGames(A) and noGames(B) and A.db().pvpDone[gid] and A.db().pvpDone[gid].round, "a last round ends the game on both sides")
+  check(warned(A) == 0 and warned(B) == 0, "the last round's checksums agree: nothing to report")
+  -- Bob's checksum arrives after Alice's game has ended
+  local held
+  gid, held = lastRound(true)
+  check(held and noGames(A) and not A.db().pvpDone[gid].theirSum, "Bob's last checksum is late")
+  A.ns.Net.Receive("Bob-Realm", held)
+  check(A.db().pvpDone[gid].theirSum ~= nil and warned(A) == 0, "a late checksum that agrees is noted, nothing more")
+  gid, held = lastRound(true)
+  local wrong = held:gsub(";[^;]*$", ";0")
+  A.ns.Net.Receive("Bob-Realm", wrong)
+  A.ns.Net.Receive("Bob-Realm", wrong)
+  check(warned(A) == 1, "a last round that ended differently is reported, once")
+  -- Rematch: a normal challenge to the same player
+  B.MOCK.popup = nil
+  local sentOk = A.G.Rematch()
+  pump()
+  check(sentOk and B.MOCK.popup and B.MOCK.popup.name == "TRADEWINDS_CHALLENGE" and B.MOCK.popup.arg == "Alice",
+    "Rematch on the end screen challenges Bob again")
+  B.G.AnswerChallenge(false)
+  pump()
+  A.G.Continue()
+  B.G.Continue()
 end
 
 -- the other side is offline --------------------------------------------------------------
@@ -645,6 +755,81 @@ do
   pump()
   A.MOCK.targetName = nil
   clients.Carol = nil
+end
+
+-- the guild board: guildmates who have Tradewinds see each other's progress;
+-- one who doesn't share sends nothing; garbage is ignored
+do
+  local guild = {}
+  local Gw, Hu, Iv = client("Gwen"), client("Hugo"), client("Ivy")
+  for _, c in ipairs({ Gw, Hu, Iv }) do
+    c.MOCK.guild = guild
+    guild[#guild + 1] = { name = c.name .. "-Realm", online = true }
+  end
+  Iv.db().settings.guildShare = false
+  local function sentGuild(c, kind)
+    local n = 0
+    for _, s in ipairs(c.MOCK.sent) do
+      if s.chatType == "GUILD" and s.msg:find("^" .. kind) then n = n + 1 end
+    end
+    return n
+  end
+  advance(31)   -- the first progress line goes out 5-30 s after login
+  check(Gw.db().guildBoard["Hugo-Realm"] and Hu.db().guildBoard["Gwen-Realm"], "two guildmates see each other")
+  check(Gw.db().guildBoard["Gwen-Realm"] == nil, "your own line coming back isn't a guildmate")
+  check(Gw.db().guildBoard["Ivy-Realm"] == nil and sentGuild(Iv, "LB") == 0, "one who doesn't share sends nothing")
+  check(Iv.db().guildBoard["Gwen-Realm"] ~= nil, "but still sees those who do")
+  local e = Hu.db().guildBoard["Gwen-Realm"]
+  check(e.v == Gw.ns.VERSION and e.total == #Gw.ns.Cards.collectible and e.stars == 0, "with their version and numbers")
+  -- a number changes: at most one line a minute
+  local before = sentGuild(Gw, "LB")
+  Gw.db().stars.dorn = { true }
+  advance(10)
+  Gw.db().stars.dorn = { true, true }
+  advance(70)
+  check(sentGuild(Gw, "LB") == before + 1 and Hu.db().guildBoard["Gwen-Realm"].stars == 2,
+    "two changes in a minute: one line, with the latest numbers")
+  advance(120)
+  check(sentGuild(Gw, "LB") == before + 1, "nothing changes: nothing sent")
+  -- opening the guild board asks; those who share answer
+  Hu.db().guildBoard["Gwen-Realm"] = nil
+  Hu.env.SlashCmdList.TRADEWINDS("records")
+  Hu.ns.UI.Records.SetView("guild")
+  check(sentGuild(Hu, "LQ") == 1, "Hugo opens the guild board: he asks")
+  advance(6)
+  check(Hu.db().guildBoard["Gwen-Realm"] ~= nil and sentGuild(Iv, "LB") == 0, "Gwen answers; Ivy, not sharing, doesn't")
+  Iv.env.SlashCmdList.TRADEWINDS("records")
+  Iv.ns.UI.Records.SetView("guild")
+  check(sentGuild(Iv, "LQ") == 0, "and doesn't ask either")
+  -- Challenge from the board: online and on the same version
+  local function row(c, short)
+    for _, r in ipairs(c.ns.UI.Records.BoardRows()) do
+      if r.short == short then return r end
+    end
+  end
+  check(Hu.ns.Guild.CanPlay(row(Hu, "Gwen")), "Gwen is online on Hugo's version: Challenge and Trade are on")
+  guild[1].online = false
+  advance(3)
+  check(not Hu.ns.Guild.CanPlay(row(Hu, "Gwen")), "offline: they're off")
+  guild[1].online = true
+  advance(3)
+  -- garbage on the guild channel, and messages on the wrong channel
+  local errs = #Hu.MOCK.errors
+  local junk = { "LB", "LB;;;;;;;", "LB;0.18.0;1;1;1", "LB;0.18.0;a;b;c;d;e;f", "LB;0.18.0;1;1;50;10;5;0",
+    "LB;" .. string.rep("9", 40) .. ";1;1;1;10;5;0", "LB;0.18.0;1;1;1;10;5;0;extra;fields", "LQ;x", string.rep(";", 200) }
+  for i, msg in ipairs(junk) do
+    local ok = pcall(Hu.MOCK.Fire, "CHAT_MSG_ADDON", "Tradewinds", msg, "GUILD", "Zed" .. i .. "-Realm")
+    if not ok then errs = errs - 1000 end
+  end
+  local kept = {}
+  for name in pairs(Hu.db().guildBoard) do if name:find("^Zed") then kept[#kept + 1] = name end end
+  check(errs == #Hu.MOCK.errors and #kept == 1 and kept[1] == "Zed7-Realm",
+    "bad lines are ignored without an error (extra fields at the end are allowed, for later versions)")
+  Hu.MOCK.popup = nil
+  Hu.MOCK.Fire("CHAT_MSG_ADDON", "Tradewinds", "CH;123;2;5;abc;0.18.0", "GUILD", "Zed-Realm")
+  check(Hu.MOCK.popup == nil, "a challenge on the guild channel is ignored")
+  Hu.MOCK.Fire("CHAT_MSG_ADDON", "Tradewinds", "LB;0.18.0;1;1;1;10;5;0", "WHISPER", "Yan-Realm")
+  check(Hu.db().guildBoard["Yan-Realm"] == nil, "and a progress line by whisper")
 end
 
 -- every message fits, and a full deck does with room to spare

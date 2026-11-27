@@ -1,5 +1,87 @@
 # Changelog
 
+## 0.18.0
+
+**Traps, achievements, the guild board, and a lot more to look at.** Traps
+change the rules, so a match in progress (against the computer or a player)
+ends when you log in, without counting either way. Finish your games before
+you update. Games against players and trades need you both on 0.18.0.
+
+**Traps**
+- A new card type: set it face down in one of your empty lanes. Your
+  opponent sees how many traps you have set (a count by your Morale), not
+  which or where. It springs when an enemy unit strikes into that lane: the
+  strike stops there, the trap turns face up and does what it says.
+- 8 traps: Snake Trap, Immolation Trap, Consecrated Ground, Freezing Trap,
+  Shallow Grave, Goblin Land Mine, Explosive Trap and Defias Ambush (3
+  damage to the attacker, and a 3/3 Defias Ambusher steps into the lane).
+- 3 Defias who work with traps (Defias Trapper, Defias Watchman, and the
+  Defias Saboteur, who sets a Snake Trap himself), and 6 new items (Goblin
+  Sapper Charge, Stratholme Holy Water, Goblin Rocket Boots, Argent Dawn
+  Commission, Flask of the Titans, Ironfoe). 185 cards in all.
+- Everyone gets a Defias Ambush and an Immolation Trap, once, to try them.
+- Ranged units shoot over traps; frozen units and ones with no attack don't
+  spring them. Pierce stops at a trap and Drain gets nothing from it; Cleave
+  still hits the units beside it. Tactics treat a trapped lane as empty. A
+  unit a trap brings in arrives after combat. The Guide has a Traps page,
+  and the first trap you meet gets a tip, as keywords do.
+- Neither the forecast nor the computer can see where your opponent's traps
+  are: both plan from the count alone. Lil Fingers has a Defias Ambush in her
+  deck now.
+- The lane markers show a trap that's about to spring, and the end screen
+  turns over any trap that never sprang. The Cards tab filters traps, and the
+  deck chart counts them.
+
+**Achievements and the Records tab**
+- 58 achievements in seven groups (the circuit, the collection, battles,
+  travel, other players, traps, and oddities like winning on exactly 1
+  Morale). They're worth points, nothing else. A toast says when you earn
+  one; the new Records tab lists them all with progress bars.
+- Some count what you do from now on (Morale dealt, packs opened, travel
+  time, traps sprung...): those start at zero for everyone. The rest read
+  what you already have, and a character from before 0.18.0 gets those at
+  the first login in one line of chat, not a toast each.
+
+**The guild board**
+- The Records tab's Guild board shows guildmates who have Tradewinds: their
+  stars, heroic wins, cards, achievement points and wins against players,
+  and when they were last heard from. Sort by any column; Challenge and Trade
+  work from there for anyone online on your version.
+- Your numbers go out on the guild's addon channel (never to chat), at most
+  once a minute while they change. The new option **Share progress with my
+  guild** (`/tradewinds guild off`) stops all of it.
+
+**Sharing and deck codes**
+- **Share** buttons (a pack with an epic, legendary or holographic card, a
+  new star or a win against a player, an achievement) put a line in your chat
+  box. You decide whether to send it.
+- The Cards tab's **Code** button shows your deck as a line of text to copy,
+  and loads a code someone gave you (with the cards you own; chat lists the
+  ones you're missing and what crafting them costs).
+
+**More to look at**
+- Packs: click each card to turn it over. Rare and better glow first; an
+  epic, a legendary or a holographic card charges up before it turns. Reveal
+  all turns the rest one by one, the best last, and a line sums the pack up.
+- The end of a match: stars stamp in, shards and packs count up, the cards
+  you won turn over, and **Rematch** or **Play** (the opponent you just
+  unlocked) start the next one. Against a player, Rematch sends a new
+  challenge.
+- The opponent list has portraits, each opponent's signature card (grey
+  until you've won it), locks on the ones you haven't reached, and a
+  progress bar for the daily task.
+- The board: a ship's deck on a boat or zeppelin, the evening sky on a
+  flight, the tavern table otherwise. Options can fix one.
+- `/tradewinds probe` checks the game functions Tradewinds relies on, for
+  bug reports.
+
+**Fixes**
+- A difference in the very last round of a game against a player is now
+  reported in chat (the result stands, since the game is over on both
+  sides). Before, it went unnoticed.
+- The tutorial and the heroic rematch text named card packs where they pay
+  Windfall packs.
+
 ## 0.17.0
 
 **Tribes of Azeroth**: 71 new cards (168 in all), Windfall packs, and items.

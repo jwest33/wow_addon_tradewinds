@@ -12,6 +12,7 @@ ignore:
   - media
   - PLAN.md
   - SETS_PLAN.md
+  - STANDOUT_PLAN.md
   - README.md
   - Locales/enUS.lua
   - .gitattributes

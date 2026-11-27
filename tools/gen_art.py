@@ -111,8 +111,9 @@ ART = [14, 14, 242, 146]       # the picture: a glow in the body's colours
 ICON = [78, 25, 178, 125]      # the icon, whole and square, framed in its middle
 NAME = [8, 136, 248, 170]      # name banner, over the art's bottom edge
 TYPE = [20, 170, 236, 195]     # type line: "Beast unit", "Tactic: enemy lane"
-TEXT = {"unit": [16, 199, 240, 310], "tactic": [16, 199, 240, 332], "item": [16, 199, 240, 332]}   # rules box
-GEM_Y = {"unit": 333, "tactic": 342, "item": 342}                                                  # rarity gem
+TEXT = {"unit": [16, 199, 240, 310], "tactic": [16, 199, 240, 332], "item": [16, 199, 240, 332],
+        "trap": [16, 199, 240, 332]}                                                               # rules box
+GEM_Y = {"unit": 333, "tactic": 342, "item": 342, "trap": 342}                                     # rarity gem
 GLOW_PAD = 22                  # CardGlow: the card plus this much on every side
 
 # Units: warm wood and bronze, parchment. Tactics: deep indigo and silver,
@@ -135,9 +136,15 @@ PAL = {
         banner=((74, 34, 22), (34, 15, 10)), plate=((156, 106, 48), (100, 64, 26)),
         box=((246, 236, 210), (224, 208, 172)), boxedge=(124, 86, 44), shade=(104, 72, 40),
         glow=(176, 118, 56), dark=(32, 14, 9)),
+    # traps: dark forest green, with iron fittings and a pale green box
+    "trap": dict(
+        body=((40, 70, 44), (13, 28, 17)), edge=(176, 186, 192), edge2=(86, 94, 100),
+        banner=((30, 56, 36), (11, 24, 14)), plate=((104, 112, 118), (60, 66, 70)),
+        box=((232, 240, 222), (204, 220, 196)), boxedge=(62, 96, 66), shade=(52, 84, 58),
+        glow=(76, 160, 90), dark=(8, 22, 11)),
 }
 
-BODY_NAME = {"unit": "CardUnit", "tactic": "CardTactic", "item": "CardItem"}
+BODY_NAME = {"unit": "CardUnit", "tactic": "CardTactic", "item": "CardItem", "trap": "CardTrap"}
 
 
 def grow(box, d):
@@ -185,9 +192,22 @@ def card_body(kind):
         body = grain(grain(body, 7, stretch=(1, 18 * S)), 3)
     elif kind == "item":   # pebbled leather
         body = grain(grain(body, 9, blur=1.5), 4)
+    elif kind == "trap":   # mottled, like a forest floor
+        body = grain(grain(body, 10, blur=3), 4)
     else:
         body = grain(grain(body, 5, blur=6), 3)
     put(img, body, rmask(CW, CH, [3, 3, CW - 3, CH - 3], 13))
+    if kind == "trap":   # an iron band inside the edge, riveted
+        band = minus(rmask(CW, CH, [8, 8, CW - 8, CH - 8], 9), rmask(CW, CH, [11, 11, CW - 11, CH - 11], 7))
+        put(img, vgrad(CW, CH, (128, 136, 142), (66, 72, 76)), band)
+        d = ImageDraw.Draw(img)
+        pts = [(x, 9.5) for x in range(30, CW - 25, 28)] + [(x, CH - 9.5) for x in range(30, CW - 25, 28)]
+        pts += [(9.5, y) for y in range(40, CH - 35, 32)] + [(CW - 9.5, y) for y in range(40, CH - 35, 32)]
+        for cx, cy in pts:
+            r = 2.4
+            d.ellipse([(cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S], fill=(40, 44, 46, 255))
+            r = 1.6
+            d.ellipse([(cx - r) * S, (cy - r - 0.4) * S, (cx + r) * S, (cy + r - 0.4) * S], fill=(196, 204, 208, 255))
     if kind == "item":   # a stitched seam inside the edge, and brass rivets at the corners
         d = ImageDraw.Draw(img)
         x0, y0, x1, y1 = 9, 9, CW - 9, CH - 9
@@ -398,7 +418,8 @@ def card_back():
 def card_art():
     """Every texture of the card face. Returns them for the preview sheet."""
     return {
-        "unit": card_body("unit"), "tactic": card_body("tactic"), "item": card_body("item"), "rim": card_rim(),
+        "unit": card_body("unit"), "tactic": card_body("tactic"), "item": card_body("item"), "trap": card_body("trap"),
+        "rim": card_rim(),
         "glow": card_glow(),
         "back": card_back(), "pill": pill(),
         "cost": jewel("StatCost", "circle", (52, 112, 236), facets=8),
@@ -691,6 +712,24 @@ def diagrams():
         g.d.line(sc([cx - 9, cy - 9 * dx, cx + 9, cy + 9 * dx]), fill=RED + (255,), width=3 * S)
     g.text((LANE_X[2] + 2, 63), "can't target", 10, RED)
     out.append(g.save("stealth"))
+
+    g = Diagram()   # trap: their strike into your empty lane stops at the trap
+    g.empty(1, "them")
+    g.empty(1, "you")
+    g.unit(2, "them", "3/4")
+    b = g.box(2, "you")
+    g.d.rounded_rectangle(sc(b), 5 * S, fill=(24, 64, 32, 255), outline=(110, 220, 122, 255), width=int(1.5 * S))
+    g.text((LANE_X[1], ROW_Y["you"]), "Trap", 11, (160, 255, 170))
+    g.arrow(top(2), (LANE_X[1], ROW_Y["you"] - 25), RED)
+    cx, cy = LANE_X[1], ROW_Y["you"] - 25
+    for k in range(8):   # a snap where the strike stops
+        a = k * math.pi / 4 + math.pi / 8
+        g.d.line(sc([cx + math.cos(a) * 6, cy + math.sin(a) * 6, cx + math.cos(a) * 11, cy + math.sin(a) * 11]),
+                 fill=(160, 255, 170, 255), width=2 * S)
+    g.text((LANE_X[2] + 2, 63), "springs", 10, (160, 255, 170))
+    g.empty(3, "them")
+    g.empty(3, "you")
+    out.append(g.save("trap"))
     return out
 
 
@@ -774,7 +813,7 @@ def mock_card(c, art, R):
         return (b[0] + inset[0]) * K, (b[1] + inset[1]) * K, (b[2] - b[0] - inset[0] - inset[2]) * K, \
             (b[3] - b[1] - inset[1] - inset[3]) * K
     unit = c["type"] == "unit"
-    kind = "unit" if unit else ("item" if c.get("item") else "tactic")
+    kind = "unit" if unit else "trap" if c["type"] == "trap" else ("item" if c.get("item") else "tactic")
     img = Image.new("RGBA", (int(CARD_W * R), int(CARD_H * R)), (0, 0, 0, 0))
     ax, ay, aw, ah = units(ICON)
     pic = vgrad(64, 64, c["hue"], tuple(v // 3 for v in c["hue"])).resize((64, 64)).convert("RGBA")
@@ -824,6 +863,8 @@ def mock(path, art, R=2.1):
              short="2 damage to every enemy unit", hue=(70, 124, 190)),
         dict(name="Elixir of the Giants", type="tactic", item=True, typeline="Item: your unit", rarity="uncommon",
              cost=2, short="+3/+3", hue=(70, 150, 90)),
+        dict(name="Defias Ambush", type="trap", typeline="Trap", rarity="uncommon", cost=3,
+             short="Springs: 3 damage and a 3/3 Ambusher", hue=(96, 120, 70)),
     ]
     faces = [mock_card(c, art, R) for c in cards]
     back = art["back"].resize(faces[0].size, Image.LANCZOS)
@@ -961,6 +1002,211 @@ def fx_all():
     fx_frost()
 
 
+# ---------------------------------------------------------------------------
+# The lobby: a frame round each opponent's portrait, and a lock on the ones
+# not yet open.
+def portrait():
+    """A square bronze frame (64x64) with a clear window: the opponent's icon
+    shows through it. The window is 48x48 in the middle."""
+    n = 64
+    img = new(n, n)
+    outer = rmask(n, n, [0, 0, n, n], 7)
+    window = rmask(n, n, [8, 8, n - 8, n - 8], 3)
+    put(img, flat(n, n, (16, 11, 6)), outer)
+    put(img, grain(vgrad(n, n, (246, 214, 128), (120, 82, 34)), 7), minus(rmask(n, n, [1.5, 1.5, n - 1.5, n - 1.5], 6), window))
+    stroke(img, n, n, [4, 4, n - 4, n - 4], 4.5, (96, 64, 26), 1)          # groove
+    stroke(img, n, n, [7, 7, n - 7, n - 7], 3.5, (24, 16, 8), 1.5)         # the window's dark lip
+    d = ImageDraw.Draw(img)
+    for cx, cy in ((4.5, 4.5), (n - 4.5, 4.5), (4.5, n - 4.5), (n - 4.5, n - 4.5)):   # corner studs
+        d.ellipse(sc([cx - 2.6, cy - 2.6, cx + 2.6, cy + 2.6]), fill=(255, 236, 170, 255))
+        d.ellipse(sc([cx - 1.2, cy - 1.2, cx + 1.2, cy + 1.2]), fill=(150, 104, 40, 255))
+    cut(img, window)
+    return finish(img, n, n, "Portrait")
+
+
+def lock():
+    """A padlock (white on transparent, the addon tints it)."""
+    def draw(d, z):
+        u = z / 64
+        d.rounded_rectangle([14 * u, 28 * u, 50 * u, 58 * u], 5 * u, fill=255)
+        d.arc([20 * u, 8 * u, 44 * u, 40 * u], 180, 360, fill=255, width=int(6 * u))
+        d.line([(20 * u + 3 * u, 24 * u), (20 * u + 3 * u, 30 * u)], fill=255, width=int(6 * u))
+        d.line([(44 * u - 3 * u, 24 * u), (44 * u - 3 * u, 30 * u)], fill=255, width=int(6 * u))
+        d.ellipse([28 * u, 36 * u, 36 * u, 44 * u], fill=0)
+        d.polygon([(30 * u, 42 * u), (34 * u, 42 * u), (35 * u, 51 * u), (29 * u, 51 * u)], fill=0)
+    _glyph(64, draw, "Lock")
+
+
+# ---------------------------------------------------------------------------
+# Board skins. The board shows the top 72% of its 512x512 texture (512x368),
+# stretched over the whole page: Board (the tavern table), BoardShip (a deck)
+# and BoardSky (dusk, for flights). The lanes, markers and cards sit on top,
+# so each stays dark and quiet in the middle.
+BOARD_VIS = 368
+
+
+def board_ship():
+    """Deck planking, weathered oak with tarred seams, a rope round the edge."""
+    n = 512
+    r = np.random.default_rng(21)
+    plank_h = 46
+    rows = []
+    for i in range(n // plank_h + 2):
+        tone = r.uniform(-9, 9)
+        rows.append(tuple(int(np.clip(v + tone, 0, 255)) for v in (74, 60, 45)))
+    a = np.zeros((n * S, n * S, 3), "float32")
+    yy = np.arange(n * S) / S
+    for i, col in enumerate(rows):
+        y0, y1 = i * plank_h, (i + 1) * plank_h
+        sel = (yy >= y0) & (yy < y1)
+        a[sel] = col
+    img = Image.fromarray(a.astype("uint8"), "RGB")
+    img = grain(img, 14, stretch=(140 * S, 2 * S))
+    img = grain(img, 7, stretch=(30 * S, 1 * S))
+    img = grain(img, 3)
+    img = img.convert("RGBA")
+    d = ImageDraw.Draw(img)
+    for i in range(1, n // plank_h + 2):
+        y = i * plank_h
+        d.line(sc([0, y - 1, n, y - 1]), fill=(20, 15, 10, 255), width=int(2.4 * S))     # tarred seam
+        d.line(sc([0, y + 1, n, y + 1]), fill=(104, 86, 64, 255), width=int(0.8 * S))    # lit edge
+        # butt joints, staggered, with a pair of nails either side
+        x = (i * 173) % 240 + 40
+        while x < n:
+            d.line(sc([x, y - plank_h + 1, x, y - 1]), fill=(26, 19, 12, 255), width=int(1.6 * S))
+            for dx in (-6, 6):
+                for ny in (y - plank_h + 10, y - 10):
+                    d.ellipse(sc([x + dx - 1.4, ny - 1.4, x + dx + 1.4, ny + 1.4]), fill=(34, 30, 28, 255))
+                    d.ellipse(sc([x + dx - 0.6, ny - 0.9, x + dx + 0.3, ny - 0.2]), fill=(120, 112, 100, 255))
+            x += 260
+    # a rope laid round the visible part: twisted strands
+    rope = Image.new("RGBA", (n * S, n * S), (0, 0, 0, 0))
+    rd = ImageDraw.Draw(rope)
+    inset, thick = 9, 11
+
+    def strand_line(x0, y0, x1, y1):
+        length = math.hypot(x1 - x0, y1 - y0)
+        ux, uy = (x1 - x0) / length, (y1 - y0) / length
+        nx, ny = -uy, ux
+        rd.line(sc([x0, y0, x1, y1]), fill=(40, 28, 14, 255), width=int((thick + 3) * S))
+        rd.line(sc([x0, y0, x1, y1]), fill=(150, 118, 72, 255), width=int(thick * S))
+        step = 7.0
+        t = 0.0
+        while t < length:
+            cx, cy = x0 + ux * t, y0 + uy * t
+            # one twist: a lit diagonal band and a shadow beside it
+            p0 = (cx - nx * thick * 0.45 - ux * 2.5, cy - ny * thick * 0.45 - uy * 2.5)
+            p1 = (cx + nx * thick * 0.45 + ux * 2.5, cy + ny * thick * 0.45 + uy * 2.5)
+            rd.line([(p0[0] * S, p0[1] * S), (p1[0] * S, p1[1] * S)], fill=(206, 172, 116, 255), width=int(2.2 * S))
+            q0 = (p0[0] + ux * 2.6, p0[1] + uy * 2.6)
+            q1 = (p1[0] + ux * 2.6, p1[1] + uy * 2.6)
+            rd.line([(q0[0] * S, q0[1] * S), (q1[0] * S, q1[1] * S)], fill=(92, 66, 34, 255), width=int(1.4 * S))
+            t += step
+    vis = BOARD_VIS
+    strand_line(inset, inset, n - inset, inset)
+    strand_line(inset, vis - inset, n - inset, vis - inset)
+    strand_line(inset, inset, inset, vis - inset)
+    strand_line(n - inset, inset, n - inset, vis - inset)
+    # keep the rope inside its band (the strands' ends poke out at the corners)
+    band = minus(rmask(n, n, [inset - 8, inset - 8, n - inset + 8, vis - inset + 8], 10),
+                 rmask(n, n, [inset + 8, inset + 8, n - inset - 8, vis - inset - 8], 4))
+    rope.putalpha(ImageChops.multiply(rope.getchannel("A"), band))
+    shadow = rope.getchannel("A").filter(ImageFilter.GaussianBlur(3 * S))
+    img.alpha_composite(Image.merge("RGBA", (Image.new("L", shadow.size, 0),) * 3 + (shadow.point(lambda v: v * 0.6),)),
+                        (int(1.5 * S), int(2 * S)))
+    img.alpha_composite(rope)
+    return finish(img, n, n, "BoardShip")
+
+
+def board_sky():
+    """Dusk from a flight path: deep blue overhead, a warm band low down,
+    soft bands of cloud, a few early stars."""
+    n = 512
+    r = np.random.default_rng(31)
+    vis = BOARD_VIS
+    yy, xx = np.mgrid[0:n * S, 0:n * S].astype("float32") / S
+    t = np.clip(yy / vis, 0, 1)
+    stops = [(0.0, (14, 18, 46)), (0.45, (38, 34, 78)), (0.75, (92, 52, 84)), (0.92, (150, 78, 64)), (1.0, (172, 98, 58))]
+    rgb = np.zeros(yy.shape + (3,), "float32")
+    for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+        k = np.clip((t - t0) / (t1 - t0), 0, 1)
+        sel = (t >= t0) & (t <= t1)
+        for ch in range(3):
+            rgb[..., ch] = np.where(sel, c0[ch] + (c1[ch] - c0[ch]) * k, rgb[..., ch])
+    # cloud bands: long soft streaks, a little lighter than the sky round them
+    # (moonlit violet high up, lit warm low down), with a brighter lower edge
+    for _ in range(11):
+        cy = r.uniform(0.18, 0.95) * vis
+        hh = r.uniform(5, 13)
+        phase = r.uniform(0, 2 * math.pi)
+        wav = cy + np.sin(xx / r.uniform(60, 140) + phase) * r.uniform(3, 9)
+        body = np.exp(-((yy - wav) / hh) ** 2) * (0.35 + 0.65 * np.sin(xx / r.uniform(40, 90) + phase * 2) ** 2)
+        lit = np.exp(-((yy - wav - hh * 0.8) / (hh * 0.3)) ** 2) * (0.35 + 0.65 * np.sin(xx / r.uniform(40, 90) + phase) ** 2)
+        k = t[..., None]
+        cloud = np.array((66, 62, 112), "float32") * (1 - k) + np.array((170, 96, 104), "float32") * k
+        glow = np.array((236, 160, 110), "float32")
+        rgb = rgb * (1 - body[..., None] * 0.45) + cloud * body[..., None] * 0.45
+        rgb = rgb + glow * (lit * 0.16 * (0.3 + 0.7 * k[..., 0]))[..., None]
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype("uint8"), "RGB")
+    img = grain(img, 3)
+    img = img.convert("RGBA")
+    d = ImageDraw.Draw(img)
+    for _ in range(46):                                      # early stars, high up
+        x, y = r.uniform(4, n - 4), r.uniform(4, vis * 0.38)
+        s = r.uniform(0.5, 1.3)
+        v = int(r.uniform(150, 240))
+        d.ellipse(sc([x - s, y - s, x + s, y + s]), fill=(v, v, min(255, v + 15), 255))
+    return finish(img, n, n, "BoardSky")
+
+
+def board_preview(path, face):
+    """The three board skins with lanes and a few cards on them, the way the
+    Play tab lays them out (UI/Game.lua), at 1 pixel a UI unit."""
+    W, H = 784, 556
+    SW, SH, LX, LGAP = CARD_W + 4, CARD_H + 4, 120, 6
+    ROW = {"opp": 2, "me": 204}
+    MID = 183
+
+    sample = dict(name="Booty Bay Bruiser", type="unit", typeline="Humanoid unit", rarity="rare", cost=4, atk=3, hp=5,
+                  kw="Guard, Sturdy", hue=(70, 104, 128))
+    sample2 = dict(name="Fireball", type="tactic", typeline="Tactic: enemy lane", rarity="common", cost=2,
+                   short="3 damage, or 2 to Morale if empty", hue=(180, 80, 34))
+    c1, c2 = mock_card(sample, face, 1), mock_card(sample2, face, 1)
+    sheets = []
+    for name in ("Board", "BoardShip", "BoardSky"):
+        tex = Image.open(OUT / (name + ".tga")).convert("RGBA").crop((0, 0, 512, BOARD_VIS)).resize((W + 12, H + 10),
+                                                                                                    Image.LANCZOS)
+        tex = Image.blend(tex, Image.new("RGBA", tex.size, (0, 0, 0, 255)), 0.28)    # SetVertexColor(0.72)
+        page = tex.crop((6, 4, 6 + W, 4 + H))
+        over = Image.new("RGBA", page.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(over)
+        for l in range(4):
+            x = LX + l * (SW + LGAP)
+            d.rectangle([x - 2, ROW["opp"] - 2, x + SW + 2, ROW["me"] + SH + 2], fill=(5, 5, 5, 89),
+                        outline=(158, 133, 82, 140))
+            for row in ROW.values():
+                d.rectangle([x, row, x + SW, row + SH], fill=(15, 13, 10, 140), outline=(82, 71, 56, 230), width=2)
+            d.line([x + SW / 2, ROW["opp"] + SH, x + SW / 2, ROW["me"]], fill=(110, 235, 110, 200), width=3)
+        d.rectangle([0, ROW["opp"], 112, ROW["opp"] + SH], fill=(20, 18, 13, 217), outline=(166, 64, 51, 255))
+        d.rectangle([0, ROW["me"], 112, ROW["me"] + SH], fill=(20, 18, 13, 217), outline=(64, 115, 178, 255))
+        page.alpha_composite(over)
+        page.alpha_composite(c1, (LX + 2, ROW["opp"] + 2))
+        page.alpha_composite(c2, (LX + 2 * (SW + LGAP) + 2, ROW["me"] + 2))
+        fnt = mock_font(18)
+        d = ImageDraw.Draw(page)
+        d.text((LX + SW / 2 - 10, MID), "3", font=fnt, fill=(110, 235, 110), stroke_width=1, stroke_fill=(0, 0, 0))
+        d.text((LX + (SW + LGAP) + 20, MID - 8), "Lane 2: Guard", font=mock_font(10), fill=(255, 255, 255))
+        d.text((8, ROW["opp"] + 50), "Morale", font=mock_font(10), fill=(180, 180, 180))
+        d.text((8, ROW["opp"] + 62), "12", font=mock_font(34), fill=(255, 255, 255), stroke_width=1, stroke_fill=(0, 0, 0))
+        d.text((8, ROW["opp"] + SH + 8), "Round 3 of 8", font=mock_font(12), fill=(255, 209, 0))
+        d.text((612, 4), "Round   Supply left", font=mock_font(11), fill=(204, 204, 204))
+        sheets.append(page)
+    sheet = Image.new("RGBA", (W, H * 3 + 20), (0, 0, 0, 255))
+    for i, p in enumerate(sheets):
+        sheet.alpha_composite(p, (0, i * (H + 10)))
+    sheet.save(path)
+
+
 
 if __name__ == "__main__":
     art = card_art()
@@ -970,11 +1216,17 @@ if __name__ == "__main__":
     holo_ring()
     dia = diagrams()
     fx_all()
+    portrait()
+    lock()
+    board_ship()
+    board_sky()
     print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.tga"))))
     if len(sys.argv) > 1:
         mock(sys.argv[1], art, float(sys.argv[2]) if len(sys.argv) > 2 else 2.1)
         print("mock:", sys.argv[1])
-        sheet = Image.new("RGBA", (DW * 3 + 40, (DH + 10) * 4 + 10), (30, 26, 22, 255))
+        bp = pathlib.Path(sys.argv[1])
+        board_preview(bp.with_name(bp.stem + "_boards.png"), art)
+        sheet = Image.new("RGBA", (DW * 3 + 40, (DH + 10) * ((len(dia) + 2) // 3) + 10), (30, 26, 22, 255))
         for i, im in enumerate(dia):
             sheet.alpha_composite(im, (10 + (i % 3) * (DW + 10), 10 + (i // 3) * (DH + 10)))
         p = pathlib.Path(sys.argv[1])

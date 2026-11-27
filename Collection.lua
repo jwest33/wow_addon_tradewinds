@@ -58,6 +58,8 @@ C.SETTING_DEFAULTS = {
   scale = 1,
   sound = true,
   chatter = true,      -- the opponent's lines during a match
+  board = "auto",      -- the board's look: auto (by how you travel) | tavern | ship | sky
+  guildShare = true,   -- tell guildmates with Tradewinds your progress, and answer when they ask (Guild.lua)
 }
 C.DECK_SLOTS = 3
 
@@ -337,6 +339,7 @@ end
 -- ended, whether the computer match was damaged (rather than from other
 -- rules), and how many copies of cards it set aside (C.SetAside).
 function C.Init(db, rules)
+  local existing = db.collection ~= nil
   if not db.collection then db.schema = C.SCHEMA end
   for i = (tonumber(db.schema) or 0) + 1, C.SCHEMA do
     C.MIGRATIONS[i](db)
@@ -373,6 +376,16 @@ function C.Init(db, rules)
     if db.settings[k] == nil then db.settings[k] = v end
   end
   db.holo = type(db.holo) == "table" and db.holo or {}
+  -- lifetime counters (C.AddLife) and achievements earned (id -> date); a
+  -- character from before achievements gets the ones it already has quietly
+  -- (C.CheckAchievements)
+  db.life = type(db.life) == "table" and db.life or {}
+  if type(db.ach) ~= "table" then
+    db.ach = {}
+    if existing then db.progress.achQuiet = true end
+  end
+  -- guildmates' progress (Guild.lua)
+  db.guildBoard = type(db.guildBoard) == "table" and db.guildBoard or {}
   -- trades (see Trade.lua): deals you sent that wait for the other side's
   -- answer, and the deals you carried out for the side that sent them
   db.tradePending = type(db.tradePending) == "table" and db.tradePending or {}
@@ -448,6 +461,72 @@ function C.IsHolo(db, id)
   return (db and db.holo and db.holo[id] and (db.collection[id] or 0) > 0) and true or false
 end
 
+-- Lifetime counters ---------------------------------------------------------------
+-- db.life: how much you've done since 0.18.0 (they start at zero for every
+-- character), for achievements (Data/Achievements.lua):
+--   rounds morale kills tactics units   from each round played (C.TaskEvents),
+--   and the traps: trapsSet trapsSprung trapKills sprungOn trapDouble
+--   packs special   card packs and Windfall packs opened
+--   travel   seconds of travel;  travelRounds   rounds played while travelling
+--   flightPaths crafted trades dailies pvp   (pvp: games against players finished)
+--   close comeback flawless tiebreak quick   wins of an odd sort (C.WinOddities)
+function C.AddLife(db, key, n)
+  if type(db.life) ~= "table" then db.life = {} end
+  db.life[key] = (tonumber(db.life[key]) or 0) + (n or 1)
+end
+
+function C.Life(db, key)
+  return tonumber(db.life and db.life[key]) or 0
+end
+
+-- A win's odd details (info as in C.RecordResult): morale left, taken (Morale
+-- lost during the match), low (the least Morale you had), tiebreak, round.
+function C.WinOddities(db, info)
+  if info.morale == 1 then C.AddLife(db, "close") end
+  if info.low and info.low <= 3 then C.AddLife(db, "comeback") end
+  if info.taken == 0 then C.AddLife(db, "flawless") end
+  if info.tiebreak then C.AddLife(db, "tiebreak") end
+  if info.round and info.round <= 5 then C.AddLife(db, "quick") end
+end
+
+-- Achievements --------------------------------------------------------------------
+-- How far along achievement a is: have, goal (have is never past the goal).
+function C.AchProgress(db, a)
+  local ok, have, goal = pcall(a.progress, db)
+  if not ok then return 0, 1 end
+  goal = tonumber(goal) or 1
+  return math.min(tonumber(have) or 0, goal), goal
+end
+
+-- Points earned, points there are, achievements earned, achievements there are.
+function C.AchPoints(db)
+  local pts, all, n = 0, 0, 0
+  for _, a in ipairs(ns.Achievements) do
+    all = all + a.points
+    if db.ach[a.id] then pts, n = pts + a.points, n + 1 end
+  end
+  return pts, all, n, #ns.Achievements
+end
+
+-- Marks every achievement now reached (db.ach[id] = today) and returns the
+-- new ones, in list order, and whether to grant them quietly: true the first
+-- time for a character from before achievements, so they aren't a toast each.
+function C.CheckAchievements(db, today)
+  local out = {}
+  for _, a in ipairs(ns.Achievements) do
+    if not db.ach[a.id] then
+      local have, goal = C.AchProgress(db, a)
+      if have >= goal then
+        db.ach[a.id] = today
+        out[#out + 1] = a
+      end
+    end
+  end
+  local quiet = db.progress.achQuiet and true or false
+  db.progress.achQuiet = nil
+  return out, quiet
+end
+
 -- Packs ---------------------------------------------------------------------------
 -- The pools packs draw from. Signature cards are left out of the epic pool
 -- (they are won from opponents, or crafted), but every legendary can turn up
@@ -517,6 +596,7 @@ function C.OpenPack(db, rnd, kind)
     if db.packs <= 0 then return nil end
     db.packs = db.packs - 1
   end
+  C.AddLife(db, kind == "special" and "special" or "packs")
   local cards, holo
   cards, db.progress.pity, holo = C.RollPack(rnd, db.progress.pity, kind)
   local results = {}
@@ -556,6 +636,7 @@ function C.Craft(db, id)
   if not ok then return false, cost end
   db.shards = db.shards - cost
   db.collection[id] = C.Owned(db, id) + 1
+  C.AddLife(db, "crafted")
   return true, cost
 end
 
@@ -657,6 +738,29 @@ function C.SelectDeck(db, i)
     C.ResetDeck(db)
   end
   return true
+end
+
+-- A deck from a list of cards (a deck code): the copies you own go in, up
+-- to the copy limits, in the list's order. Returns that deck and what's
+-- missing, a { id, n } each (in the list's order).
+function C.FromList(db, list)
+  local deck, missing, used, miss = {}, {}, {}, {}
+  for _, id in ipairs(list) do
+    local c = Cards.byId[id]
+    if c and c.collectible then
+      used[id] = (used[id] or 0) + 1
+      if used[id] <= math.min(C.Owned(db, id), C.MaxCopies(id)) and #deck < ns.Rules.DECK_SIZE then
+        deck[#deck + 1] = id
+      elseif used[id] <= C.MaxCopies(id) then
+        if not miss[id] then
+          miss[id] = { id = id, n = 0 }
+          missing[#missing + 1] = miss[id]
+        end
+        miss[id].n = miss[id].n + 1
+      end
+    end
+  end
+  return deck, missing
 end
 
 -- A deck with nothing rarer than uncommon (the third star).
@@ -784,6 +888,7 @@ function C.ApplyTrade(db, give, get)
     local kind, shards = C.Add(db, e.id, e.holo)
     got[i] = { id = e.id, kind = kind, shards = shards, holo = e.holo or nil }
   end
+  C.AddLife(db, "trades")
   return got, C.TrimDecks(db)
 end
 
@@ -882,24 +987,51 @@ function C.TaskAdvance(db, today, id, amount)
   d.n = math.min(task.goal, d.n + amount)
   if d.n >= task.goal then
     d.done = true
+    C.AddLife(db, "dailies")
     db.shards = db.shards + C.REWARD.daily
     return { shards = C.REWARD.daily, why = L["daily task: %s"]:format(task.text), paid = true }
   end
 end
 
--- Counts one played round's events (from the rules engine) toward the task.
--- me: which player you are. Returns a reward when the task is finished.
+-- Counts one played round's events (from the rules engine) toward the task
+-- and the lifetime counters. me: which player you are. Returns a reward when
+-- the task is finished.
+--   trapsSet       your traps set;  trapsSprung   your traps that sprang
+--   trapKills      units that sprang one of your traps and died that round
+--   sprungOn       their traps you sprang;  trapDouble   rounds in which two
+--                  or more of your traps sprang
+local ROUND_LIFE = { "rounds", "morale", "kills", "tactics", "units", "trapsSet", "trapsSprung", "trapKills", "sprungOn" }
 function C.TaskEvents(db, today, events, me)
-  local n = { rounds = 1, morale = 0, kills = 0, tactics = 0, units = 0, beasts = 0 }
+  local n = { rounds = 1, morale = 0, kills = 0, tactics = 0, units = 0, beasts = 0,
+    trapsSet = 0, trapsSprung = 0, trapKills = 0, sprungOn = 0 }
+  local springers = {}   -- "p:lane" of the units that sprang your traps
   for _, e in ipairs(events) do
     if e.t == "morale" and e.p ~= me and e.delta < 0 then n.morale = n.morale - e.delta
-    elseif e.t == "die" and e.p ~= me then n.kills = n.kills + 1
+    elseif e.t == "die" and e.p ~= me then
+      n.kills = n.kills + 1
+      local key = e.lane and (e.p .. ":" .. e.lane)
+      if key and springers[key] then
+        springers[key] = nil
+        n.trapKills = n.trapKills + 1
+      end
     elseif e.t == "tactic" and e.p == me then n.tactics = n.tactics + 1
     elseif e.t == "place" and e.p == me and not e.summon then
       n.units = n.units + 1
       if Cards.byId[e.unit.id].tribe == "beast" then n.beasts = n.beasts + 1 end
+    elseif e.t == "trap" and e.p == me then n.trapsSet = n.trapsSet + 1
+    elseif e.t == "spring" then
+      if e.p == me then
+        n.trapsSprung = n.trapsSprung + 1
+        if e.ap and e.al then springers[e.ap .. ":" .. e.al] = true end
+      else
+        n.sprungOn = n.sprungOn + 1
+      end
     end
   end
+  for _, k in ipairs(ROUND_LIFE) do
+    if n[k] > 0 then C.AddLife(db, k, n[k]) end
+  end
+  if n.trapsSprung >= 2 then C.AddLife(db, "trapDouble") end
   local d = C.Daily(db, today)
   return n[d.id] and C.TaskAdvance(db, today, d.id, n[d.id]) or nil
 end
@@ -1009,6 +1141,7 @@ function C.RecordResult(db, oppId, result, today, info)
       t = C.TaskAdvance(db, today, "healthy", 1)
       if t then out[#out + 1] = t end
     end
+    C.WinOddities(db, info)
   else
     if result == "loss" then
       db.stats.losses = db.stats.losses + 1
@@ -1039,9 +1172,11 @@ function C.RecordPvP(db, name, result, today, info)
   db.pvpRecord[name] = rec
   local out = {}
   local played = (info.round or C.REWARD.lossRound) >= C.REWARD.lossRound
+  C.AddLife(db, "pvp")
   if result == "win" then
     db.stats.wins = db.stats.wins + 1
     rec.w = rec.w + 1
+    if not info.theyConceded then C.WinOddities(db, info) end
     if played then
       local p = db.progress
       if type(p.wins) ~= "table" or p.wins.date ~= today then p.wins = { date = today, n = {} } end
@@ -1096,13 +1231,26 @@ function C.LevelUp(db, level)
 end
 
 function C.FlightPath(db)
+  C.AddLife(db, "flightPaths")
   return pay(db, { { shards = C.REWARD.flightPath, why = L["a new flight path"] } })
+end
+
+-- Traps arrived in 0.18.0 with a gift, so everyone can try them at once: one
+-- of each of these, once per character (db.progress.trapGift). Returns the
+-- cards given, or nil if it was given before.
+C.TRAP_GIFT = { "defiasambush", "immolation" }
+function C.TrapGift(db)
+  if db.progress.trapGift then return nil end
+  db.progress.trapGift = true
+  for _, id in ipairs(C.TRAP_GIFT) do C.Add(db, id) end
+  return C.TRAP_GIFT
 end
 
 -- Adds travel time (flights, boats and zeppelins); returns the number of card
 -- packs and of Windfall packs it earned. The two run on clocks of their own.
 function C.AddTravel(db, seconds)
   local p = db.progress
+  C.AddLife(db, "travel", seconds)
   p.travel = (p.travel or 0) + seconds
   p.specialTravel = (tonumber(p.specialTravel) or 0) + seconds
   local earned, special = 0, 0

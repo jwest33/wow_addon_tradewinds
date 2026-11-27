@@ -63,6 +63,8 @@ end
 
 local function addTime()
   local earned, special = ns.Collection.AddTravel(ns.db, 1)
+  -- travel achievements, once a minute
+  if ns.Collection.Life(ns.db, "travel") % 60 == 0 then ns.CheckAchievements() end
   if earned > 0 then
     ns.Print(ns.L["|cffffd100%s|r for %d minutes of travel."],
       ns.Plural(earned, "+%d card pack", "+%d card packs"):format(earned), ns.Collection.TRAVEL_PACK_SECONDS / 60)

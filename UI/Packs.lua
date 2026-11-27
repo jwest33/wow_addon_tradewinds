@@ -1,5 +1,11 @@
 -- The Packs tab: open card packs and Windfall packs card by card, buy card
 -- packs with shards, and see how close the next travel packs are.
+--
+-- Opening is a small ceremony: each card turns over when clicked (UI/Effects
+-- FX.Flip). A rare or better glows first in its colour; an epic, a legendary
+-- or a holographic card charges up for a moment before it turns, so the wait
+-- is the tell. "Reveal all" turns the rest one after another, best last. A
+-- line under the cards sums the pack up once they're all face up.
 local _, ns = ...
 local L = ns.L
 local Cards, C = ns.Cards, ns.Collection
@@ -12,11 +18,15 @@ local CARD_SCALE = 1.1
 local CARD_GAP = 18
 local SLOT_Y = -78
 local WINDFALL = { 1, 0.6, 0.2 }   -- the colour of everything Windfall
+P.STAGGER = 0.15                   -- seconds between cards turned by "Reveal all"
 
 local page
 local ctl = {}
 local slots = {}
-local opened -- { results, shown = { bool x n }, special = bool }
+-- the pack on the table: { results, shown = { bool x n } (turning or face
+-- up), up = { bool x n } (face up), special = bool }
+local opened
+local batch   -- Open all is opening packs: milestones wait until it has said what was in them
 
 local function fmtTime(s)
   s = math.floor(s)
@@ -39,6 +49,27 @@ local function label(r)
 end
 P.Label = label
 
+-- How fancy a card from a pack is: its rarity, and holographic above all.
+local function rank(r)
+  return Cards.RARITY_RANK[Cards.byId[r.id].rarity] + (r.holo and 10 or 0)
+end
+
+-- "2 new cards, +3 shards": a pack's results in a line.
+function P.Summary(results)
+  local new, shards, holo = 0, 0, 0
+  for _, r in ipairs(results) do
+    if r.kind == "new" then new = new + 1 end
+    if r.holo then holo = holo + 1 end
+    shards = shards + (r.shards or 0)
+  end
+  local parts = {}
+  if new > 0 then parts[#parts + 1] = "|cffffd100" .. ns.Plural(new, "%d new card", "%d new cards"):format(new) .. "|r" end
+  if holo > 0 then parts[#parts + 1] = UI.Rainbow(ns.Plural(holo, "%d holographic", "%d holographic"):format(holo)) end
+  if shards > 0 then parts[#parts + 1] = "|cff9fdfff" .. ns.Plural(shards, "+%d shard", "+%d shards"):format(shards) .. "|r" end
+  if #parts == 0 then return L["Nothing new this time."] end
+  return table.concat(parts, ", ")
+end
+
 -- Lays the slots out for a pack of n cards, centred.
 local function layout(n)
   local cw = UI.CARD_W * CARD_SCALE
@@ -49,12 +80,19 @@ local function layout(n)
   end
 end
 
-local function reveal(i)
-  if not opened or opened.shown[i] or not opened.results[i] then return end
-  opened.shown[i] = true
+local function allUp()
+  if not opened then return false end
+  for k = 1, #opened.results do
+    if not opened.up[k] then return false end
+  end
+  return true
+end
+
+-- Card i is face up: its label, a flash, a word for the fancy ones.
+local function faceUp(i)
   local r = opened.results[i]
   local slot = slots[i]
-  slot.card:SetCard(r.id, nil, nil, r.holo)
+  opened.up[i] = true
   local c = Cards.byId[r.id]
   local col = UI.RARITY_COLOR[c.rarity]
   slot.card:Flash(col[1], col[2], col[3])
@@ -63,31 +101,92 @@ local function reveal(i)
     UI.Sound("rare")
   elseif c.rarity == "legendary" or c.rarity == "epic" then
     slot.card:Float(c.rarity == "legendary" and L["Legendary!"] or L["Epic!"], col[1], col[2], col[3])
-    UI.Sound("rare")
+    UI.Sound(c.rarity == "legendary" and "legendary" or "rare")
   else
     UI.Sound("reveal")
   end
   slot.label:SetText(label(r))
   P.Refresh()
-  -- once the whole pack is face up: a milestone its cards reached (a whole
-  -- tribe) pays now, so the news never spoils a card still face down
-  for k = 1, #opened.results do
-    if not opened.shown[k] then return end
-  end
-  ns.CheckMilestones()
+  -- once the whole pack is face up: the summary, and a milestone its cards
+  -- reached (a whole tribe) pays now, so the news never spoils a card still
+  -- face down
+  if allUp() and not batch then ns.CheckMilestones() end
 end
 
+-- Turns card i over. instant: no flip (opening the next pack, Open all).
+local function reveal(i, instant)
+  if not opened or opened.shown[i] or not opened.results[i] then return end
+  opened.shown[i] = true
+  local pack = opened
+  local r = opened.results[i]
+  local slot = slots[i]
+  local function apply() slot.card:SetCard(r.id, nil, nil, r.holo) end
+  if instant or not UI.FX then
+    apply()
+    faceUp(i)
+    return
+  end
+  local c = Cards.byId[r.id]
+  local rr = Cards.RARITY_RANK[c.rarity]
+  local fancy = r.holo or rr >= Cards.RARITY_RANK.epic
+  local glow = (r.holo or rr >= Cards.RARITY_RANK.rare) and UI.RARITY_COLOR[c.rarity] or nil
+  UI.Sound("flip")
+  slot.flip = UI.FX.Flip(slot.card, apply, {
+    glow = glow, holo = r.holo, charge = fancy and UI.FX.CHARGE or 0,
+    onCharge = function() UI.Sound("charge") end,
+    done = function()
+      slot.flip = nil
+      if opened == pack then faceUp(i) end
+    end,
+  })
+end
+
+-- Every card still turning ends face up now.
+local function settle()
+  for _, s in ipairs(slots) do
+    if s.flip then s.flip:Finish() end
+  end
+end
+
+-- ...and every card still face down turns at once.
+local function finishAll()
+  settle()
+  if opened then
+    for i = 1, #opened.results do reveal(i, true) end
+  end
+end
+
+-- "Reveal all": the cards still face down turn one after another, the best
+-- one last.
 local function revealAll()
   if not opened then return end
-  for i = 1, #opened.results do reveal(i) end
+  local order = {}
+  for i = 1, #opened.results do
+    if not opened.shown[i] then order[#order + 1] = i end
+  end
+  table.sort(order, function(a, b)
+    local ra, rb = rank(opened.results[a]), rank(opened.results[b])
+    if ra ~= rb then return ra < rb end
+    return a < b
+  end)
+  local pack = opened
+  for k, i in ipairs(order) do
+    if k == 1 or not UI.FX then
+      reveal(i)
+    else
+      UI.FX.Run(0.01, function() end, function() if opened == pack then reveal(i) end end, (k - 1) * P.STAGGER, true)
+    end
+  end
 end
 
 -- Shows a pack's cards face down.
 local function lay(results, special)
-  opened = { results = results, shown = {}, special = special }
+  finishAll()
+  opened = { results = results, shown = {}, up = {}, special = special }
   layout(#results)
-  for i, s in ipairs(slots) do
+  for _, s in ipairs(slots) do
     s.card:SetBack()
+    s.card:SetAlpha(1)
     s.label:SetText("")
   end
   if special then
@@ -98,9 +197,10 @@ local function lay(results, special)
 end
 
 -- Opens every pack of both kinds at once: the new cards are listed in chat,
--- and the last pack is laid out as usual.
+-- and the last pack is laid out face up.
 local function openAll()
-  revealAll()
+  batch = true
+  finishAll()
   local n, shards, last, lastSpecial, names, special = 0, 0, nil, false, {}, {}
   for _, kind in ipairs({ "normal", "special" }) do
     local k = kind == "special" and "special" or nil
@@ -117,11 +217,14 @@ local function openAll()
     end
   end
   if n == 0 then
+    batch = false
     UI.Error(L["No packs to open."])
+    ns.CheckMilestones()
     return
   end
   lay(last, lastSpecial)
-  revealAll()
+  finishAll()
+  batch = false
   ns.Print(L["Opened %s: %s, %s from extra copies."], ns.Plural(n, "%d pack", "%d packs"):format(n),
     ns.Plural(#names, "%d new card", "%d new cards"):format(#names), ns.Plural(shards, "%d shard", "%d shards"):format(shards))
   for i = 1, #names, 6 do
@@ -129,12 +232,13 @@ local function openAll()
   end
   for _, s in ipairs(special) do ns.Print("%s", s) end
   if #special > 0 then UI.Sound("rare") end
+  ns.CheckMilestones()
   UI.Refresh()
 end
 
 -- kind: nil (a card pack) or "special" (a Windfall pack)
 local function openPack(kind)
-  revealAll()
+  finishAll()
   local results = C.OpenPack(ns.db, ns.Rand, kind)
   if not results then
     UI.Error(L["No packs to open."])
@@ -147,7 +251,30 @@ end
 
 P.Open = function() openPack(nil) end
 P.OpenSpecial = function() openPack("special") end
-P.RevealAll, P.OpenAll = revealAll, openAll
+P.RevealAll, P.OpenAll, P.FinishAll = revealAll, openAll, finishAll
+P.Reveal = function(i) reveal(i) end
+function P.Opened() return opened end
+function P.Slot(i) return slots[i] end
+function P.SummaryShown() return ctl.summary:IsShown() and ctl.summary:GetText() or nil end
+
+-- A line for chat about the pack just opened (UI.Share), when it had an epic,
+-- a legendary or a holographic card: the best of them. nil otherwise.
+function P.ShareText()
+  if not (opened and allUp()) then return nil end
+  local best
+  for _, r in ipairs(opened.results) do
+    if (r.holo or Cards.RARITY_RANK[Cards.byId[r.id].rarity] >= Cards.RARITY_RANK.epic)
+        and (not best or rank(r) > rank(best)) then
+      best = r
+    end
+  end
+  if not best then return nil end
+  local c = Cards.byId[best.id]
+  local what = L[c.rarity] .. (best.holo and (", " .. L["holographic"]) or "")
+  local card = ("%s (%s)"):format(c.name, what)
+  return opened.special and L["[Tradewinds] I just pulled %s from a Windfall pack!"]:format(card)
+    or L["[Tradewinds] I just pulled %s from a card pack!"]:format(card)
+end
 
 function P.Refresh()
   if not page then return end
@@ -173,6 +300,10 @@ function P.Refresh()
     end
   end
   ctl.revealAll:SetShown(pending)
+  local done = opened ~= nil and allUp()
+  ctl.summary:SetShown(done)
+  if done then ctl.summary:SetText(P.Summary(opened.results)) end
+  ctl.share:SetShown(done and P.ShareText() ~= nil)
   ctl.empty:SetShown(not opened)
   for i, s in ipairs(slots) do s:SetShown(opened ~= nil and i <= #opened.results) end
   local t = db.progress.travel or 0
@@ -184,6 +315,80 @@ function P.Refresh()
   local w = db.progress.specialTravel or 0
   ctl.windBar:SetValue(w / C.TRAVEL_SPECIAL_SECONDS)
   ctl.windText:SetText(L["Toward your next Windfall pack: %s / %s"]:format(fmtTime(w), fmtTime(C.TRAVEL_SPECIAL_SECONDS)))
+end
+
+-- "Ways to earn packs" and "What's in a pack": two columns of short rows,
+-- an icon each, with the details in the row's tooltip.
+local function infoRow(parent, x, y, w, icon, text, tipTitle, tip)
+  local r = CreateFrame("Frame", nil, parent)
+  r:SetSize(w, 26)
+  r:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+  r:EnableMouse(true)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(22, 22)
+  r.icon:SetPoint("LEFT", 0, 0)
+  if icon.art then
+    r.icon:SetTexture(UI.ART .. icon.art)
+    if icon.col then r.icon:SetVertexColor(icon.col[1], icon.col[2], icon.col[3]) end
+  else
+    r.icon:SetTexture(UI.Icon(icon))
+    r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  end
+  r.text = UI.Text(r, 11)
+  r.text:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
+  r.text:SetSize(w - 32, 24)
+  r.text:SetJustifyH("LEFT")
+  r.text:SetWordWrap(false)
+  UI.FitText(r.text, text, 9)
+  r.text:SetTextColor(0.85, 0.85, 0.85)
+  UI.SimpleTooltip(r, tipTitle, tip)
+  return r
+end
+
+local function buildInfo(y)
+  local colW = 360
+  local x1, x2 = 24, 24 + colW + 32
+  local function header(x, text)
+    local h = UI.Text(page, 12)
+    h:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
+    h:SetText(text)
+    h:SetTextColor(1, 0.82, 0)
+    local line = page:CreateTexture(nil, "ARTWORK")
+    line:SetColorTexture(0.55, 0.45, 0.25, 0.5)
+    line:SetSize(colW, 1)
+    line:SetPoint("TOPLEFT", page, "TOPLEFT", x, y - 16)
+  end
+  header(x1, L["Ways to earn packs"])
+  header(x2, L["What's in a pack"])
+  local ROW = 30
+  local y0 = y - 24
+  local travelMin = C.TRAVEL_PACK_SECONDS / 60
+  local left = {
+    { ns.OpponentById.dorn.icon, L["Every %d minutes of travel"]:format(travelMin), L["Travel"],
+      L["A card pack for every %d minutes on a flight path, boat or zeppelin. The clock carries over from trip to trip."]:format(travelMin) },
+    { { art = "Star", col = { 1, 0.82, 0 } }, L["Stars, and your first win of the day"], L["Winning"],
+      L["Your first win each day pays a pack. So do stars: your first win against each opponent, and winning with a deck of commons and uncommons."] },
+    { { "Interface\\Icons\\INV_Enchant_ShardBrilliantSmall", "Interface\\Icons\\INV_Misc_Gem_Pearl_04" },
+      L["%d shards buy one"]:format(C.PACK_COST), L["Shards"],
+      L["Wins, the daily task, levels, new flight paths and extra copies give shards."] },
+    { { art = "Star", col = WINDFALL }, L["Windfall packs: long trips and milestones"], L["Windfall packs"],
+      (L["Every %d minutes of travel, the tutorial, every tenth level, all three stars against an opponent, heroic wins, and one of every card of a tribe. They can't be bought."]):format(
+        C.TRAVEL_SPECIAL_SECONDS / 60) },
+  }
+  local right = {
+    { { "Interface\\Icons\\INV_Misc_Ticket_Darkmoon_01", "Interface\\Icons\\INV_Misc_Bag_10" },
+      L["Two commons and an uncommon or better"], L["Card packs"],
+      L["The third card is sometimes a rare, now and then an epic, and very rarely a legendary. You never open more than %d packs in a row without an epic."]:format(C.PITY - 1) },
+    { { art = "Star", col = WINDFALL }, L["Windfall: five cards, the last rare or better"], L["Windfall packs"],
+      L["Two commons, an uncommon, one like a card pack's best card, and one that's always rare or better."] },
+    { { "Interface\\Icons\\INV_Misc_Gem_Pearl_04", "Interface\\Icons\\INV_Enchant_ShardBrilliantSmall" },
+      L["About 1 pack in %d has a %s card"]:format(C.HOLO_ODDS, UI.Rainbow(L["holographic"])), L["Holographic"],
+      L["It plays the same; it just shines."] },
+    { Cards.byId[ns.OpponentById.dorn.signature].icon, L["Signature cards: win them from opponents"], L["Signature cards"],
+      L["Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them."] },
+  }
+  for i, def in ipairs(left) do infoRow(page, x1, y0 - (i - 1) * ROW, colW, def[1], def[2], def[3], def[4]) end
+  for i, def in ipairs(right) do infoRow(page, x2, y0 - (i - 1) * ROW, colW, def[1], def[2], def[3], def[4]) end
 end
 
 function P.Build(parent)
@@ -268,6 +473,13 @@ function P.Build(parent)
   ctl.empty:SetTextColor(0.6, 0.6, 0.6)
   ctl.revealAll = UI.Button(page, L["Reveal all"], 100, 22, revealAll)
   ctl.revealAll:SetPoint("TOP", page, "TOP", 0, SLOT_Y - ch - 22)
+  ctl.summary = UI.Text(page, 13, "OUTLINE")
+  ctl.summary:SetPoint("TOP", page, "TOP", 0, SLOT_Y - ch - 26)
+  ctl.summary:Hide()
+  ctl.share = UI.Button(page, L["Share"], 70, 20, function() UI.Share(P.ShareText()) end)
+  ctl.share:SetPoint("LEFT", ctl.summary, "RIGHT", 12, 0)
+  UI.SimpleTooltip(ctl.share, L["Share"], L["Puts a line about it in your chat box, for you to send (or not)."])
+  ctl.share:Hide()
 
   -- the two travel clocks
   local barY = SLOT_Y - ch - 52
@@ -292,27 +504,10 @@ function P.Build(parent)
   ctl.windText = UI.Text(page, 10)
   ctl.windText:SetPoint("TOP", windBar, "BOTTOM", 0, -3)
 
-  local earn = UI.Text(page, 10)
-  earn:SetPoint("TOPLEFT", page, "TOPLEFT", 110, barY - 40)
-  earn:SetPoint("TOPRIGHT", page, "TOPRIGHT", -110, barY - 40)
-  earn:SetJustifyH("LEFT")
-  earn:SetSpacing(2)
-  earn:SetTextColor(0.75, 0.75, 0.75)
-  earn:SetText(table.concat({
-    "|cffffd100" .. L["Ways to earn packs"] .. "|r",
-    L["- Every %d minutes on a flight path, boat or zeppelin"]:format(C.TRAVEL_PACK_SECONDS / 60),
-    L["- Your first win of the day, and stars: your first win against each opponent, and winning with a deck of commons and uncommons"],
-    L["- %d shards. Wins, the daily task, levels, new flight paths and extra copies give shards"]:format(C.PACK_COST),
-    "|cffffd100" .. L["What's in a pack"] .. "|r",
-    L["- Two commons and an uncommon, which is sometimes a rare, now and then an epic, and very rarely a legendary"],
-    L["- Signature cards that aren't legendary aren't in packs: win them from opponents, or craft them"],
-    L["- About 1 pack in %d has a %s card. It plays the same; it just shines"]:format(C.HOLO_ODDS, UI.Rainbow(L["holographic"])),
-    "|cffff9933" .. L["Windfall packs"] .. "|r",
-    (L["- Five cards: two commons, an uncommon, one like a pack's best card, and one that's always rare or better. Every %d minutes of travel, and for milestones (point at the button above)"]):format(
-      C.TRAVEL_SPECIAL_SECONDS / 60),
-  }, "\n"))
+  buildInfo(barY - 44)
 
   page:SetScript("OnShow", function() P.Refresh() end)
+  page:SetScript("OnHide", function() settle() end)
   if C_Timer and C_Timer.NewTicker then
     C_Timer.NewTicker(1, function()
       if page:IsVisible() then P.Refresh() end

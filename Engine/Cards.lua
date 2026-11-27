@@ -1,5 +1,5 @@
 -- The core set. Card fields:
---   id, name, cost (supply), type ("unit" | "tactic"), rarity
+--   id, name, cost (supply), type ("unit" | "tactic" | "trap"), rarity
 --   units: atk, hp, kw = { keyword = true }, and optional hooks
 --     arrive(st, u)        when it's revealed
 --     fallen(st, u)        when it dies (u still knows its owner and lane)
@@ -12,6 +12,7 @@
 --   the client has wins)
 --   tribe, aura, bonus: see Engine/CardsRoads.lua (the second set)
 --   item, synergy, twin: see Engine/CardsTribes.lua
+--   traps: spring(st, p, lane, attacker); see Engine/CardsTraps.lua
 --   signature: set by Data/Opponents.lua on cards that are won, not found in packs
 local _, ns = ...
 local L = ns.L
@@ -335,7 +336,7 @@ for tribe, ids in pairs({
 end
 
 -- Collectible cards by rarity, sorted by cost then name (packs and the
--- binder). Called by the last card file (Engine/CardsTribes.lua) once every
+-- binder). Called by the last card file (Engine/CardsTraps.lua) once every
 -- set is in.
 function Cards.Finish()
   Cards.byRarity = {}

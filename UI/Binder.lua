@@ -3,7 +3,7 @@
 -- shift-click to craft a copy with shards. While a trade is open, the trade
 -- (UI/Trading.lua) takes the deck panel's place and a click offers the card.
 local _, ns = ...
-local L = ns.L
+local L, Plural = ns.L, ns.Plural
 local Cards, C = ns.Cards, ns.Collection
 local UI = ns.UI
 
@@ -38,8 +38,10 @@ local NOTE_H = 28
 -- the chart's colours, also the swatches beside the unit and tactic counts
 local UNIT_COL = { 0.88, 0.62, 0.26 }
 local TACTIC_COL = { 0.62, 0.5, 1 }
--- the list's strips: bronze for units, indigo for tactics (like the cards)
-local ROW_BG = { unit = { 0.30, 0.21, 0.13, 0.95 }, tactic = { 0.20, 0.17, 0.38, 0.95 } }
+local TRAP_COL = { 0.4, 0.85, 0.45 }
+-- the list's strips: bronze for units, indigo for tactics, green for traps
+-- (like the cards)
+local ROW_BG = { unit = { 0.30, 0.21, 0.13, 0.95 }, tactic = { 0.20, 0.17, 0.38, 0.95 }, trap = { 0.12, 0.26, 0.15, 0.95 } }
 local MET_BG, UNMET_BG = { 0.10, 0.30, 0.10, 0.9 }, { 0.42, 0.19, 0.05, 0.9 }
 local TICK = { "Interface\\RaidFrame\\ReadyCheck-Ready", "Interface\\Buttons\\UI-CheckBox-Check" }
 local CROSS = { "Interface\\RaidFrame\\ReadyCheck-NotReady", "Interface\\Buttons\\UI-GroupLoot-Pass-Up" }
@@ -63,7 +65,7 @@ local FILTERS = {
   { key = "cost", label = L["Cost"], width = 66, choices = {
     { "all", L["any"] }, { 1, "1" }, { 2, "2" }, { 3, "3" }, { 4, "4" }, { 5, "5" }, { 6, "6" } } },
   { key = "kind", label = L["Type"], width = 104, choices = {
-    { "all", L["any"] }, { "unit", L["units"] }, { "tactic", L["tactics"] }, { "item", L["items"] } } },
+    { "all", L["any"] }, { "unit", L["units"] }, { "tactic", L["tactics"] }, { "item", L["items"] }, { "trap", L["traps"] } } },
   { key = "tribe", label = L["Tribe"], width = 116, choices = TRIBE_CHOICES },
 }
 local FILTER_GAP = 3
@@ -87,6 +89,7 @@ local function passes(c)
   if kind == "unit" and c.type ~= "unit" then return false end
   if kind == "tactic" and not (c.type == "tactic" and not c.item) then return false end
   if kind == "item" and not c.item then return false end
+  if kind == "trap" and c.type ~= "trap" then return false end
   local tribe = chosen("tribe")
   if tribe ~= "all" and c.tribe ~= tribe then return false end
   return true
@@ -130,6 +133,7 @@ function B.TopRow() return topRow end
 -- What the deck panel says (for the tests).
 function B.DeckView()
   return { count = ctl.deckCount:GetText(), units = ctl.stats.unit:GetText(), tactics = ctl.stats.tactic:GetText(),
+    traps = ctl.stats.trap:IsShown() and ctl.stats.trap:GetText() or nil,
     note = ctl.deckNote.text:GetText(), rows = (function()
       local n = 0
       for _, r in ipairs(deckRows) do if r:IsShown() then n = n + 1 end end
@@ -220,6 +224,87 @@ function B.SelectDeck(i)
   C.SelectDeck(ns.db, i)
   UI.Sound("tab")
   B.Refresh()
+end
+
+-- ---------------------------------------------------------------------------
+-- Deck codes (Net.DeckCode): the deck in use as text to copy, or a code
+-- pasted in to load. Loading puts in the copies you own and lists the rest
+-- with what crafting them costs; a deck that comes out short says why, here
+-- and in the deck panel.
+-- ---------------------------------------------------------------------------
+function B.DeckCode() return ns.Net.DeckCode(ns.db.deck) end
+
+function B.LoadCode(code)
+  local list, why = ns.Net.ReadDeckCode(code)
+  if not list then
+    UI.Error(why == "version" and L["That deck code is from another version of Tradewinds: its cards don't match this one's."]
+      or L["That isn't a Tradewinds deck code. They start with TW1:"])
+    return false
+  end
+  local deck, missing = C.FromList(ns.db, list)
+  C.SetDeck(ns.db, deck)
+  local slot = ns.db.deckSlot
+  if #missing == 0 then
+    ns.Print(L["Deck %d loaded from the code."], slot)
+  else
+    local n = 0
+    for _, m in ipairs(missing) do n = n + m.n end
+    ns.Print(L["Deck %d loaded from the code, without %s you don't have:"], slot, Plural(n, "%d card", "%d cards"):format(n))
+    for _, m in ipairs(missing) do
+      local cost = C.CraftCost(m.id)
+      ns.Print("  %s%s: %s", m.n > 1 and (m.n .. "x ") or "", UI.CardName(m.id),
+        Plural(cost, "%d shard to craft", "%d shards to craft"):format(cost) .. (m.n > 1 and (" " .. L["(each)"]) or ""))
+    end
+  end
+  local ok, short = C.CheckDeck(ns.db)
+  if not ok then ns.Print(L["Not ready to play yet: %s"], short) end
+  UI.Sound("place")
+  B.Refresh()
+  return true, missing
+end
+
+if StaticPopupDialogs then
+  local function box(popup) return popup.editBox or popup.EditBox end
+  StaticPopupDialogs.TRADEWINDS_DECKCODE = {
+    text = L["Deck %d as a code: copy it (Ctrl+C) to share it.\nTo load a deck, paste its code here and click Load. It replaces this deck."],
+    button1 = L["Load"],
+    button2 = CLOSE or L["Close"],
+    hasEditBox = true,
+    editBoxWidth = 340,
+    maxLetters = 80,
+    OnShow = function(self)
+      local eb = box(self)
+      if eb then
+        eb:SetText(B.DeckCode() or "")
+        eb:HighlightText()
+        eb:SetFocus()
+      end
+    end,
+    OnAccept = function(self)
+      local eb = box(self)
+      local text = eb and eb:GetText() or ""
+      if text ~= (B.DeckCode() or "") then B.LoadCode(text) end
+    end,
+    EditBoxOnEnterPressed = function(self)
+      local popup = self:GetParent()
+      local text = self:GetText() or ""
+      if text ~= (B.DeckCode() or "") then B.LoadCode(text) end
+      popup:Hide()
+    end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+  }
+end
+
+function B.ShowCode()
+  if StaticPopup_Show and StaticPopupDialogs and StaticPopupDialogs.TRADEWINDS_DECKCODE then
+    StaticPopup_Show("TRADEWINDS_DECKCODE", ns.db.deckSlot)
+  else
+    ns.Print("%s", B.DeckCode() or "")
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -321,37 +406,49 @@ function B.Refresh()
     b:SetEnabled(i ~= ns.db.deckSlot)
   end
 
-  -- units, tactics, average cost; the bars of the chart
-  local units, tactics, spent = {}, {}, 0
+  -- units, tactics (items among them), traps, average cost; the bars of the
+  -- chart
+  local units, tactics, traps, spent = {}, {}, {}, 0
   for _, id in ipairs(ns.db.deck) do
     local c = Cards.byId[id]
-    local t = c.type == "unit" and units or tactics
+    local t = c.type == "unit" and units or c.type == "trap" and traps or tactics
     t[c.cost] = (t[c.cost] or 0) + 1
     spent = spent + c.cost
   end
-  local nu, nt, most = 0, 0, 4
+  local nu, nt, nx, most = 0, 0, 0, 4
   for cost = 1, 6 do
-    nu, nt = nu + (units[cost] or 0), nt + (tactics[cost] or 0)
-    most = math.max(most, (units[cost] or 0) + (tactics[cost] or 0))
+    nu, nt, nx = nu + (units[cost] or 0), nt + (tactics[cost] or 0), nx + (traps[cost] or 0)
+    most = math.max(most, (units[cost] or 0) + (tactics[cost] or 0) + (traps[cost] or 0))
   end
   ctl.stats.unit:SetText(ns.Plural(nu, "%d unit", "%d units"):format(nu))
   ctl.stats.tactic:SetText(ns.Plural(nt, "%d tactic", "%d tactics"):format(nt))
-  UI.FitText(ctl.avg, n > 0 and L["Avg. cost %s"]:format(("%.1f"):format(spent / n)) or "", 8)
+  -- the trap count only takes room when there are traps (the average cost
+  -- squeezes up to make it)
+  ctl.stats.trap:SetText(ns.Plural(nx, "%d trap", "%d traps"):format(nx))
+  ctl.stats.trap:SetShown(nx > 0)
+  ctl.stats.trapSwatch:SetShown(nx > 0)
+  ctl.avg:SetWidth(nx > 0 and 44 or 76)
+  UI.FitText(ctl.avg, n > 0 and L["Avg. cost %s"]:format(("%.1f"):format(spent / n)) or "", 6)
   local per = CHART_H / most
   for cost, bar in ipairs(ctl.bars) do
-    local u, t = units[cost] or 0, tactics[cost] or 0
+    local u, t, x = units[cost] or 0, tactics[cost] or 0, traps[cost] or 0
     bar.unit:SetHeight(math.max(1, u * per))
     bar.unit:SetShown(u > 0)
     bar.tactic:ClearAllPoints()
     bar.tactic:SetPoint("BOTTOMLEFT", page, "TOPLEFT", bar.x, CHART_BASE + u * per)
     bar.tactic:SetHeight(math.max(1, t * per))
     bar.tactic:SetShown(t > 0)
+    bar.trap:ClearAllPoints()
+    bar.trap:SetPoint("BOTTOMLEFT", page, "TOPLEFT", bar.x, CHART_BASE + (u + t) * per)
+    bar.trap:SetHeight(math.max(1, x * per))
+    bar.trap:SetShown(x > 0)
+    local all = u + t + x
     bar.cap:ClearAllPoints()
-    bar.cap:SetPoint("TOPLEFT", page, "TOPLEFT", bar.x, CHART_BASE + (u + t) * per)
-    bar.cap:SetShown(u + t > 0)
+    bar.cap:SetPoint("TOPLEFT", page, "TOPLEFT", bar.x, CHART_BASE + all * per)
+    bar.cap:SetShown(all > 0)
     bar.count:ClearAllPoints()
-    bar.count:SetPoint("BOTTOM", page, "TOPLEFT", bar.cx, CHART_BASE + (u + t) * per + 2)
-    bar.count:SetText(u + t > 0 and (u + t) or "")
+    bar.count:SetPoint("BOTTOM", page, "TOPLEFT", bar.cx, CHART_BASE + all * per + 2)
+    bar.count:SetText(all > 0 and all or "")
     bar.min:Hide()
   end
 
@@ -549,6 +646,10 @@ function B.Build(parent)
     UI.SimpleTooltip(b, L["Deck %d"]:format(i), L["Switch to this deck. Each of your decks is saved."])
     ctl.slots[i] = b
   end
+  ctl.code = UI.Button(deckPanel, L["Code"], 46, 20, function() B.ShowCode() end)
+  ctl.code:SetPoint("TOPRIGHT", page, "TOPRIGHT", -8 - C.DECK_SLOTS * 26, -3)
+  UI.SimpleTooltip(ctl.code, L["Deck code"], L["Copy this deck as a line of text to share it, or paste a code to load someone else's deck."],
+    L["Cards you don't have are listed with what crafting them costs."])
   -- fills up to the deck's 20 cards
   local fill = CreateFrame("StatusBar", nil, deckPanel, UI.TEMPLATE)
   fill:SetPoint("TOPLEFT", page, "TOPLEFT", DECK_X, -27)
@@ -561,16 +662,17 @@ function B.Build(parent)
 
   -- units, tactics (a swatch in their chart colour) and the average cost
   ctl.stats = {}
-  for i, kind in ipairs({ "unit", "tactic" }) do
-    local col = kind == "unit" and UNIT_COL or TACTIC_COL
+  for i, kind in ipairs({ "unit", "tactic", "trap" }) do
+    local col = kind == "unit" and UNIT_COL or kind == "trap" and TRAP_COL or TACTIC_COL
     local sw = deckPanel:CreateTexture(nil, "ARTWORK")
     sw:SetColorTexture(col[1], col[2], col[3])
     sw:SetSize(9, 9)
-    sw:SetPoint("TOPLEFT", page, "TOPLEFT", DECK_X + 1 + (i - 1) * 70, STATS_Y - 2)
+    sw:SetPoint("TOPLEFT", page, "TOPLEFT", DECK_X + 1 + (i - 1) * 62, STATS_Y - 2)
     local fs = UI.Text(deckPanel, 10)
     fs:SetPoint("LEFT", sw, "RIGHT", 4, 0)
     fs:SetTextColor(0.9, 0.9, 0.9)
     ctl.stats[kind] = fs
+    if kind == "trap" then ctl.stats.trapSwatch = sw end
   end
   ctl.avg = UI.Text(deckPanel, 10)
   ctl.avg:SetPoint("TOPRIGHT", page, "TOPRIGHT", -6, STATS_Y)
@@ -620,6 +722,9 @@ function B.Build(parent)
     bar.tactic = deckPanel:CreateTexture(nil, "ARTWORK")
     bar.tactic:SetColorTexture(TACTIC_COL[1], TACTIC_COL[2], TACTIC_COL[3])
     bar.tactic:SetWidth(bw)
+    bar.trap = deckPanel:CreateTexture(nil, "ARTWORK")
+    bar.trap:SetColorTexture(TRAP_COL[1], TRAP_COL[2], TRAP_COL[3])
+    bar.trap:SetWidth(bw)
     bar.cap = deckPanel:CreateTexture(nil, "ARTWORK", nil, 1)   -- a light edge on top
     bar.cap:SetColorTexture(1, 1, 1, 0.45)
     bar.cap:SetSize(bw, 2)

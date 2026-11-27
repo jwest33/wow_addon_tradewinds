@@ -9,8 +9,9 @@ end
 
 -- load the engine files listed in the .toc (everything that isn't UI/Core)
 local ns = {}
-local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/CardsTribes.lua"] = true, ["Engine/AI.lua"] = true,
-  ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Collection.lua"] = true }
+local ENGINE = { ["Locales/Locale.lua"] = true, ["Engine/Rules.lua"] = true, ["Engine/Cards.lua"] = true, ["Engine/CardsRoads.lua"] = true, ["Engine/CardsTribes.lua"] = true, ["Engine/CardsTraps.lua"] = true, ["Engine/AI.lua"] = true,
+  ["Data/Opponents.lua"] = true, ["Data/Tutorial.lua"] = true, ["Data/CardText.lua"] = true, ["Data/Achievements.lua"] = true,
+  ["Collection.lua"] = true }
 for line in io.lines(ROOT .. "/Tradewinds.toc") do
   local file = line:match("^%s*([^#].-%.lua)%s*$")
   if file then
@@ -62,6 +63,8 @@ do
     check(type(c.icon) == "table" and #c.icon >= 1, c.id .. " icon")
     if c.type == "unit" then
       check(type(c.atk) == "number" and type(c.hp) == "number" and c.hp > 0, c.id .. " stats")
+    elseif c.type == "trap" then
+      check(type(c.spring) == "function" and not c.play and not c.target and not c.tribe, c.id .. " trap: springs, no target, no tribe")
     else
       check(c.type == "tactic" and type(c.play) == "function", c.id .. " tactic play")
       check(c.target == "enemy" or c.target == "friend" or c.target == "none", c.id .. " target")
@@ -829,7 +832,7 @@ do
       check(c.type == "tactic" and c.play, c.id .. ": an item is a tactic")
     end
   end
-  check(items == 12 and Cards.byId.potion.item and Cards.byId.bandage.item, "12 items, Healing Potion and Bandage among them")
+  check(items == 18 and Cards.byId.potion.item and Cards.byId.bandage.item, "18 items, Healing Potion and Bandage among them")
 
   -- Humanoids are new, and nothing counted them before
   local st = blank()
@@ -994,6 +997,248 @@ do
   check(st.players[1].morale == R.MAX_MORALE, "and no more than the most")
 end
 
+-- 2d. traps (rules version 5): every row of SETS_PLAN.md 4.2, the cards, and
+-- what R.Redact hides ---------------------------------------------------------------
+do
+  local function trapAt(st, p, l)
+    local t = R.TrapAt(st, p, l)
+    return t and t.id
+  end
+  local function arrive(st, p, lane, id)
+    local u = R.Summon(st, p, lane, id)
+    Cards.byId[id].arrive(st, u)
+    R.Cleanup(st)
+    return u
+  end
+  local function cast(st, p, id, lane)
+    Cards.byId[id].play(st, p, lane)
+    R.Cleanup(st)
+  end
+  check(R.RULES_VERSION == 5, "traps are rules version 5")
+
+  -- setting one: a lane of your own, like a unit
+  local st = blank()
+  st.players[1].hand = { "immolation", "grunt" }
+  check(not R.CheckPlan(st, 1, { { h = 1 } }), "a trap needs a lane")
+  check(not R.CheckPlan(st, 1, { { h = 1, lane = 2 }, { h = 2, lane = 2 } }), "a trap and a unit can't share a lane")
+  put(st, 1, 3, "kobold")
+  check(not R.CheckPlan(st, 1, { { h = 1, lane = 3 } }), "nor go where a unit stands")
+  check(R.CheckPlan(st, 1, { { h = 1, lane = 2 } }), "an empty lane is fine")
+  st.events = {}
+  R.Resolve(st, { { { h = 1, lane = 2 } }, {} }, { noAdvance = true })
+  check(trapAt(st, 1, 2) == "immolation" and #st.players[1].hand == 1, "the trap is set face down, out of the hand")
+  local te = eventsOf(st, "trap")[1]
+  check(te and te.p == 1 and te.lane == 2 and te.id == "immolation", "the replay hears of it")
+  check(#R.Units(st, 1) == 1 and R.TrapCount(st, 1) == 1, "a trap isn't a unit")
+  st.players[1].hand = { "grunt", "landmine", "might" }
+  check(not R.CheckPlan(st, 1, { { h = 1, lane = 2 } }), "a unit can't go in a trapped lane")
+  check(not R.CheckPlan(st, 1, { { h = 2, lane = 2 } }), "nor a second trap")
+  check(not R.CheckPlan(st, 1, { { h = 3, lane = 2 } }), "and a tactic for your unit can't target a trap")
+  check(R.Summon(st, 1, 2, "runt") == nil and not st.players[1].board[2], "a summon skips a trapped lane")
+  local beside = blank()
+  R.SetTrap(beside, 1, 1, "snaketrap")
+  arrive(beside, 1, 2, "tamer")
+  local hound = beside.players[1].board[3]
+  check(hound and hound.id == "hound" and R.TrapAt(beside, 1, 1), "a summon 'beside' looks past your trap to the other side")
+  local lanes = R.EmptyLanes(st, 1)
+  check(#lanes == 2 and lanes[1] == 1 and lanes[2] == 4, "so do your empty lanes")
+
+  -- an enemy unit already across: it springs in this round's combat
+  st = blank()
+  st.events = {}
+  local g = put(st, 2, 2, "grunt")   -- 3/4
+  R.SetTrap(st, 1, 2, "immolation")
+  combatOnly(st)
+  check(st.players[1].morale == M, "the strike into the trap doesn't reach Morale")
+  check(g.hp == 1 and not R.TrapAt(st, 1, 2), "immolation trap: 3 damage to the attacker, and it's gone")
+  check(st.players[1].grave[#st.players[1].grave] == "immolation", "a sprung trap goes to the grave")
+  local s = eventsOf(st, "spring")[1]
+  check(s and s.p == 1 and s.lane == 2 and s.id == "immolation" and s.ap == 2 and s.al == 2 and s.aid == "grunt",
+    "the spring event says whose trap, and who sprang it")
+  local k = eventsOf(st, "strike")[1]
+  check(k and k.via == "trap" and k.tp == 1 and k.tl == 2 and k.p == 2, "the strike goes into the trap")
+  combatOnly(st)
+  check(st.players[1].morale == M - 3, "once sprung, the lane is open again")
+
+  -- Ranged shoots over it; frozen and 0 attack don't strike at all
+  st = blank()
+  put(st, 2, 2, "axe")
+  R.SetTrap(st, 1, 2, "landmine")
+  combatOnly(st)
+  check(trapAt(st, 1, 2) == "landmine" and st.players[1].morale == M - 2, "Ranged never springs a trap")
+  st = blank()
+  put(st, 2, 2, "grunt").frozen = true
+  put(st, 2, 3, "sheep")
+  R.SetTrap(st, 1, 2, "immolation")
+  R.SetTrap(st, 1, 3, "landmine")
+  combatOnly(st)
+  check(R.TrapAt(st, 1, 2) and R.TrapAt(st, 1, 3), "a frozen unit and one with no attack don't strike, so nothing springs")
+
+  -- Pierce, Drain, Cleave, Guard, Stealth
+  st = blank()
+  put(st, 2, 2, "gryphon")   -- 3/3 Swift Pierce
+  R.SetTrap(st, 1, 2, "snaketrap")
+  combatOnly(st)
+  check(st.players[1].morale == M and not R.TrapAt(st, 1, 2), "Pierce: nothing carries on past a trap")
+  st = blank()
+  st.players[2].morale = 5
+  put(st, 2, 2, "bat")       -- 2/2 Drain
+  R.SetTrap(st, 1, 2, "freezingtrap")
+  combatOnly(st)
+  check(st.players[2].morale == 5, "Drain restores nothing from a trap")
+  st = blank()
+  put(st, 2, 2, "ogre")      -- 4/5 Cleave
+  local left, right = put(st, 1, 1, "bear"), put(st, 1, 3, "bear")
+  R.SetTrap(st, 1, 2, "snaketrap")
+  combatOnly(st)
+  check(not R.TrapAt(st, 1, 2) and left.hp == 2 and right.hp == 2 and st.players[1].morale == M,
+    "Cleave: the main strike springs the trap, the cleave hits still land")
+  st = blank()
+  put(st, 2, 2, "grunt")
+  local guard = put(st, 1, 1, "bear")
+  R.SetTrap(st, 1, 2, "snaketrap")
+  combatOnly(st)
+  check(guard.hp == 6 and not R.TrapAt(st, 1, 2), "a Guard next door doesn't step in: the trap comes first")
+  st = blank()
+  local fp = put(st, 2, 2, "footpad")
+  R.SetTrap(st, 1, 2, "snaketrap")
+  combatOnly(st)
+  check(not fp.kw.stealth, "a Stealth unit that springs a trap loses Stealth, as with any strike")
+
+  -- an enemy tactic aimed at the lane: it's empty as far as tactics go
+  st = blank()
+  R.SetTrap(st, 2, 2, "immolation")
+  st.players[1].hand = { "fireball" }
+  R.Resolve(st, { { { h = 1, lane = 2 } }, {} }, { noAdvance = true })
+  check(st.players[2].morale == M - 2 and R.TrapAt(st, 2, 2), "Fireball at a trapped lane hits Morale; the trap isn't touched")
+
+  -- a unit a trap brings in arrives at the end of combat
+  st = blank()
+  put(st, 2, 2, "raptor")    -- 3/2 Swift: springs it in the first step
+  R.SetTrap(st, 1, 2, "defiasambush")
+  combatOnly(st)
+  local amb = st.players[1].board[2]
+  check(amb and amb.id == "ambusher" and amb.hp == 3 and amb.atk == 3, "defias ambush: a 3/3 Ambusher appears in the lane")
+  check(not st.players[2].board[2], "and the attacker takes 3 damage")
+  check(st.players[2].morale == M, "the Ambusher doesn't strike in the round it appears")
+
+  -- several at once; the tiebreak; the deck curve
+  st = blank()
+  st.players[1].hand = { "snaketrap", "immolation", "landmine" }
+  local three = { { h = 1, lane = 1 }, { h = 2, lane = 2 }, { h = 3, lane = 4 } }
+  check(R.CheckPlan(st, 1, three), "several traps at once, one per lane")
+  R.Resolve(st, { three, {} }, { noAdvance = true })
+  check(R.TrapCount(st, 1) == 3, "all three set")
+  st = blank()
+  st.round = R.MAX_ROUNDS
+  put(st, 1, 1, "sheep")
+  for l = 2, 4 do R.SetTrap(st, 2, l, "snaketrap") end
+  combatOnly(st)
+  check(st.winner == 1 and st.tiebreak, "traps don't count as units for the tiebreak")
+  local counts = C.CurveCounts({ "snaketrap", "snaketrap", "immolation" })
+  check(counts[1] == 0 and counts[2] == 1, "the deck curve counts a trap by its cost, never as a unit")
+
+  -- the other traps
+  st = blank()
+  put(st, 2, 1, "grunt")
+  R.SetTrap(st, 1, 1, "snaketrap")
+  combatOnly(st)
+  local viper = st.players[1].board[1]
+  check(viper and viper.id == "viper" and viper.kw.venom and Cards.byId.viper.tribe == "beast", "snake trap: a 1/1 Viper with Venom")
+  st = blank()
+  local zombie = put(st, 2, 1, "zombie")
+  local grunt = put(st, 2, 3, "grunt")
+  R.SetTrap(st, 1, 1, "consecrate")
+  R.SetTrap(st, 1, 3, "consecrate")
+  combatOnly(st)
+  check(not st.players[2].board[1] and grunt.hp == 2, "consecrated ground: destroys Undead, 2 damage to anything else")
+  st = blank()
+  local frozenNext = put(st, 2, 2, "grunt")
+  R.SetTrap(st, 1, 2, "freezingtrap")
+  R.Resolve(st, { {}, {} })
+  check(frozenNext.frozen and st.players[1].morale == M, "freezing trap: the attacker is frozen next round as well")
+  R.Resolve(st, { {}, {} })
+  check(not frozenNext.frozen and st.players[1].morale == M, "it doesn't strike that round")
+  R.Resolve(st, { {}, {} })
+  check(st.players[1].morale == M - 3, "and strikes again the round after")
+  st = blank()
+  put(st, 2, 2, "grunt")
+  put(st, 1, 1, "kobold")
+  R.SetTrap(st, 1, 2, "shallowgrave")
+  combatOnly(st)
+  local b2, b3 = st.players[1].board[2], st.players[1].board[3]
+  check(b2 and b2.id == "bones" and b3 and b3.id == "bones", "shallow grave: a Skeleton in its lane and one in an empty lane beside it")
+  st = blank()
+  local mid = put(st, 2, 2, "bear")
+  local l1, l3 = put(st, 2, 1, "grunt"), put(st, 2, 3, "grunt")
+  R.SetTrap(st, 1, 2, "explosivetrap")
+  combatOnly(st)
+  check(mid.hp == 3 and l1.hp == 2 and l3.hp == 2, "explosive trap: 3 damage to the attacker, 2 to the units beside it")
+  st = blank()
+  local big = put(st, 2, 2, "bear")
+  R.SetTrap(st, 1, 2, "landmine")
+  combatOnly(st)
+  check(big.hp == 2, "goblin land mine: 4 damage")
+
+  -- the Defias who work with traps
+  st = blank()
+  local before = #st.players[1].hand
+  arrive(st, 1, 1, "trapper")
+  check(#st.players[1].hand == before, "defias trapper: no trap set, no card")
+  R.SetTrap(st, 1, 4, "snaketrap")
+  arrive(st, 1, 2, "trapper")
+  check(#st.players[1].hand == before + 1, "defias trapper: draws with a trap set")
+  arrive(st, 1, 3, "watchman")
+  check(st.players[2].morale == M - 1, "defias watchman: the enemy loses 1 Morale with a trap set")
+  st = blank()
+  arrive(st, 1, 1, "watchman")
+  check(st.players[2].morale == M, "and nothing without one")
+  local sab = arrive(st, 1, 2, "saboteur")
+  local set = 0
+  for l = 1, 4 do if trapAt(st, 1, l) == "snaketrap" then set = set + 1 end end
+  check(set == 1 and not R.TrapAt(st, 1, 1) and not R.TrapAt(st, 1, 2), "defias saboteur: a Snake Trap in one of your empty lanes")
+  st = blank()
+  for l = 1, 3 do put(st, 1, l, "kobold") end
+  arrive(st, 1, 4, "saboteur")
+  check(R.TrapCount(st, 1) == 0, "and none with no empty lane left")
+
+  -- the items that came with traps
+  st = blank()
+  local x1, x2, x3 = put(st, 2, 1, "grunt"), put(st, 2, 2, "grunt"), put(st, 2, 3, "grunt")
+  cast(st, 1, "sappercharge", 2)
+  check(x2.hp == 2 and x1.hp == 3 and x3.hp == 3, "goblin sapper charge: 2 damage, 1 to those beside")
+  local undead = put(st, 2, 4, "footsoldier")
+  cast(st, 1, "holywater", 4)
+  cast(st, 1, "holywater", 1)
+  check(undead.hp == 0 and x1.hp == 1, "stratholme holy water: 4 to Undead, 2 otherwise")
+  local mine = put(st, 1, 1, "kobold")
+  local inHand = #st.players[1].hand
+  cast(st, 1, "rocketboots", 1)
+  check(mine.kw.swift and #st.players[1].hand == inHand + 1, "goblin rocket boots: Swift, and a card")
+  cast(st, 1, "commission", 1)
+  check(mine.kw.sturdy and mine.atk == 2 and mine.hp == 3, "argent dawn commission: +1/+1 and Sturdy")
+  st.players[1].morale = 5
+  cast(st, 1, "flask", 1)
+  check(mine.atk == 3 and mine.hp == 8 and st.players[1].morale == 8, "flask of the titans: +1/+5 and 3 Morale")
+  cast(st, 1, "ironfoe", 1)
+  check(mine.kw.pierce and mine.atk == 6 and mine.hp == 11, "ironfoe: +3/+3 and Pierce")
+
+  -- what each side may know
+  st = blank()
+  R.SetTrap(st, 2, 3, "immolation")
+  R.SetTrap(st, 1, 1, "snaketrap")
+  local v = R.Redact(st, 1)
+  check(not R.TrapAt(v, 2, 3) and R.TrapCount(v, 2) == 1, "redacted: their trap is gone, its count kept")
+  check(R.TrapAt(v, 1, 1) and R.TrapAt(st, 2, 3), "your own traps stay, and the game itself is untouched")
+  local w = R.Redact(st, 2)
+  check(not R.TrapAt(w, 1, 1) and R.TrapAt(w, 2, 3), "and the other way round")
+  local a = blank()
+  local b = R.Clone(a)
+  R.SetTrap(a, 1, 1, "snaketrap")
+  R.SetTrap(b, 1, 2, "snaketrap")
+  check(R.Checksum(a) ~= R.Checksum(b), "the checksum knows where a trap is")
+end
+
 -- 3. determinism ------------------------------------------------------------------
 local function serialize(v, out)
   out = out or {}
@@ -1033,6 +1278,52 @@ local function lcg(seed)
     s = (s * 48271) % 2147483647
     return (s % n) + 1
   end
+end
+
+-- 2e. the computer plans the same with or without a trap of yours on the
+-- board, at every level: it knows the count, not the lane
+do
+  local rnd = lcg(404)
+  local same, tried = 0, 0
+  for gNo = 1, 24 do
+    local d1, d2 = randomDeck(rnd), randomDeck(rnd)
+    local game = R.NewGame({ seed = gNo * 101, decks = { d1, d2 } })
+    for _ = 1, 3 do
+      if not game.winner then
+        R.Resolve(game, { AI.ChoosePlan(game, 1, "normal", lcg(gNo)), AI.ChoosePlan(game, 2, "normal", lcg(gNo + 7)) })
+      end
+    end
+    local free = not game.winner and R.EmptyLanes(game, 1) or {}
+    if #free > 0 then
+      local with, without = R.Clone(game), R.Clone(game)
+      local lane = free[1]
+      for l = 1, R.LANES do
+        -- under one of their units if there is one: where it would spring
+        if game.players[2].board[l] and not game.players[1].board[l] and not R.TrapAt(game, 1, l) then lane = l end
+      end
+      R.SetTrap(with, 1, lane, "landmine")
+      without.uid = with.uid
+      without.players[1].hiddenTraps = 1   -- the count is public either way
+      for _, lv in ipairs({ "normal", "hard", "heroic" }) do
+        tried = tried + 1
+        local pa = AI.ChoosePlan(with, 2, lv, lcg(gNo * 3))
+        local pb = AI.ChoosePlan(without, 2, lv, lcg(gNo * 3))
+        if AI.PlanKey(pa) == AI.PlanKey(pb) then same = same + 1 end
+      end
+    end
+  end
+  check(tried > 30 and same == tried, ("the computer can't see where your trap is (%d of %d choices the same)"):format(same, tried))
+end
+
+-- A random deck with `n` traps in it.
+local TRAPS = {}
+for _, c in ipairs(Cards.collectible) do
+  if c.type == "trap" then TRAPS[#TRAPS + 1] = c.id end
+end
+local function trapDeck(rnd, n)
+  local d = randomDeck(rnd)
+  for i = 1, n do d[i] = TRAPS[rnd(#TRAPS)] end
+  return d
 end
 
 local function playGame(seed, levels, decks, styles)
@@ -1082,6 +1373,27 @@ do
   end
   check(drift == 0, ("mirrored copies of a game stay identical round by round (%d drifted)"):format(drift))
   check(mirrored == games, "and agree on the winner")
+  -- the same with decks full of traps, which also shows the computer sets
+  -- them and they spring
+  local trapDrift, set, sprung = 0, 0, 0
+  for g = 1, 20 do
+    local d1, d2 = trapDeck(rnd, 6), trapDeck(rnd, 6)
+    local host = R.NewGame({ seed = g * 104729, decks = { d1, d2 }, seats = { 1, 2 } })
+    local guest = R.NewGame({ seed = g * 104729, decks = { d2, d1 }, seats = { 2, 1 } })
+    while not host.winner do
+      if R.Checksum(host) ~= R.Checksum(guest) then trapDrift = trapDrift + 1; break end
+      local mine = AI.ChoosePlan(host, 1, "normal", rnd)
+      local theirs = AI.ChoosePlan(guest, 1, "normal", rnd)
+      host.events = {}
+      R.Resolve(host, { mine, theirs })
+      R.Resolve(guest, { theirs, mine })
+      set = set + #eventsOf(host, "trap")
+      sprung = sprung + #eventsOf(host, "spring")
+    end
+    if R.Checksum(host) ~= R.Checksum(guest) then trapDrift = trapDrift + 1 end
+  end
+  check(trapDrift == 0, ("mirrored games with traps stay identical (%d drifted)"):format(trapDrift))
+  check(set > 20 and sprung > 5, ("the computer sets traps and they spring (%d set, %d sprung in 20 games)"):format(set, sprung))
   local a = R.NewGame({ seed = 5, decks = { C.STARTER, C.STARTER } })
   local b = R.Clone(a)
   check(R.Checksum(a) == R.Checksum(b), "a checksum is the same for the same game")
@@ -1749,6 +2061,150 @@ do
   local found = false
   for _, x in ipairs(list) do if x.milestone == "stars:dorn" then found = true end end
   check(found and r.specialPacks == 1, "the third star's game pays the Windfall pack, and lists it with the rewards")
+end
+
+-- 7c. achievements and lifetime counters ------------------------------------------------
+do
+  -- the list
+  local ids, groups, ok = {}, {}, true
+  local POINTS = { [5] = true, [10] = true, [20] = true, [25] = true, [50] = true }
+  for _, g in ipairs(ns.ACH_GROUPS) do groups[g.key] = 0 end
+  local fresh = {}
+  C.Init(fresh)
+  for _, a in ipairs(ns.Achievements) do
+    if ids[a.id] or not groups[a.group] or not POINTS[a.points] or type(a.name) ~= "string" or type(a.text) ~= "string"
+        or type(a.icon) ~= "table" or type(a.progress) ~= "function" then
+      ok = false
+      print("bad achievement: " .. tostring(a.id))
+    end
+    ids[a.id] = true
+    groups[a.group] = (groups[a.group] or 0) + 1
+    local good, have, goal = pcall(a.progress, fresh)
+    if not (good and type(have) == "number" and type(goal) == "number" and goal >= 1 and have < goal) then
+      ok = false
+      print("achievement progress on a new character: " .. a.id .. " " .. tostring(have))
+    end
+  end
+  check(ok, "achievements: unique ids, known groups, points 5-50, text, and none earned by a new character")
+  local most = 0
+  for _, n in pairs(groups) do most = math.max(most, n) end
+  check(#ns.Achievements >= 40 and most <= 11, ("about 40 achievements (%d), at most 11 in a group (the Records tab's rows)"):format(#ns.Achievements))
+  check(ns.AchievementById.tutorial and ns.AchievementById.tutorial.index == 1, "achievements by id")
+
+  -- a new character: nothing quiet, nothing earned
+  local db = {}
+  C.Init(db)
+  check(type(db.life) == "table" and type(db.ach) == "table" and next(db.ach) == nil and not db.progress.achQuiet,
+    "a new character starts with empty counters and no achievements")
+  local new, quiet = C.CheckAchievements(db, "2026-11-24")
+  check(#new == 0 and not quiet, "and has none to earn")
+
+  -- the lifetime counters
+  local events = {
+    { t = "morale", p = 2, delta = -3 }, { t = "morale", p = 1, delta = -2 }, { t = "morale", p = 2, delta = 1 },
+    { t = "die", p = 2 }, { t = "die", p = 1 }, { t = "tactic", p = 1 }, { t = "tactic", p = 2 },
+    { t = "place", p = 1, unit = { id = "wolf" } }, { t = "place", p = 1, unit = { id = "runt" }, summon = true },
+  }
+  C.TaskEvents(db, "2026-11-24", events, 1)
+  C.TaskEvents(db, "2026-11-24", events, 1)
+  check(C.Life(db, "rounds") == 2 and C.Life(db, "morale") == 6 and C.Life(db, "kills") == 2 and C.Life(db, "tactics") == 2
+    and C.Life(db, "units") == 2, "each round adds Morale dealt, units destroyed, tactics and units played (yours only)")
+  -- traps: set, sprung, the unit that sprang one dying, theirs sprung by you
+  C.TaskEvents(db, "2026-11-24", {
+    { t = "trap", p = 1, lane = 2, id = "immolation" }, { t = "trap", p = 2, lane = 3, id = "snaketrap" },
+    { t = "spring", p = 1, lane = 2, id = "immolation", ap = 2, al = 2, aid = "grunt" },
+    { t = "spring", p = 1, lane = 4, id = "landmine", ap = 2, al = 4, aid = "kobold" },
+    { t = "spring", p = 2, lane = 3, id = "snaketrap", ap = 1, al = 3, aid = "wolf" },
+    { t = "die", p = 2, lane = 4, id = "kobold" }, { t = "die", p = 1, lane = 3, id = "wolf" },
+  }, 1)
+  check(C.Life(db, "trapsSet") == 1 and C.Life(db, "trapsSprung") == 2 and C.Life(db, "trapKills") == 1
+    and C.Life(db, "sprungOn") == 1 and C.Life(db, "trapDouble") == 1,
+    "a round with traps: set, sprung (two at once), one that sprang one died, and one of theirs sprung")
+  check(C.Life(db, "kills") == 3, "the unit a trap killed counts as destroyed too")
+  -- the traps' gift
+  local g = {}
+  C.Init(g)
+  check(not g.progress.trapGift and C.Owned(g, "defiasambush") == 0, "a new character's gift waits for the login")
+  local given = C.TrapGift(g)
+  check(given and #given == 2 and C.Owned(g, "defiasambush") == 1 and C.Owned(g, "immolation") == 1 and g.progress.trapGift,
+    "the gift: a Defias Ambush and an Immolation Trap")
+  check(C.TrapGift(g) == nil and C.Owned(g, "immolation") == 1, "once")
+  local rnd = lcg(77)
+  db.packs, db.specialPacks = 2, 1
+  C.OpenPack(db, rnd)
+  C.OpenPack(db, rnd, "special")
+  check(C.Life(db, "packs") == 1 and C.Life(db, "special") == 1, "packs opened, by kind")
+  C.AddTravel(db, 90)
+  C.FlightPath(db)
+  check(C.Life(db, "travel") == 90 and C.Life(db, "flightPaths") == 1, "travel seconds and flight paths")
+  db.shards = 100
+  local craftable
+  for _, c in ipairs(Cards.collectible) do
+    if c.rarity == "common" and not c.signature and C.Owned(db, c.id) == 0 then craftable = c.id; break end
+  end
+  check(C.Craft(db, craftable) and C.Life(db, "crafted") == 1, "cards crafted")
+  C.ApplyTrade(db, {}, { { id = "wolf" } })
+  check(C.Life(db, "trades") == 1, "trades")
+  local _, task = C.Daily(db, "2026-11-25")
+  C.TaskAdvance(db, "2026-11-25", task.id, task.goal)
+  check(C.Life(db, "dailies") == 1, "daily tasks finished")
+
+  -- the odd wins
+  local function win(info) return C.RecordResult(db, "dorn", "win", "2026-11-24", info) end
+  win({ morale = 1, low = 1, taken = 11, round = 8 })
+  check(C.Life(db, "close") == 1 and C.Life(db, "comeback") == 1 and C.Life(db, "flawless") == 0 and C.Life(db, "quick") == 0,
+    "a win on 1 Morale after falling to 1: close, and a comeback")
+  win({ morale = 12, low = 12, taken = 0, round = 5, tiebreak = true })
+  check(C.Life(db, "flawless") == 1 and C.Life(db, "quick") == 1 and C.Life(db, "tiebreak") == 1 and C.Life(db, "comeback") == 1,
+    "untouched, by round 5, on the tiebreak")
+  C.RecordResult(db, "dorn", "loss", "2026-11-24", { morale = 0, low = 0, taken = 12, round = 4 })
+  check(C.Life(db, "comeback") == 1 and C.Life(db, "close") == 1, "a loss counts no odd win")
+  C.RecordPvP(db, "Bob", "win", "2026-11-24", { theyConceded = true, round = 2, morale = 12, taken = 0 })
+  check(C.Life(db, "pvp") == 1 and C.Life(db, "flawless") == 1, "games against players count; a conceded one is no odd win")
+  C.RecordPvP(db, "Bob", "loss", "2026-11-24", { conceded = true, round = 2 })
+  check(C.Life(db, "pvp") == 2, "a game you conceded counts as finished")
+
+  -- earning them
+  local packs, special, shards = db.packs, db.specialPacks, db.shards
+  new, quiet = C.CheckAchievements(db, "2026-11-24")
+  local got = {}
+  for _, a in ipairs(new) do got[a.id] = true end
+  check(got.firstwin and got.close and got.comeback and got.flawless and got.tiebreak and got.quick and got.pvp1 and got.pvpwin
+    and got.trade1 and got.craft and got.windfall and got.flightpath and not got.circuit and not quiet,
+    "the achievements reached are earned")
+  check(db.ach.close == "2026-11-24", "with the date")
+  check(db.packs == packs and db.specialPacks == special and db.shards == shards, "achievements pay points only")
+  check(#C.CheckAchievements(db, "2026-11-25") == 0, "each once")
+  local pts, all, n, total = C.AchPoints(db)
+  check(n == #new and total == #ns.Achievements and pts > 0 and all > pts, ("points: %d of %d"):format(pts, all))
+  local have, goal = C.AchProgress(db, ns.AchievementById.morale100)
+  check(have == 6 and goal == 100, "progress toward a counter")
+  db.life.morale = 5000
+  have, goal = C.AchProgress(db, ns.AchievementById.morale100)
+  check(have == 100, "progress stops at the goal")
+
+  -- a character from before achievements: what it already has comes quietly
+  local old = { collection = { wolf = 2 }, stats = { wins = 120, losses = 3, draws = 1 }, settings = {} }
+  C.Init(old)
+  check(old.progress.achQuiet, "an existing character is marked for a quiet first check")
+  new, quiet = C.CheckAchievements(old, "2026-11-24")
+  got = {}
+  for _, a in ipairs(new) do got[a.id] = true end
+  check(quiet and got.wins100 and got.draw and got.matches50, "its achievements are granted quietly, once")
+  local again, quiet2 = C.CheckAchievements(old, "2026-11-24")
+  check(#again == 0 and not quiet2 and not old.progress.achQuiet, "after that, it's like anyone else")
+  C.Init(old)
+  check(not old.progress.achQuiet, "a later login doesn't make it quiet again")
+
+  -- a deck from a list of cards (deck codes)
+  local d = {}
+  C.Init(d)
+  d.collection = { wolf = 2, boar = 1, hogger = 1 }
+  local deck, missing = C.FromList(d, { "wolf", "wolf", "wolf", "boar", "boar", "hogger", "ragnaros", "nosuchcard" })
+  check(#deck == 4 and deck[1] == "wolf" and deck[2] == "wolf" and deck[3] == "boar" and deck[4] == "hogger",
+    "a list loads the copies you own, in order, up to the copy limit")
+  check(#missing == 2 and missing[1].id == "boar" and missing[1].n == 1 and missing[2].id == "ragnaros" and missing[2].n == 1,
+    "and lists the ones you lack (a third wolf is past the limit, an unknown card is skipped)")
 end
 
 -- 8. the pace of the collection -------------------------------------------------------

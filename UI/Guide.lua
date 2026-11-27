@@ -42,13 +42,13 @@ local ROUND = table.concat({
   "",
   L["|cffffffff1. Start.|r Both players draw a card and get their Supply. Round start effects happen."],
   "",
-  L["|cffffffff2. Plan.|r Click a card in your hand, then where it goes (or drag it there). A unit goes in one of your empty lanes. A tactic targets an enemy lane, one of your units, or nothing. Right-click a planned card to take it back. Lock In when you're ready."],
+  L["|cffffffff2. Plan.|r Click a card in your hand, then where it goes (or drag it there). A unit or a trap goes in one of your empty lanes. A tactic targets an enemy lane, one of your units, or nothing. Right-click a planned card to take it back. Lock In when you're ready."],
   "",
-  L["|cffffffff3. Reveal.|r Both plans are shown. All the new units arrive in their lanes, then their Arrive effects happen."],
+  L["|cffffffff3. Reveal.|r Both plans are shown. All the new units arrive in their lanes and traps are set face down, then the Arrive effects happen."],
   "",
   L["|cffffffff4. Tactics.|r Each tactic goes off, the player with |cffffffffinitiative|r first (initiative swaps every round). Because tactics come after the units arrive, a tactic aimed at an empty enemy lane hits whatever was just played there."],
   "",
-  L["|cffffffff5. Combat.|r Swift units strike first, all at once. Then every other unit strikes, all at once. After each of those two steps, units with no health left die and their Fallen effects happen."],
+  L["|cffffffff5. Combat.|r Swift units strike first, all at once. Then every other unit strikes, all at once. A strike into an empty lane with a trap in it springs the trap. After each of those two steps, units with no health left die and their Fallen effects happen."],
   "",
   L["|cffffffff6. End.|r Regenerate units heal, and effects that last \"this round\" wear off. If either player's Morale is 0 or less, or it was round 8, the game is over."],
   "",
@@ -69,6 +69,7 @@ local CARD_TEXT = table.concat({
   L["|cffffffffTactic: your unit|r  pick one of your units, or a lane you're playing a unit into this round."],
   L["|cffffffffTactic|r  no target needed."],
   L["|cffffffffItems|r (potions, bombs, weapons) are tactics too and play the same way, with a leather frame and \"Item\" on the type line. Gear stays on the unit, like Shield Wall."],
+  L["|cffffffffTraps|r have a green frame and go face down in your own empty lanes. The Traps page explains them."],
   "",
   heading(L["Tribes"]),
   L["Every unit belongs to a tribe: Beasts, Humanoids, Murlocs, Undead, Defias or Dragonkin. Some cards get stronger with others of their tribe beside them or in play. A card's tribe is on the line under its name."],
@@ -77,6 +78,21 @@ local CARD_TEXT = table.concat({
   "",
   heading(L["Summoned units"]),
   L["Some cards bring extra units onto the board, like Hogger's Riverpaw Runts. They aren't part of any deck."],
+}, "\n")
+
+local TRAPS = table.concat({
+  heading(L["Traps"]),
+  L["A trap is a card you set face down in one of your empty lanes, as you would play a unit there. Your opponent sees that you have a trap set (a count by your Morale), but not which one or where."],
+  "",
+  L["It springs when an enemy unit strikes into that lane: the strike stops there and never reaches your Morale, the trap turns face up and does what it says, and then it's gone."],
+  "",
+  heading(L["Good to know"]),
+  L["Set one across from a unit that's hitting your Morale and it springs this round."],
+  L["Ranged units shoot over traps. A frozen unit, or one with no attack, doesn't strike, so it springs nothing."],
+  L["Pierce doesn't carry on past a trap, and Drain gets nothing from it. Cleave still hits the units beside it."],
+  L["A trap comes before a Guard next door. Tactics treat a trapped lane as empty: Fireball hits Morale and leaves the trap alone."],
+  L["Your units can't go in a lane with your trap, and summoned units skip it, which can give it away: a Hogger beside it leaves that lane empty. A unit a trap brings in arrives after combat, so it doesn't strike that round."],
+  L["Traps aren't units, so they don't count for the tiebreak. Any still face down when the game ends are shown on the end screen."],
 }, "\n")
 
 local function winningText()
@@ -108,6 +124,7 @@ local SECTIONS = {
   { key = "kw1", label = L["Keywords"] },
   { key = "kw2", label = L["More keywords"] },
   { key = "cards", label = L["Card text"] },
+  { key = "traps", label = L["Traps"] },
   { key = "winning", label = L["Winning"] },
 }
 
@@ -228,6 +245,15 @@ function Gd.Build(parent)
   keywordPage(sections.kw1, 1, 6)
   keywordPage(sections.kw2, 7, #R.KEYWORDS)
   textBlock(sections.cards, CARD_TEXT, CW)
+  local traps = textBlock(sections.traps, TRAPS, 330)
+  local td = diagram(sections.traps, "trap", 256, 128)
+  td:SetPoint("TOPLEFT", traps, "TOPLEFT", 344, -14)
+  local tcap = UI.Text(sections.traps, 11)
+  tcap:SetPoint("TOPLEFT", td, "BOTTOMLEFT", 0, -6)
+  tcap:SetWidth(256)
+  tcap:SetJustifyH("LEFT")
+  tcap:SetTextColor(0.7, 0.7, 0.7)
+  tcap:SetText(L["Their unit strikes into your empty lane, where your trap waits: the strike stops there, and the trap springs."])
   textBlock(sections.winning, winningText(), CW)
 
   tutorialButton = UI.Button(page, L["Play the tutorial"], 150, 26, function() UI.Game.StartTutorial() end)

@@ -32,10 +32,11 @@ local function perOther(tribe)
   return function(st, u) return #others(st, u, tribe) end
 end
 
--- A token in the first empty lane next to u.
+-- A token in the first empty lane next to u (a lane with u's owner's trap in
+-- it isn't empty).
 local function summonBeside(st, u, id)
   for _, l in ipairs(neighbours(u.lane)) do
-    if not st.players[u.owner].board[l] then return R.Summon(st, u.owner, l, id) end
+    if not st.players[u.owner].board[l] and not R.TrapAt(st, u.owner, l) then return R.Summon(st, u.owner, l, id) end
   end
 end
 Cards.Others, Cards.PerOther, Cards.SummonBeside = others, perOther, summonBeside

@@ -25,9 +25,23 @@ author's WoW Forever card game), "Stowaway" and "FlightDeck" are taken on
 CurseForge. No addon called Tradewinds turned up. CurseForge will tell you
 when you create the project if the slug is free after all.
 
-Screenshots to upload: the board in the middle of a round, the Cards tab with
-a deck built, a pack being opened, and the tutorial coach. Take them after
-the rename, so the window's title says Tradewinds.
+## Shot list
+
+Put the GIF first in the description, then the screenshots in this order,
+each with its caption.
+
+| # | Shot | Caption |
+|---|---|---|
+| GIF | Lock In, "3, 2, 1, Reveal!", the whole combat of a busy round (8-12 s) | Plan in secret, reveal at once |
+| 1 | The board mid-planning on a flight, lane markers and forecast showing | Eight rounds, four lanes, one flight |
+| 2 | A pack with a holographic or epic card just turned over | Packs for the miles you travel |
+| 3 | Hovering a tribe card so its kin light up on the board | Six tribes that fight better together |
+| 4 | The Cards tab with a deck built and a tribe filtered | 168 cards to collect |
+| 5 | The tavern circuit with some stars earned | Eight opponents, three stars each |
+| 6 | The tutorial coach pointing at a lane | Dorn teaches you in four rounds |
+| 7 | "Your games" with several games against players | Play friends at your own pace |
+| 8 | The trade panel with cards on both sides | Trade with friends |
+| 9 | The Guide tab on a keyword diagram | Every rule, with diagrams |
 
 ## Description
 
@@ -35,10 +49,19 @@ Paste this into the description editor (it takes Markdown).
 
 ---
 
-**A Warcraft card game for the long trip.** Flights, boats and zeppelins
-give you time to kill. Tradewinds turns it into a quick, tactical card game
-you can play without leaving your seat, and it pays you card packs for the
-miles you travel.
+**Your flight is six minutes. A game is eight rounds.**
+
+Tradewinds is a Warcraft card game made for flights, boats and zeppelins.
+Both players plan at the same time, so nobody waits on a turn, and the
+miles you travel pay you in card packs.
+
+### What's different
+
+- **No turns to wait on.** Both sides plan in secret and reveal at once.
+- **Fits the trip.** Eight rounds at most, saved after every round.
+- **Earned, never bought.** Packs come from travelling and playing.
+- **Play friends at your own pace**: up to eight games going at once.
+- **Trade cards** with friends and guildmates.
 
 ### How a game goes
 
@@ -53,17 +76,21 @@ miles you travel.
 
 ### What's in it
 
-- **97 cards** in two sets, with keywords like Guard, Swift, Ranged, Pierce,
-  Venom and Drain, and five tribes: Beasts, Murlocs, Undead, Defias and
-  Dragonkin.
+- **168 cards** in three sets, with keywords like Guard, Swift, Ranged,
+  Pierce, Venom and Drain, and six tribes that reward being played
+  together: Beasts, Humanoids, Murlocs, Undead, Defias and Dragonkin.
+- **Items**: potions, bombs and gear, from Iron Grenade to Thunderfury.
 - **A tutorial** with Flightmaster Dorn that teaches you the game in four
   rounds.
 - **A circuit of eight opponents** with their own decks and personalities,
   each with stars to earn, signature cards to win, and heroic rematches once
   you beat them all.
-- **Card packs** for every 20 minutes of travel, your first win of the day
-  and every tenth level. Wins, new flight paths and spare copies give shards
-  for crafting the cards you want.
+- **Card packs** for every 20 minutes of travel and your first win of the
+  day. Wins, new flight paths and spare copies give shards for crafting the
+  cards you want.
+- **Windfall packs**: five cards, one always rare or better, for every 45
+  minutes of travel and for milestones such as finishing the tutorial,
+  every tenth level and collecting a whole tribe.
 - **Rare holographic cards**: they play the same, they just shine.
 - **Games against friends and guildmates**, several at once, played whenever
   you're both online. Plans are sent quietly over addon whispers.
